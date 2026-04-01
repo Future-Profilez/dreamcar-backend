@@ -1,36 +1,49 @@
 {
-  "name": "podcast-backend",
+  "name": "dream-car-backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "\"# dream-car-backend\"",
+  "main": "src/index.js",
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "build": "prisma generate",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Future-Profilez/sagun-setu-backend.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Future-Profilez/sagun-setu-backend/issues"
+  },
+  "homepage": "https://github.com/Future-Profilez/sagun-setu-backend#readme",
   "dependencies": {
-    "@prisma/client": "^6.14.0",
+    "@prisma/adapter-pg": "^7.6.0",
+    "@prisma/client": "^7.6.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.30.1",
     "multer": "^2.0.1",
     "node-cron": "^4.2.1",
     "nodemailer": "^6.10.1",
-    "nodemon": "^3.1.7",
+    "mongoose": "^9.3.3",
+    "nodemon": "^3.1.14",
+    "pg": "^8.20.0",
     "uuid": "^11.1.0",
     "winston": "^3.17.0"
   },
   "devDependencies": {
-    "prisma": "^6.14.0"
+    "prisma": "^7.6.0"
   }
 }
