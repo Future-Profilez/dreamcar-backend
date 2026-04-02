@@ -12,16 +12,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Future-Profilez/sagun-setu-backend.git"
+    "url": "git+https://github.com/Future-Profilez/dreamcar-backend.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/Future-Profilez/sagun-setu-backend/issues"
-  },
-  "homepage": "https://github.com/Future-Profilez/sagun-setu-backend#readme",
+  "homepage": "https://github.com/Future-Profilez/dreamcar-backend#readme",
   "dependencies": {
     "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.6.0",
