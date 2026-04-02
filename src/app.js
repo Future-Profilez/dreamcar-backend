@@ -21,6 +21,8 @@ app.use(express.urlencoded({ extended: true, limit: "2000mb" }));
 
 const PORT = process.env.REACT_APP_SERVER_DOMAIN || 5000;
 
+app.use("/api", require("./routes/userRoutes"));
+
 app.get("/", (req, res) => {
   res.json({
     msg: "Hello World",
