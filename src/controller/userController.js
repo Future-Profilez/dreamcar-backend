@@ -1,8 +1,4 @@
-const {
-  errorResponse,
-  successResponse,
-  validationErrorResponse,
-} = require("../utils/ErrorHandling");
+const { errorResponse, successResponse, validationErrorResponse, } = require("../utils/ErrorHandling");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const catchAsync = require("../utils/catchAsync");
@@ -73,6 +69,37 @@ exports.login = catchAsync(async (req, res) => {
     });
   } catch (error) {
     console.log("Login error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.GetUser = catchAsync(async (req, res) => {
+  try {
+    const id = req.user.id;
+
+    if (!id) {
+      Loggers.error("Invalid User");
+      return errorResponse(res, "Invalid User", 401);
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      }
+    });
+    if (!user) {
+      Loggers.error("Invalid User");
+      return errorResponse(res, "Invalid User", 401);
+    }
+    return successResponse(res, "User Get successfully!", 201, {
+      user,
+    });
+  } catch (error) {
+    console.log(error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
