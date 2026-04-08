@@ -14,3 +14,22 @@ model User {
   role     String  @default("user")
   created_at DateTime  @default(now())
 }
+
+model Competition {
+  id                  Int       @id @default(autoincrement())
+  title               String
+  images              String[]
+  detail              String
+  detailImage         String
+  ticketPrice         Int
+  totalTickets        Int
+  soldTickets         Int       @default(0)
+  startTime           DateTime
+  endTime             DateTime
+  prizeDetail         String
+  prizeDetailImage    String
+  prizeFeatures       String
+  rules               String
+  rulesImage          String
+  createdAt           DateTime  @default(now())
+}
