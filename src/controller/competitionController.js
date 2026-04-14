@@ -7,24 +7,27 @@ exports.addCompetition = catchAsync(async (req, res) => {
     const {
       title,
       detail,
+      productType,
       ticketPrice,
       totalTickets,
       startTime,
       endTime,
       prizeDetail,
       prizeFeatures,
-      rules,
+      // rules,
     } = req.body;
 
     if (
       !title ||
       !detail ||
+      // !productType ||
       !ticketPrice ||
       !totalTickets ||
       !startTime ||
       !endTime ||
-      !prizeDetail ||
-      !rules
+      !prizeDetail 
+      // ||
+      // !rules
     ) {
       return errorResponse(res, "All required fields must be provided", 400);
     }
@@ -33,9 +36,9 @@ exports.addCompetition = catchAsync(async (req, res) => {
 
     // ✅ Mandatory image validation
     if (
-      !files.detailImage ||
+      // !files.detailImage ||
       !files.prizeDetailImage ||
-      !files.rulesImage ||
+      // !files.rulesImage ||
       !files.images ||
       files.images.length === 0
     ) {
@@ -47,12 +50,12 @@ exports.addCompetition = catchAsync(async (req, res) => {
     }
 
     // ✅ Base URL
-    const baseUrl = process.env.domain ||  "http://localhost:8080";
+    const baseUrl = process.env.domain || "http://localhost:8080";
 
     // ✅ Add prefix while saving
-    const detailImage = `${baseUrl}/uploads/${files.detailImage[0].filename}`;
+    // const detailImage = `${baseUrl}/uploads/${files.detailImage[0].filename}`;
     const prizeDetailImage = `${baseUrl}/uploads/${files.prizeDetailImage[0].filename}`;
-    const rulesImage = `${baseUrl}/uploads/${files.rulesImage[0].filename}`;
+    // const rulesImage = `${baseUrl}/uploads/${files.rulesImage[0].filename}`;
 
     const images = files.images.map(
       (file) => `${baseUrl}/public/${file.filename}`
@@ -66,16 +69,17 @@ exports.addCompetition = catchAsync(async (req, res) => {
       data: {
         title,
         detail,
-        detailImage,
+        // detailImage,
+        productType,
         ticketPrice: parseInt(ticketPrice),
         totalTickets: parseInt(totalTickets),
         startTime: new Date(startTime),
         endTime: new Date(endTime),
         prizeDetail,
         prizeDetailImage,
-        prizeFeatures,
-        rules,
-        rulesImage,
+        prizeFeatures: prizeFeatures ? JSON.parse(prizeFeatures) : [],
+        // rules,
+        // rulesImage,
         images,
       },
     });

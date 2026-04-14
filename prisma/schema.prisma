@@ -7,29 +7,39 @@ datasource db {
 }
 
 model User {
-  id       Int    @id @default(autoincrement())
-  name     String
-  email    String @unique
-  password String
-  role     String  @default("user")
-  created_at DateTime  @default(now())
+  id                  Int    @id @default(autoincrement())
+  name                String
+  email               String @unique
+  password            String
+  role                String  @default("user")
+  createdAt           DateTime?   @default(now()) @db.Timestamp(0)
+  updatedAt           DateTime? @db.Timestamp(0)
+  deletedAt           DateTime? @db.Timestamp(0)
 }
 
 model Competition {
-  id                  Int       @id @default(autoincrement())
+  id                  Int         @id @default(autoincrement())
   title               String
   images              String[]
   detail              String
-  detailImage         String
+  productType         productTypeEnum   @default(car_bike)
   ticketPrice         Int
   totalTickets        Int
-  soldTickets         Int       @default(0)
+  soldTickets         Int         @default(0)
   startTime           DateTime
   endTime             DateTime
   prizeDetail         String
   prizeDetailImage    String
-  prizeFeatures       String
-  rules               String
-  rulesImage          String
-  createdAt           DateTime  @default(now())
+  prizeFeatures       String[]
+  
+  status              Int         @default(1)
+  createdAt           DateTime?   @default(now()) @db.Timestamp(0)
+  updatedAt           DateTime?   @db.Timestamp(0)
+  deletedAt           DateTime?   @db.Timestamp(0)
+}
+
+enum productTypeEnum {
+  car_bike
+  tech_luxury
+  cash
 }
