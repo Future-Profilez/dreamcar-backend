@@ -1,4 +1,4 @@
-const { addCompetition, getAllCompetitions } = require("../controller/competitionController");
+const { addCompetition, getAllCompetitions, updateCompetition } = require("../controller/competitionController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
