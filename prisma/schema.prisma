@@ -6,6 +6,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum productTypeEnum {
+  car_bike
+  tech_luxury
+  cash
+}
+
 model User {
   id                  Int    @id @default(autoincrement())
   name                String
@@ -31,6 +37,11 @@ model Competition {
   prizeDetail         String
   prizeDetailImage    String
   prizeFeatures       String[]
+
+  instantWinEnabled          Boolean @default(false)
+  instantWinTriggerPercent   Int?
+  instantWins         InstantWin[]
+  questions           ComplianceQuestion[]
   
   status              Int         @default(1)
   createdAt           DateTime?   @default(now()) @db.Timestamp(0)
@@ -38,8 +49,41 @@ model Competition {
   deletedAt           DateTime?   @db.Timestamp(0)
 }
 
-enum productTypeEnum {
-  car_bike
-  tech_luxury
-  cash
+model ComplianceQuestion {
+  id            String   @id @default(uuid())
+  competitionId Int
+  question      String
+  competition Competition @relation(fields: [competitionId], references: [id])
+  options     ComplianceOption[]
+  answers     ComplianceAnswer[]
+}
+
+//Prize is stored here
+model InstantWinPrize {
+  id            String  @id @default(uuid())
+  competitionId Int
+  title         String   // "iPhone 15"
+  image         String?
+  quantity      Int      // 5
+
+  competition Competition @relation(fields: [competitionId], references: [id])
+  wins        InstantWin[]
+}
+
+//Prize winner is stored here
+model InstantWin {
+  id            String   @id @default(uuid())
+  competitionId Int
+  prizeId       String
+  ticketNumber  Int
+
+  isClaimed     Boolean @default(false)
+  claimedById   Int?
+  claimedAt     DateTime?
+
+  competition Competition     @relation(fields: [competitionId], references: [id])
+  prize       InstantWinPrize @relation(fields: [prizeId], references: [id])
+  claimedBy   User?           @relation(fields: [claimedById], references: [id])
+
+  @@unique([competitionId, ticketNumber])
 }
