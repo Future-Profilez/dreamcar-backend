@@ -1,4 +1,4 @@
-const { addCompetition, getAllCompetitions } = require("../controller/competitionController");
+const { addCompetition, getAllCompetitions, competitionDetail } = require("../controller/competitionController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
@@ -13,6 +13,13 @@ router.post("/competition/create",
     { name: "images", maxCount: 10 }, // ✅ include here
   ]), addCompetition);
 
-router.get("/competition/get", verifyToken, getAllCompetitions);
+router.get("/competition/get", 
+  // verifyToken, 
+  getAllCompetitions);
+
+router.get("/competition/:id",
+  // verifyToken,
+  competitionDetail
+)
 
 module.exports = router;

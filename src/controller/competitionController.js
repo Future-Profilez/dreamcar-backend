@@ -25,7 +25,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
       !totalTickets ||
       !startTime ||
       !endTime ||
-      !prizeDetail 
+      !prizeDetail
       // ||
       // !rules
     ) {
@@ -125,3 +125,33 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
     );
   }
 });
+
+exports.competitionDetail = catchAsync(async (req, res) => {
+  try {
+    const id = parseInt(req.params.id); 
+
+    const data = await prisma.competition.findUnique({
+      where: { id },
+    });
+
+    if (!data) {
+      return errorResponse(res, "Competition not found", 404);
+    }
+
+    return successResponse(
+      res,
+      "Competition fetched successfully",
+      200,
+      data
+    );
+  } catch (error) {
+    console.log("Get Competition detail Error:", error);
+    return errorResponse(
+      res,
+      error.message || "Internal Server Error",
+      500
+    );
+  }
+});
+
+
