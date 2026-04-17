@@ -1,11 +1,11 @@
-const { addCompetition, getAllCompetitions, updateCompetition } = require("../controller/competitionController");
+const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail } = require("../controller/competitionController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
 const router = require("express").Router();
 
 router.post("/competition/create", 
-    // verifyToken,
+    verifyToken,
   upload.fields([
     // { name: "detailImage", maxCount: 1 },
     { name: "prizeDetailImage", maxCount: 1 },
@@ -13,6 +13,14 @@ router.post("/competition/create",
     { name: "images", maxCount: 10 }, // ✅ include here
   ]), addCompetition);
 
+router.get("/competition/get", 
+  // verifyToken, 
+  getAllCompetitions);
+
+router.get("/competition/:id",
+  // verifyToken,
+  competitionDetail
+)
 router.post("/competition/update/:id",
   verifyToken,
   upload.fields([
@@ -21,7 +29,5 @@ router.post("/competition/update/:id",
     { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 },
   ]), updateCompetition);
-
-router.get("/competition/get", verifyToken, getAllCompetitions);
 
 module.exports = router;
