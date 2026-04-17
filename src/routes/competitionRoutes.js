@@ -5,7 +5,7 @@ const upload = require("../utils/uploader");
 const router = require("express").Router();
 
 router.post("/competition/create", 
-    // verifyToken,
+    verifyToken,
   upload.fields([
     // { name: "detailImage", maxCount: 1 },
     { name: "prizeDetailImage", maxCount: 1 },

@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const catchAsync = require("../utils/catchAsync");
 const prisma = require("../prismaconfig");
+const { options } = require("../routes/userRoutes");
 
 exports.signup = catchAsync(async (req, res) => {
   try {
@@ -31,7 +32,7 @@ exports.signup = catchAsync(async (req, res) => {
   }
 });
 
-exports.login = catchAsync(async (req, res) => {
+exports.login = (options = {}) => catchAsync(async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -47,6 +48,9 @@ exports.login = catchAsync(async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return errorResponse(res, "Invalid credentials", 401);
+    }
+    if (options.adminOnly && user.role !== "admin") {
+      return errorResponse(res, "Admin access only", 403);
     }
     const token = jwt.sign(
       {
