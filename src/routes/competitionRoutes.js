@@ -1,4 +1,4 @@
-const { addCompetition, getAllCompetitions, competitionDetail } = require("../controller/competitionController");
+const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail } = require("../controller/competitionController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
@@ -21,5 +21,13 @@ router.get("/competition/:id",
   // verifyToken,
   competitionDetail
 )
+router.post("/competition/update/:id",
+  verifyToken,
+  upload.fields([
+    { name: "detailImage", maxCount: 1 },
+    { name: "prizeDetailImage", maxCount: 1 },
+    { name: "rulesImage", maxCount: 1 },
+    { name: "images", maxCount: 10 },
+  ]), updateCompetition);
 
 module.exports = router;
