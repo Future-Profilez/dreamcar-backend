@@ -77,10 +77,11 @@ if (!global._prisma) {
       });
     }
 
-    const adapter = new PrismaPg(global._prismaPool);
+    // Bypass adapter entirely on Neon if pg driver timeouts persist
+    // const adapter = new PrismaPg(global._prismaPool);
 
     global._prisma = new PrismaClient({
-      adapter,
+      datasourceUrl: process.env.DATABASE_URL,
       log: [
         { emit: "event", level: "warn" },
         { emit: "event", level: "error" },
