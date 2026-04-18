@@ -1,4 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
+const { PrismaPg } = require("@prisma/adapter-pg");
+const { Pool } = require("pg");
 const Loggers = require("./utils/Logger");
 const { URL } = require("url");
 
@@ -52,7 +54,20 @@ const envSnapshot = () => {
 
 if (!global._prisma) {
   try {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      Loggers.error(`DATABASE_URL missing. Prisma env snapshot: ${JSON.stringify(envSnapshot())}`);
+      throw new Error("Missing DATABASE_URL");
+    }
+
+    if (!global._prismaPool) {
+      global._prismaPool = new Pool({ connectionString });
+    }
+
+    const adapter = new PrismaPg(global._prismaPool);
+
     global._prisma = new PrismaClient({
+      adapter,
       log: [
         { emit: "event", level: "warn" },
         { emit: "event", level: "error" },
