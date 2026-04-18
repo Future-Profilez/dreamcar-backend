@@ -9,6 +9,16 @@ const path = require("path");
 const fs = require("fs");
 const Loggers = require("./utils/Logger");
 
+const serializeError = (err) => {
+  if (!err) return "Unknown error";
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.stack || err.message;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+};
 
 var accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' })
 app.use(morgan('combined', { stream: accessLogStream }))
@@ -28,7 +38,22 @@ const PORT = process.env.PORT || process.env.REACT_APP_SERVER_DOMAIN || 8080;
 app.use("/api", require("./routes/userRoutes"));
 app.use("/api", require("./routes/competitionRoutes"));
 
-
+// Global Error Handler
+app.use((err, req, res, next) => {
+  const errDetails = {
+    message: err.message,
+    code: err.code,
+    meta: err.meta,
+    name: err.name
+  };
+  Loggers.error(`Global Error Handler: ${req.method} ${req.url} ${JSON.stringify(errDetails)}`);
+  console.error("Global Error Handler full stack:", err);
+  res.status(err.statusCode || 500).json({
+    status: false,
+    message: err.message || "Internal Server Error",
+    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+  });
+});
 
 let current_time = new Date();
 let readable = current_time.toLocaleString('en-IN', {
@@ -49,10 +74,11 @@ app.get("/", (req, res) => {
 
 const startDB = async () => {
   try {
+    // Attempt standard connection instead of queryRaw for adapter compatibility
     await prisma.$connect();
-    console.log("✅ DB connected successfully");
+    Loggers.info("DB connected successfully");
   } catch (error) {
-    console.error("❌ DB connection failed:", error);
+    Loggers.error(`DB connection failed: ${serializeError(error)}`);
     process.exit(1);
   }
 };
@@ -60,12 +86,13 @@ startDB();
 
 
 process.on("uncaughtException", (err) => {
-  Loggers.error("Uncaught Exception:", err);
+  Loggers.error(`Uncaught Exception: ${serializeError(err)}`);
 });
 
-process.on("unhandledRejection", (err) => {
-  logger.error("Unhandled Rejection:", err);
+process.on("unhandledRejection", (reason) => {
+  Loggers.error(`Unhandled Rejection: ${serializeError(reason)}`);
 });
 
-const server = app.listen(PORT, () => console.log("Server is running at port : " + PORT));
+Loggers.info(`Boot: node=${process.version} pid=${process.pid} cwd=${process.cwd()} env=${process.env.NODE_ENV || "unknown"} port=${PORT}`);
+const server = app.listen(PORT, () => Loggers.info(`Server listening at http://localhost:${PORT}`));
 server.timeout = 360000;

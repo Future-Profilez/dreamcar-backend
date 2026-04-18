@@ -21,13 +21,13 @@
   "homepage": "https://github.com/Future-Profilez/dreamcar-backend#readme",
   "dependencies": {
     "@prisma/adapter-pg": "^7.6.0",
-    "@prisma/client": "^7.6.0",
+    "@prisma/client": "^5.22.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
-    "dotenv": "^17.3.1",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.30.1",
@@ -42,6 +42,6 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
-    "prisma": "^7.6.0"
+    "prisma": "^5.22.0"
   }
 }

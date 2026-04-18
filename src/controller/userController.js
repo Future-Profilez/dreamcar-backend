@@ -3,7 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const catchAsync = require("../utils/catchAsync");
 const prisma = require("../prismaconfig");
-const { options } = require("../routes/userRoutes");
+const Loggers = require("../utils/Logger");
 
 exports.signup = catchAsync(async (req, res) => {
   try {
@@ -11,14 +11,14 @@ exports.signup = catchAsync(async (req, res) => {
     if (!name || !email || !password) {
       return errorResponse(res, "All fields are required", 400);
     }
-    const existingUser = await prisma.User.findUnique({
+    const existingUser = await prisma.user.findUnique({
       where: { email },
     });
     if (existingUser) {
       return errorResponse(res, "Email already registered", 400);
     }
     const hashedPassword = await bcrypt.hash(password, 12);
-    const user = await prisma.User.create({
+    const user = await prisma.user.create({
       data: {
         name,
         email,
@@ -27,22 +27,24 @@ exports.signup = catchAsync(async (req, res) => {
     });
     return successResponse(res, "Account created successfully!", 201);
   } catch (error) {
-    console.log("Signup error:", error);
+    Loggers.error(`Signup error: ${error?.stack || error?.message || String(error)}`);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
 
 exports.login = catchAsync(async (req, res) => {
-    console.log("req")
     const { email, password } = req.body;
     if (!email || !password) {
       return errorResponse(res, "All fields are required", 400);
     }
-    console.log("PRISMA ",await prisma);
-    const user = await prisma.User.findUnique({
+
+    Loggers.info("Login attempt");
+    const user = await prisma.user.findUnique({
       where: { email },
     });
-    console.log("USER ",user);
+    
+    Loggers.info(`Login user found: ${user ? "yes" : "no"}`);
+    
     if (!user) {
       return errorResponse(res, "User not found", 200);
     }
@@ -80,7 +82,7 @@ exports.GetUser = catchAsync(async (req, res) => {
       return errorResponse(res, "Invalid User", 401);
     }
 
-    const user = await prisma.User.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id },
       select: {
         id: true,
@@ -97,7 +99,7 @@ exports.GetUser = catchAsync(async (req, res) => {
       user,
     });
   } catch (error) {
-    console.log(error);
+    Loggers.error(`GetUser error: ${error?.stack || error?.message || String(error)}`);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
