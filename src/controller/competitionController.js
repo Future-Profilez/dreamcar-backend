@@ -29,12 +29,23 @@ exports.addCompetition = catchAsync(async (req, res) => {
       // ||
       // !rules
     ) {
-      return errorResponse(res, "All required fields must be provided", 400);
+      return errorResponse(res, "All required fields must be provided", 200);
     }
 
+    if (isNaN(ticketPrice) || Number(ticketPrice) <= 0) {
+      return errorResponse(res, "Invalid ticket price", 200);
+    }
+
+    if (isNaN(totalTickets) || Number(totalTickets) <= 0) {
+      return errorResponse(res, "Invalid total tickets", 200);
+    }
+
+    if (new Date(endTime) <= new Date(startTime)) {
+      return errorResponse(res, "End time must be after start time", 200);
+    }
     const files = req.files || {};
 
-    // ✅ Mandatory image validation
+   
     if (
       // !files.detailImage ||
       !files.prizeDetailImage ||
