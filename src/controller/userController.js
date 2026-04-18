@@ -41,6 +41,7 @@ exports.login = catchAsync(async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { email },
     });
+    console.log("USER ",user);
     if (!user) {
       return errorResponse(res, "User not found", 200);
     }
