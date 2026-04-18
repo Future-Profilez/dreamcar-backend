@@ -61,11 +61,15 @@ if (!global._prisma) {
     }
 
     if (!global._prismaPool) {
+      // Configure pool specifically for Neon / pgBouncer compatibility
       global._prismaPool = new Pool({
         connectionString,
         connectionTimeoutMillis: 10000,
         idleTimeoutMillis: 30000,
-        max: 10
+        max: 5, // Lower max connections for serverless
+        ssl: {
+          rejectUnauthorized: false // Required for Neon
+        }
       });
       global._prismaPool.on('error', (err) => {
         Loggers.error(`Unexpected pg pool error: ${err.message}`, err);
