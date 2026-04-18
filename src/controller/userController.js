@@ -32,26 +32,18 @@ exports.signup = catchAsync(async (req, res) => {
 });
 
 exports.login = catchAsync(async (req, res) => {
-    console.log("req")
     const { email, password } = req.body;
     if (!email || !password) {
       return errorResponse(res, "All fields are required", 400);
     }
+
     console.log("Login attempt for email:", email);
-    let user;
-    try {
-      user = await prisma.user.findUnique({
-        where: { email },
-      });
-    } catch (prismaError) {
-      console.error("Prisma Error during findUnique:", {
-        code: prismaError.code,
-        message: prismaError.message,
-        meta: prismaError.meta,
-      });
-      return errorResponse(res, "Database error during login", 500);
-    }
-    console.log("USER ",user);
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+    
+    console.log("USER found:", user ? "Yes" : "No");
+    
     if (!user) {
       return errorResponse(res, "User not found", 200);
     }
