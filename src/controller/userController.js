@@ -32,10 +32,9 @@ exports.signup = catchAsync(async (req, res) => {
   }
 });
 
-exports.login = (options = {}) => catchAsync(async (req, res) => {
-  try {
+exports.login = catchAsync(async (req, res) => {
+    console.log("req")
     const { email, password } = req.body;
-
     if (!email || !password) {
       return errorResponse(res, "All fields are required", 400);
     }
@@ -48,9 +47,6 @@ exports.login = (options = {}) => catchAsync(async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return errorResponse(res, "Invalid credentials", 401);
-    }
-    if (options.adminOnly && user.role !== "admin") {
-      return errorResponse(res, "Admin access only", 403);
     }
     const token = jwt.sign(
       {
@@ -71,10 +67,6 @@ exports.login = (options = {}) => catchAsync(async (req, res) => {
       },
       token,
     });
-  } catch (error) {
-    console.log("Login error:", error);
-    return errorResponse(res, error.message || "Internal Server Error", 500);
-  }
 });
 
 exports.GetUser = catchAsync(async (req, res) => {
