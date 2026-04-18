@@ -11,14 +11,14 @@ exports.signup = catchAsync(async (req, res) => {
     if (!name || !email || !password) {
       return errorResponse(res, "All fields are required", 400);
     }
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prisma.User.findUnique({
       where: { email },
     });
     if (existingUser) {
       return errorResponse(res, "Email already registered", 400);
     }
     const hashedPassword = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({
+    const user = await prisma.User.create({
       data: {
         name,
         email,
@@ -38,7 +38,8 @@ exports.login = catchAsync(async (req, res) => {
     if (!email || !password) {
       return errorResponse(res, "All fields are required", 400);
     }
-    const user = await prisma.user.findUnique({
+    console.log("PRISMA ",prisma);
+    const user = await prisma.User.findUnique({
       where: { email },
     });
     console.log("USER ",user);
@@ -79,7 +80,7 @@ exports.GetUser = catchAsync(async (req, res) => {
       return errorResponse(res, "Invalid User", 401);
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.User.findUnique({
       where: { id },
       select: {
         id: true,
