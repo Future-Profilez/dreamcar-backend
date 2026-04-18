@@ -61,7 +61,15 @@ if (!global._prisma) {
     }
 
     if (!global._prismaPool) {
-      global._prismaPool = new Pool({ connectionString });
+      global._prismaPool = new Pool({
+        connectionString,
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 30000,
+        max: 10
+      });
+      global._prismaPool.on('error', (err) => {
+        Loggers.error(`Unexpected pg pool error: ${err.message}`, err);
+      });
     }
 
     const adapter = new PrismaPg(global._prismaPool);

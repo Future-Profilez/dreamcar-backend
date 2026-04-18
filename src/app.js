@@ -74,7 +74,8 @@ app.get("/", (req, res) => {
 
 const startDB = async () => {
   try {
-    await prisma.$connect();
+    // Add a simple health check to ensure pg pool is actually connecting to Neon
+    await prisma.$queryRaw`SELECT 1`;
     Loggers.info("DB connected successfully");
   } catch (error) {
     Loggers.error(`DB connection failed: ${serializeError(error)}`);
