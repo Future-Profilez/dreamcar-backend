@@ -24,12 +24,30 @@ const PORT = process.env.PORT || process.env.REACT_APP_SERVER_DOMAIN || 8080;
 app.use("/api", require("./routes/userRoutes"));
 app.use("/api", require("./routes/competitionRoutes"));
 
+
+
+
+
+let current_time = new Date();
+let readable = current_time.toLocaleString('en-IN', {
+  weekday: 'long',
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: 'numeric'
+}); 
+
+
 app.get("/", (req, res) => {
   res.json({
-    msg: "Hello World",
-    status: 200,
+    msg: "Hello DreamCar",
+    status: 200, 
+    last_updated_at: readable,
   });
 });
+
+
 
 const startDB = async () => {
   try {
