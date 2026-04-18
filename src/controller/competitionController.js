@@ -65,7 +65,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
       return errorResponse(res, "End time must be after start time", 400);
     }
 
-    const competition = await prisma.Competition.create({
+    const competition = await prisma.competition.create({
       data: {
         title,
         detail,
@@ -102,7 +102,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
 
 exports.getAllCompetitions = catchAsync(async (req, res) => {
   try {
-    const competitions = await prisma.Competition.findMany({
+    const competitions = await prisma.competition.findMany({
       orderBy: {
         createdAt: "desc",
       },
@@ -130,7 +130,7 @@ exports.competitionDetail = catchAsync(async (req, res) => {
   try {
     const id = parseInt(req.params.id);
 
-    const data = await prisma.Competition.findUnique({
+    const data = await prisma.competition.findUnique({
       where: { id },
     });
 
@@ -162,7 +162,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
     }
 
     // ✅ Find existing competition
-    const existingCompetition = await prisma.Competition.findUnique({
+    const existingCompetition = await prisma.competition.findUnique({
       where: { id: parseInt(id) },
     });
 
@@ -235,7 +235,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       images,
     };
 
-    const updatedCompetition = await prisma.Competition.update({
+    const updatedCompetition = await prisma.competition.update({
       where: { id: parseInt(id) },
       data: updateData,
     });
