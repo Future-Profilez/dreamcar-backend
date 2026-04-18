@@ -61,15 +61,13 @@ exports.addCompetition = catchAsync(async (req, res) => {
     }
 
     // ✅ Base URL
-    const baseUrl = process.env.domain || "http://localhost:5003";
+    const baseUrl = process.env.DOMAIN || "http://localhost:8080";
 
     // ✅ Add prefix while saving
-    // const detailImage = `${baseUrl}/uploads/${files.detailImage[0].filename}`;
     const prizeDetailImage = `${baseUrl}/uploads/${files.prizeDetailImage[0].filename}`;
-    // const rulesImage = `${baseUrl}/uploads/${files.rulesImage[0].filename}`;
 
     const images = files.images.map(
-      (file) => `${baseUrl}/public/${file.filename}`
+      (file) => `${baseUrl}/uploads/${file.filename}`
     );
 
     if (new Date(endTime) <= new Date(startTime)) {
@@ -184,34 +182,35 @@ exports.updateCompetition = catchAsync(async (req, res) => {
     const {
       title,
       detail,
+      productType,
       ticketPrice,
       totalTickets,
       startTime,
       endTime,
       prizeDetail,
       prizeFeatures,
-      rules,
+      // rules,
     } = req.body;
 
     const files = req.files || {};
 
-    const baseUrl = process.env.domain || "http://localhost:5003";
+    const baseUrl = process.env.DOMAIN || "http://localhost:8080";
 
     // ✅ Handle optional image updates
-    let detailImage = existingCompetition.detailImage;
-    if (files.detailImage) {
-      detailImage = `${baseUrl}/uploads/${files.detailImage[0].filename}`;
-    }
+    // let detailImage = existingCompetition.detailImage;
+    // if (files.detailImage) {
+    //   detailImage = `${baseUrl}/public/uploads/${files.detailImage[0].filename}`;
+    // }
 
     let prizeDetailImage = existingCompetition.prizeDetailImage;
     if (files.prizeDetailImage) {
       prizeDetailImage = `${baseUrl}/uploads/${files.prizeDetailImage[0].filename}`;
     }
 
-    let rulesImage = existingCompetition.rulesImage;
-    if (files.rulesImage) {
-      rulesImage = `${baseUrl}/uploads/${files.rulesImage[0].filename}`;
-    }
+    // let rulesImage = existingCompetition.rulesImage;
+    // if (files.rulesImage) {
+    //   rulesImage = `${baseUrl}/uploads/${files.rulesImage[0].filename}`;
+    // }
 
     let images = existingCompetition.images;
     if (files.images && files.images.length > 0) {
@@ -231,18 +230,19 @@ exports.updateCompetition = catchAsync(async (req, res) => {
     const updateData = {
       ...(title && { title }),
       ...(detail && { detail }),
+      ...(productType && { productType }),
       ...(ticketPrice && { ticketPrice: parseInt(ticketPrice) }),
       ...(totalTickets && { totalTickets: parseInt(totalTickets) }),
       ...(startTime && { startTime: new Date(startTime) }),
       ...(endTime && { endTime: new Date(endTime) }),
       ...(prizeDetail && { prizeDetail }),
-      ...(prizeFeatures && { prizeFeatures }),
-      ...(rules && { rules }),
+      ...(prizeFeatures && { prizeFeatures: JSON.parse(prizeFeatures) }),
+      // ...(rules && { rules }),
 
       // images (always included because we fallback to existing)
-      detailImage,
+      // detailImage,
       prizeDetailImage,
-      rulesImage,
+      // rulesImage,
       images,
     };
 

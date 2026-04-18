@@ -34,7 +34,12 @@ app.use(cors(corsOptions));
 
 app.use(express.json({ limit: "2000mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2000mb" }));
-const PORT = process.env.PORT || process.env.REACT_APP_SERVER_DOMAIN || 5003;
+
+// Serve static files from the public directory
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+app.use('/public', express.static(path.join(__dirname, '../public')));
+
+const PORT = process.env.PORT || process.env.REACT_APP_SERVER_DOMAIN || 8080;
 app.use("/api", require("./routes/userRoutes"));
 app.use("/api", require("./routes/competitionRoutes"));
 
