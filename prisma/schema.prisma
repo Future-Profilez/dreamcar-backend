@@ -13,77 +13,98 @@ enum productTypeEnum {
 }
 
 model User {
-  id                  Int    @id @default(autoincrement())
-  name                String
-  email               String @unique
-  password            String
-  role                String  @default("user")
-  createdAt           DateTime?   @default(now()) @db.Timestamp(0)
-  updatedAt           DateTime? @db.Timestamp(0)
-  deletedAt           DateTime? @db.Timestamp(0)
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  password  String
+  role      String    @default("user")
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt DateTime? @db.Timestamp(0)
+  deletedAt DateTime? @db.Timestamp(0)
+
+  instantWins       InstantWin[]
+  complianceAnswers ComplianceAnswer[]
 }
 
 model Competition {
-  id                  Int         @id @default(autoincrement())
-  title               String
-  images              String[]
-  detail              String
-  productType         productTypeEnum   @default(car_bike)
-  ticketPrice         Int
-  totalTickets        Int
-  soldTickets         Int         @default(0)
-  startTime           DateTime
-  endTime             DateTime
-  prizeDetail         String
-  prizeDetailImage    String
-  prizeFeatures       String[]
+  id               Int             @id @default(autoincrement())
+  title            String
+  images           String[]
+  detail           String
+  productType      productTypeEnum @default(car_bike)
+  ticketPrice      Int
+  totalTickets     Int
+  soldTickets      Int             @default(0)
+  startTime        DateTime
+  endTime          DateTime
+  prizeDetail      String
+  prizeDetailImage String
+  prizeFeatures    String[]
 
-  instantWinEnabled          Boolean @default(false)
-  instantWinTriggerPercent   Int?
-  instantWins         InstantWin[]
-  questions           ComplianceQuestion[]
-  
-  status              Int         @default(1)
-  createdAt           DateTime?   @default(now()) @db.Timestamp(0)
-  updatedAt           DateTime?   @db.Timestamp(0)
-  deletedAt           DateTime?   @db.Timestamp(0)
+  instantWinEnabled        Boolean              @default(false)
+  instantWinTriggerPercent Int?
+  instantWins              InstantWin[]
+  instantWinPrizes         InstantWinPrize[]
+  questions                ComplianceQuestion[]
+
+  status    Int       @default(1)
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt DateTime? @db.Timestamp(0)
+  deletedAt DateTime? @db.Timestamp(0)
 }
 
 model ComplianceQuestion {
-  id            String   @id @default(uuid())
+  id            String             @id @default(uuid())
   competitionId Int
   question      String
-  competition Competition @relation(fields: [competitionId], references: [id])
-  options     ComplianceOption[]
-  answers     ComplianceAnswer[]
+  competition   Competition        @relation(fields: [competitionId], references: [id])
+  options       ComplianceOption[]
+  answers       ComplianceAnswer[]
 }
 
 //Prize is stored here
 model InstantWinPrize {
   id            String  @id @default(uuid())
   competitionId Int
-  title         String   // "iPhone 15"
+  title         String // "iPhone 15"
   image         String?
-  quantity      Int      // 5
+  quantity      Int // 5
 
-  competition Competition @relation(fields: [competitionId], references: [id])
+  competition Competition  @relation(fields: [competitionId], references: [id])
   wins        InstantWin[]
 }
 
 //Prize winner is stored here
 model InstantWin {
-  id            String   @id @default(uuid())
+  id            String @id @default(uuid())
   competitionId Int
   prizeId       String
   ticketNumber  Int
 
-  isClaimed     Boolean @default(false)
-  claimedById   Int?
-  claimedAt     DateTime?
+  isClaimed   Boolean   @default(false)
+  claimedById Int?
+  claimedAt   DateTime?
 
   competition Competition     @relation(fields: [competitionId], references: [id])
   prize       InstantWinPrize @relation(fields: [prizeId], references: [id])
   claimedBy   User?           @relation(fields: [claimedById], references: [id])
 
   @@unique([competitionId, ticketNumber])
+}
+
+model ComplianceOption {
+  id         String             @id @default(uuid())
+  questionId String
+  text       String
+  isCorrect  Boolean            @default(false)
+  question   ComplianceQuestion @relation(fields: [questionId], references: [id])
+}
+
+model ComplianceAnswer {
+  id         String             @id @default(uuid())
+  questionId String
+  userId     Int
+  answer     String
+  question   ComplianceQuestion @relation(fields: [questionId], references: [id])
+  user       User               @relation(fields: [userId], references: [id])
 }
