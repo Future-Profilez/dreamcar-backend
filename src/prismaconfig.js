@@ -65,11 +65,12 @@ if (!global._prisma) {
       global._prismaPool = new Pool({
         connectionString,
         connectionTimeoutMillis: 10000,
-        idleTimeoutMillis: 30000,
+        idleTimeoutMillis: 0, // Disabled idle timeout for connection pooling proxy
         max: 5, // Lower max connections for serverless
         ssl: {
           rejectUnauthorized: false // Required for Neon
-        }
+        },
+        keepAlive: true
       });
       global._prismaPool.on('error', (err) => {
         Loggers.error(`Unexpected pg pool error: ${err.message}`, err);
