@@ -38,7 +38,7 @@ exports.login = catchAsync(async (req, res) => {
     if (!email || !password) {
       return errorResponse(res, "All fields are required", 400);
     }
-    console.log("PRISMA ",prisma);
+    console.log("PRISMA ",await prisma);
     const user = await prisma.User.findUnique({
       where: { email },
     });
