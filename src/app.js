@@ -15,16 +15,11 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-
 app.use(express.json({ limit: "2000mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2000mb" }));
-
 const PORT = process.env.PORT || process.env.REACT_APP_SERVER_DOMAIN || 8080;
-
 app.use("/api", require("./routes/userRoutes"));
 app.use("/api", require("./routes/competitionRoutes"));
-
-
 
 
 
@@ -37,13 +32,11 @@ let readable = current_time.toLocaleString('en-IN', {
   hour: 'numeric',
   minute: 'numeric'
 }); 
-
-
 app.get("/", (req, res) => {
   res.json({
-    msg: "Hello DreamCar 2",
+    msg: "Hello DreamCar 3",
     status: 200, 
-    last_updated_at: readable,
+    last_updated_at: readable, 
   });
 }); 
 
@@ -56,8 +49,6 @@ const startDB = async () => {
     process.exit(1);
   }
 };
-
 startDB();
-
 const server = app.listen(PORT, () => console.log("Server is running at port : " + PORT));
 server.timeout = 360000;
