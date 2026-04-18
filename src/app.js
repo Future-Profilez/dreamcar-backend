@@ -34,7 +34,7 @@ app.use(cors(corsOptions));
 
 app.use(express.json({ limit: "2000mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2000mb" }));
-const PORT = process.env.PORT || process.env.REACT_APP_SERVER_DOMAIN || 8080;
+const PORT = process.env.PORT || process.env.REACT_APP_SERVER_DOMAIN || 5003;
 app.use("/api", require("./routes/userRoutes"));
 app.use("/api", require("./routes/competitionRoutes"));
 

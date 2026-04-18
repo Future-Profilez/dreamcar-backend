@@ -61,7 +61,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
     }
 
     // ✅ Base URL
-    const baseUrl = process.env.domain || "http://localhost:8080";
+    const baseUrl = process.env.domain || "http://localhost:5003";
 
     // ✅ Add prefix while saving
     // const detailImage = `${baseUrl}/uploads/${files.detailImage[0].filename}`;
@@ -195,7 +195,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
 
     const files = req.files || {};
 
-    const baseUrl = process.env.domain || "http://localhost:8080";
+    const baseUrl = process.env.domain || "http://localhost:5003";
 
     // ✅ Handle optional image updates
     let detailImage = existingCompetition.detailImage;
