@@ -1,10 +1,17 @@
 const dotenv = require("dotenv");
 dotenv.config();
-
+var morgan = require('morgan')
 const prisma = require("./prismaconfig");
 const express = require("express");
 const app = express();
 const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
+const Loggers = require("./utils/Logger");
+
+
+var accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' })
+app.use(morgan('combined', { stream: accessLogStream }))
 
 const corsOptions = {
   origin: "*",
@@ -40,8 +47,16 @@ const startDB = async () => {
     process.exit(1);
   }
 };
-
 startDB();
+
+
+process.on("uncaughtException", (err) => {
+  Loggers.error("Uncaught Exception:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+  logger.error("Unhandled Rejection:", err);
+});
 
 const server = app.listen(PORT, () => console.log("Server is running at port : " + PORT));
 server.timeout = 360000;
