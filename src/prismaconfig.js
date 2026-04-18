@@ -64,7 +64,7 @@ if (!global._prisma) {
       global._prismaPool = new Pool({ connectionString });
     }
 
-    const adapter = new PrismaPg(global._prismaPool); // pg adapter
+    const adapter = new PrismaPg(global._prismaPool);
 
     global._prisma = new PrismaClient({
       adapter,

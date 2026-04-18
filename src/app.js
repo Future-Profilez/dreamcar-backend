@@ -40,7 +40,14 @@ app.use("/api", require("./routes/competitionRoutes"));
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  Loggers.error(`Global Error Handler: ${req.method} ${req.originalUrl} ${serializeError(err)}`);
+  const errDetails = {
+    message: err.message,
+    code: err.code,
+    meta: err.meta,
+    name: err.name
+  };
+  Loggers.error(`Global Error Handler: ${req.method} ${req.url} ${JSON.stringify(errDetails)}`);
+  console.error("Global Error Handler full stack:", err);
   res.status(err.statusCode || 500).json({
     status: false,
     message: err.message || "Internal Server Error",
