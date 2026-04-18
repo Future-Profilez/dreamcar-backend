@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const catchAsync = require("../utils/catchAsync");
 const prisma = require("../prismaconfig");
+const Loggers = require("../utils/Logger");
 
 exports.signup = catchAsync(async (req, res) => {
   try {
@@ -26,7 +27,7 @@ exports.signup = catchAsync(async (req, res) => {
     });
     return successResponse(res, "Account created successfully!", 201);
   } catch (error) {
-    console.log("Signup error:", error);
+    Loggers.error(`Signup error: ${error?.stack || error?.message || String(error)}`);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
@@ -37,12 +38,12 @@ exports.login = catchAsync(async (req, res) => {
       return errorResponse(res, "All fields are required", 400);
     }
 
-    console.log("Login attempt for email:", email);
+    Loggers.info("Login attempt");
     const user = await prisma.user.findUnique({
       where: { email },
     });
     
-    console.log("USER found:", user ? "Yes" : "No");
+    Loggers.info(`Login user found: ${user ? "yes" : "no"}`);
     
     if (!user) {
       return errorResponse(res, "User not found", 200);
@@ -98,7 +99,7 @@ exports.GetUser = catchAsync(async (req, res) => {
       user,
     });
   } catch (error) {
-    console.log(error);
+    Loggers.error(`GetUser error: ${error?.stack || error?.message || String(error)}`);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });

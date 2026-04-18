@@ -9,6 +9,16 @@ const path = require("path");
 const fs = require("fs");
 const Loggers = require("./utils/Logger");
 
+const serializeError = (err) => {
+  if (!err) return "Unknown error";
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.stack || err.message;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+};
 
 var accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' })
 app.use(morgan('combined', { stream: accessLogStream }))
@@ -30,7 +40,7 @@ app.use("/api", require("./routes/competitionRoutes"));
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error("Global Error Handler:", err);
+  Loggers.error(`Global Error Handler: ${req.method} ${req.originalUrl} ${serializeError(err)}`);
   res.status(err.statusCode || 500).json({
     status: false,
     message: err.message || "Internal Server Error",
@@ -58,9 +68,9 @@ app.get("/", (req, res) => {
 const startDB = async () => {
   try {
     await prisma.$connect();
-    console.log("✅ DB connected successfully");
+    Loggers.info("DB connected successfully");
   } catch (error) {
-    console.error("❌ DB connection failed:", error);
+    Loggers.error(`DB connection failed: ${serializeError(error)}`);
     process.exit(1);
   }
 };
@@ -68,12 +78,13 @@ startDB();
 
 
 process.on("uncaughtException", (err) => {
-  Loggers.error("Uncaught Exception:", err);
+  Loggers.error(`Uncaught Exception: ${serializeError(err)}`);
 });
 
-process.on("unhandledRejection", (err) => {
-  logger.error("Unhandled Rejection:", err);
+process.on("unhandledRejection", (reason) => {
+  Loggers.error(`Unhandled Rejection: ${serializeError(reason)}`);
 });
 
-const server = app.listen(PORT, () => console.log("Server is running at port : " + PORT));
+Loggers.info(`Boot: node=${process.version} pid=${process.pid} cwd=${process.cwd()} env=${process.env.NODE_ENV || "unknown"} port=${PORT}`);
+const server = app.listen(PORT, () => Loggers.info(`Server listening at http://localhost:${PORT}`));
 server.timeout = 360000;
