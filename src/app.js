@@ -41,13 +41,11 @@ let readable = current_time.toLocaleString('en-IN', {
 
 app.get("/", (req, res) => {
   res.json({
-    msg: "Hello DreamCar",
+    msg: "Hello DreamCar 2",
     status: 200, 
     last_updated_at: readable,
   });
-});
-
-
+}); 
 
 const startDB = async () => {
   try {
