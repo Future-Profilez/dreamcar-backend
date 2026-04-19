@@ -59,8 +59,8 @@ model ComplianceQuestion {
   competitionId Int
   question      String
   competition   Competition        @relation(fields: [competitionId], references: [id])
-  options       ComplianceOption[]
-  answers       ComplianceAnswer[]
+  options       String[]
+  answers       String[]
 }
 
 //Prize is stored here

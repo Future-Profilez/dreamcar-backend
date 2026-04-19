@@ -15,6 +15,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
       prizeDetail,
       prizeFeatures,
       // rules,
+      questions
     } = req.body;
 
     if (
@@ -25,9 +26,9 @@ exports.addCompetition = catchAsync(async (req, res) => {
       !totalTickets ||
       !startTime ||
       !endTime ||
-      !prizeDetail
-      // ||
+      !prizeDetail ||
       // !rules
+      !questions
     ) {
       return errorResponse(res, "All required fields must be provided", 200);
     }
@@ -74,6 +75,13 @@ exports.addCompetition = catchAsync(async (req, res) => {
       return errorResponse(res, "End time must be after start time", 400);
     }
 
+    let parsedQuestions;
+    try {
+      parsedQuestions = JSON.parse(questions);
+    } catch (err) {
+      return errorResponse(res, "Invalid questions JSON", 400);
+    }
+
     const competition = await prisma.competition.create({
       data: {
         title,
@@ -92,6 +100,19 @@ exports.addCompetition = catchAsync(async (req, res) => {
         images,
       },
     });
+
+    for (const q of parsedQuestions) {
+      if (!q.question || !q.options || !q.answer) continue;
+
+      const createdQuestion = await prisma.complianceQuestion.create({
+        data: {
+          question: q.question,
+          competitionId: competition.id,
+          options: q.options,
+          answers: [q.answer]
+        }
+      });
+    }
 
     return successResponse(
       res,
@@ -162,6 +183,7 @@ exports.competitionDetail = catchAsync(async (req, res) => {
     );
   }
 });
+
 exports.updateCompetition = catchAsync(async (req, res) => {
   try {
     const { id } = req.params;
@@ -190,6 +212,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       prizeDetail,
       prizeFeatures,
       // rules,
+      questions,
     } = req.body;
 
     const files = req.files || {};
@@ -251,6 +274,32 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       data: updateData,
     });
 
+    if (questions) {
+      let parsedQuestions;
+      try {
+        parsedQuestions = JSON.parse(questions);
+      } catch (err) {
+        return errorResponse(res, "Invalid questions JSON", 400);
+      }
+
+      await prisma.complianceQuestion.deleteMany({
+        where: { competitionId }
+      });
+
+      for (const q of parsedQuestions) {
+        if (!q.question || !q.options || !q.answer) continue;
+
+        await prisma.complianceQuestion.create({
+          data: {
+            question: q.question,
+            competitionId,
+            options: q.options,
+            answers: [q.answer]
+          }
+        });
+      }
+    }
+
     return successResponse(
       res,
       "Competition updated successfully",
@@ -266,6 +315,3 @@ exports.updateCompetition = catchAsync(async (req, res) => {
     );
   }
 });
-
-
-
