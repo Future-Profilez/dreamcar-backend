@@ -55,12 +55,14 @@ model Competition {
 }
 
 model ComplianceQuestion {
-  id            String             @id @default(uuid())
-  competitionId Int
-  question      String
-  competition   Competition        @relation(fields: [competitionId], references: [id])
-  options       String[]
-  answers       String[]
+  id               String             @id @default(uuid())
+  competitionId    Int
+  question         String
+  competition      Competition        @relation(fields: [competitionId], references: [id])
+  options          String[]
+  answers          String[]
+  ComplianceOption ComplianceOption[]
+  ComplianceAnswer ComplianceAnswer[]
 }
 
 //Prize is stored here

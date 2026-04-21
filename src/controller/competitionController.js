@@ -165,7 +165,7 @@ exports.competitionDetail = catchAsync(async (req, res) => {
     });
 
     if (!data) {
-      return errorResponse(res, "Competition not found", 404);
+      return errorResponse(res, "Competition not found", 200);
     }
 
     return successResponse(
