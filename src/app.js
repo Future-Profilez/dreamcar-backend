@@ -42,6 +42,7 @@ app.use('/public', express.static(path.join(__dirname, '../public')));
 const PORT = process.env.PORT || process.env.REACT_APP_SERVER_DOMAIN || 8080;
 app.use("/api", require("./routes/userRoutes"));
 app.use("/api", require("./routes/competitionRoutes"));
+app.use("/api", require("./routes/cartRoutes"));
 
 // Global Error Handler
 app.use((err, req, res, next) => {
