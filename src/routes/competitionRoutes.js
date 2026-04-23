@@ -1,4 +1,4 @@
-const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail } = require("../controller/competitionController");
+const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment } = require("../controller/competitionController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
@@ -29,5 +29,7 @@ router.post("/competition/update/:id",
     { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 },
   ]), updateCompetition);
+
+router.post("/competition/ticket-buy", verifyToken, createCompetitionPayment);
 
 module.exports = router;
