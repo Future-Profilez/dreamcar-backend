@@ -1,6 +1,7 @@
 const { errorResponse, successResponse, validationErrorResponse, } = require("../utils/ErrorHandling");
 const catchAsync = require("../utils/catchAsync");
 const prisma = require("../prismaconfig");
+const stripe = require('../utils/stripe');
 
 exports.addCompetition = catchAsync(async (req, res) => {
   try {
@@ -324,6 +325,10 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
 
     if (!competitionId || !quantity) {
       return errorResponse(res, "competitionId and quantity are required", 400);
+    }
+
+    if(req.user.role !== "user"){
+      return errorResponse(res, "Only users can buy tickets", 403);
     }
 
     if (quantity <= 0 || quantity > 10) {
