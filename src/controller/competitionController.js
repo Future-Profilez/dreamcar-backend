@@ -46,7 +46,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
     }
     const files = req.files || {};
 
-   
+
     if (
       // !files.detailImage ||
       !files.prizeDetailImage ||
@@ -133,6 +133,9 @@ exports.addCompetition = catchAsync(async (req, res) => {
 exports.getAllCompetitions = catchAsync(async (req, res) => {
   try {
     const competitions = await prisma.competition.findMany({
+      where: {
+        deletedAt: null,
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -161,7 +164,13 @@ exports.competitionDetail = catchAsync(async (req, res) => {
     const id = parseInt(req.params.id);
 
     const data = await prisma.competition.findUnique({
-      where: { id },
+      where: {
+        id,
+        deletedAt: null,
+      }, include: {
+        questions: true,
+      }
+
     });
 
     if (!data) {
@@ -192,7 +201,6 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       return errorResponse(res, "Competition ID is required", 400);
     }
 
-    // ✅ Find existing competition
     const existingCompetition = await prisma.competition.findUnique({
       where: { id: parseInt(id) },
     });
@@ -235,11 +243,16 @@ exports.updateCompetition = catchAsync(async (req, res) => {
     //   rulesImage = `${baseUrl}/uploads/${files.rulesImage[0].filename}`;
     // }
 
-    let images = existingCompetition.images;
+    const previousimages = existingCompetition.images;
+    let images;
     if (files.images && files.images.length > 0) {
       images = files.images.map(
         (file) => `${baseUrl}/uploads/${file.filename}`
       );
+    }
+
+    if(images?.length){
+      images = [...previousimages, ...images]
     }
 
     // ✅ Time validation (only if both provided)
@@ -266,7 +279,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       // detailImage,
       prizeDetailImage,
       // rulesImage,
-      images,
+     images,
     };
 
     const updatedCompetition = await prisma.competition.update({
@@ -283,7 +296,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       }
 
       await prisma.complianceQuestion.deleteMany({
-        where: { competitionId }
+        where: { competitionId: parseInt(id) }
       });
 
       for (const q of parsedQuestions) {
@@ -292,7 +305,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
         await prisma.complianceQuestion.create({
           data: {
             question: q.question,
-            competitionId,
+            competitionId: parseInt(id),
             options: q.options,
             answers: [q.answer]
           }
@@ -308,6 +321,35 @@ exports.updateCompetition = catchAsync(async (req, res) => {
     );
   } catch (error) {
     console.log("Update Competition Error:", error);
+    return errorResponse(
+      res,
+      error.message || "Internal Server Error",
+      500
+    );
+  }
+});
+
+exports.deleteCompetition = catchAsync(async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return errorResponse(res, "Competition ID is required", 200);
+    }
+    const competition = await prisma.competition.findUnique({
+      where: { id: parseInt(id) },
+    });
+    if (!competition) {
+      return errorResponse(res, "Competition not found", 200);
+    }
+    await prisma.competition.update({
+      where: { id: parseInt(id) },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+    return successResponse(res, "Competition deleted successfully", 200);
+  } catch (error) {
+    console.log("Delete Competition Error:", error);
     return errorResponse(
       res,
       error.message || "Internal Server Error",
