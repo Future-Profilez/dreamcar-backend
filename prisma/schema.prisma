@@ -12,6 +12,11 @@ enum productTypeEnum {
   tech_luxury
   cash
 }
+enum itemTypeEnum {
+  competition
+  gift_card
+  gift_credit
+}
 
 model User {
   id        Int       @id @default(autoincrement())
@@ -25,6 +30,7 @@ model User {
 
   instantWins       InstantWin[]
   complianceAnswers ComplianceAnswer[]
+  cart      Cart[]
 }
 
 model Competition {
@@ -55,12 +61,14 @@ model Competition {
 }
 
 model ComplianceQuestion {
-  id            String             @id @default(uuid())
-  competitionId Int
-  question      String
-  competition   Competition        @relation(fields: [competitionId], references: [id])
-  options       String[]
-  answers       String[]
+  id               String             @id @default(uuid())
+  competitionId    Int
+  question         String
+  competition      Competition        @relation(fields: [competitionId], references: [id])
+  options          String[]
+  answers          String[]
+  ComplianceOption ComplianceOption[]
+  ComplianceAnswer ComplianceAnswer[]
 }
 
 //Prize is stored here
@@ -109,3 +117,25 @@ model ComplianceAnswer {
   question   ComplianceQuestion @relation(fields: [questionId], references: [id])
   user       User               @relation(fields: [userId], references: [id])
 }
+
+
+model Cart {
+  id               Int             @id @default(autoincrement())
+  userId           Int             @unique 
+  user             User            @relation(fields: [userId], references: [id])
+  items            CartItem[]
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt DateTime? @db.Timestamp(0)
+}
+
+model CartItem {
+  id               Int             @id @default(autoincrement())
+  cartId           Int             
+  itemId           Int             
+  quantity         Int
+  itemType         itemTypeEnum   @default(competition)
+  cart Cart @relation(fields: [cartId], references: [id])    
+
+  @@unique([cartId, itemId, itemType])                                               
+}
+
