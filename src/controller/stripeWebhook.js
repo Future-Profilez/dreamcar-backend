@@ -6,6 +6,7 @@ module.exports = async (req, res) => {
 
   let event;
 
+
   try {
     event = stripe.webhooks.constructEvent(
       req.body,

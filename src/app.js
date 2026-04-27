@@ -30,7 +30,27 @@ const corsOptions = {
   credentials: true,
   optionsSuccessStatus: 200,
 };
-app.use(cors(corsOptions));
+
+if(process.env.NODE_ENV == 'production'){
+  const corsOptions = {
+    origin: "https://fp-dreamcar.vercel.app",
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    allowedHeaders: "*",
+    credentials: true,
+    optionsSuccessStatus: 200,
+  };
+  app.use(cors(corsOptions));
+  
+} else { 
+  const corsOptionsLocal = {
+    origin: "*",
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    allowedHeaders: "*",
+    credentials: true,
+    optionsSuccessStatus: 200,
+  };
+  app.use(cors(corsOptionsLocal));
+}
 
 app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), require("./controller/stripeWebhook"));
 
@@ -45,6 +65,7 @@ const PORT = process.env.PORT || process.env.REACT_APP_SERVER_DOMAIN || 8080;
 app.use("/api", require("./routes/userRoutes"));
 app.use("/api", require("./routes/competitionRoutes"));
 app.use("/api", require("./routes/cartRoutes"));
+app.use("/api", require("./routes/paymentRoutes"));
 
 // Global Error Handler
 app.use((err, req, res, next) => {

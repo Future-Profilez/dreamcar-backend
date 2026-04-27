@@ -252,7 +252,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       );
     }
 
-    if(images?.length){
+    if (images?.length) {
       images = [...previousimages, ...images]
     }
 
@@ -280,7 +280,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       // detailImage,
       prizeDetailImage,
       // rulesImage,
-     images,
+      images,
     };
 
     const updatedCompetition = await prisma.competition.update({
@@ -337,15 +337,15 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
     const { competitionId, quantity } = req.body;
 
     if (!competitionId || !quantity) {
-      return errorResponse(res, "competitionId and quantity are required", 400);
+      return errorResponse(res, "competitionId and quantity are required", 200);
     }
 
-    if(req.user.role !== "user"){
-      return errorResponse(res, "Only users can buy tickets", 403);
+    if (req.user.role !== "user") {
+      return errorResponse(res, "Only users can buy tickets", 200);
     }
 
     if (quantity <= 0 || quantity > 10) {
-      return errorResponse(res, "Invalid ticket quantity (max 10)", 400);
+      return errorResponse(res, "Invalid ticket quantity (max 10)", 200);
     }
 
     const competition = await prisma.competition.findUnique({
@@ -353,21 +353,21 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
     });
 
     if (!competition) {
-      return errorResponse(res, "Competition not found", 404);
+      return errorResponse(res, "Competition not found", 200);
     }
 
     const now = new Date();
 
     if (competition.endTime <= now) {
-      return errorResponse(res, "Competition has ended", 400);
+      return errorResponse(res, "Competition has ended", 200);
     }
 
     if (competition.startTime > now) {
-      return errorResponse(res, "Competition not started yet", 400);
+      return errorResponse(res, "Competition not started yet", 200);
     }
 
     if (competition.soldTickets + quantity > competition.totalTickets) {
-      return errorResponse(res, "Not enough tickets left", 400);
+      return errorResponse(res, "Not enough tickets left", 200);
     }
 
     const existingTickets = await prisma.ticket.count({
@@ -378,7 +378,7 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
     });
 
     if (existingTickets + quantity > 10) {
-      return errorResponse(res, "Ticket limit exceeded (max 10 per user)", 400);
+      return errorResponse(res, "Ticket limit exceeded (max 10 per user)", 200);
     }
 
     const amount = competition.ticketPrice * quantity;
@@ -401,9 +401,8 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
           quantity: 1
         }
       ],
-
-      success_url: `${process.env.DOMAIN}/payment-success`,
-      cancel_url: `${process.env.DOMAIN}/payment-cancel`,
+      success_url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/ticket/payment/cancel`,
 
       metadata: {
         userId: userId.toString(),
@@ -420,8 +419,10 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
   } catch (error) {
     console.error("Create Payment Error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
-}
+  }
 });
+
+
 
 exports.deleteCompetition = catchAsync(async (req, res) => {
   try {
