@@ -31,17 +31,7 @@ const corsOptions = {
   optionsSuccessStatus: 200,
 };
 
-if(process.env.NODE_ENV == 'production'){
-  const corsOptions = {
-    origin: "https://fp-dreamcar.vercel.app",
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    allowedHeaders: "*",
-    credentials: true,
-    optionsSuccessStatus: 200,
-  };
-  app.use(cors(corsOptions));
-  
-} else { 
+if(process.env.NODE_ENV == 'local'){
   const corsOptionsLocal = {
     origin: "*",
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
@@ -50,6 +40,15 @@ if(process.env.NODE_ENV == 'production'){
     optionsSuccessStatus: 200,
   };
   app.use(cors(corsOptionsLocal));
+} else { 
+  const corsOptions = {
+    origin: "https://fp-dreamcar.vercel.app",
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    allowedHeaders: "*",
+    credentials: true,
+    optionsSuccessStatus: 200,
+  };
+  app.use(cors(corsOptions));
 }
 
 app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), require("./controller/stripeWebhook"));
