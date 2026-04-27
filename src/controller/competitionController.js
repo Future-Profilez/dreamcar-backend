@@ -1,6 +1,7 @@
 const { errorResponse, successResponse, validationErrorResponse, } = require("../utils/ErrorHandling");
 const catchAsync = require("../utils/catchAsync");
 const prisma = require("../prismaconfig");
+const stripe = require('../utils/stripe');
 
 exports.addCompetition = catchAsync(async (req, res) => {
   try {
@@ -327,6 +328,99 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       500
     );
   }
+});
+
+exports.createCompetitionPayment = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { competitionId, quantity } = req.body;
+
+    if (!competitionId || !quantity) {
+      return errorResponse(res, "competitionId and quantity are required", 400);
+    }
+
+    if(req.user.role !== "user"){
+      return errorResponse(res, "Only users can buy tickets", 403);
+    }
+
+    if (quantity <= 0 || quantity > 10) {
+      return errorResponse(res, "Invalid ticket quantity (max 10)", 400);
+    }
+
+    const competition = await prisma.competition.findUnique({
+      where: { id: parseInt(competitionId) }
+    });
+
+    if (!competition) {
+      return errorResponse(res, "Competition not found", 404);
+    }
+
+    const now = new Date();
+
+    if (competition.endTime <= now) {
+      return errorResponse(res, "Competition has ended", 400);
+    }
+
+    if (competition.startTime > now) {
+      return errorResponse(res, "Competition not started yet", 400);
+    }
+
+    if (competition.soldTickets + quantity > competition.totalTickets) {
+      return errorResponse(res, "Not enough tickets left", 400);
+    }
+
+    const existingTickets = await prisma.ticket.count({
+      where: {
+        userId,
+        competitionId: parseInt(competitionId)
+      }
+    });
+
+    if (existingTickets + quantity > 10) {
+      return errorResponse(res, "Ticket limit exceeded (max 10 per user)", 400);
+    }
+
+    const amount = competition.ticketPrice * quantity;
+    const amountInCents = Math.round(amount * 100);
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "payment",
+      customer_email: req.user.email,
+
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `${competition.title} - ${quantity} Ticket(s)`
+            },
+            unit_amount: amountInCents
+          },
+          quantity: 1
+        }
+      ],
+
+      success_url: `${process.env.DOMAIN}/payment-success`,
+      cancel_url: `${process.env.DOMAIN}/payment-cancel`,
+
+      metadata: {
+        userId: userId.toString(),
+        competitionId: competitionId.toString(),
+        quantity: quantity.toString(),
+        type: "competition_ticket"
+      }
+    });
+
+    return successResponse(res, "Session created", 200, {
+      url: session.url
+    });
+
+  } catch (error) {
+    console.error("Create Payment Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+}
 });
 
 exports.deleteCompetition = catchAsync(async (req, res) => {

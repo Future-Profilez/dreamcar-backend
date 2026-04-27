@@ -1,4 +1,4 @@
-const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, deleteCompetition } = require("../controller/competitionController");
+const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition } = require("../controller/competitionController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
@@ -30,6 +30,7 @@ router.post("/competition/update/:id",
     { name: "images", maxCount: 10 },
   ]), updateCompetition);
 
+router.post("/competition/ticket-buy", verifyToken, createCompetitionPayment);
 router.delete("/competition/:id", verifyToken, deleteCompetition);
 
 module.exports = router;
