@@ -94,6 +94,15 @@ module.exports = async (req, res) => {
           }
         });
 
+        // ✅ 6. CLEAR USER CART
+        await tx.cartItem.deleteMany({
+          where: {
+            cart: {
+              userId: parsedUserId
+            }
+          }
+        });
+
       });
     }
 

@@ -33,44 +33,44 @@ exports.signup = catchAsync(async (req, res) => {
 });
 
 exports.login = catchAsync(async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return errorResponse(res, "All fields are required", 400);
-    }
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return errorResponse(res, "All fields are required", 400);
+  }
 
-    Loggers.info("Login attempt");
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
-    
-    Loggers.info(`Login user found: ${user ? "yes" : "no"}`);
-    
-    if (!user) {
-      return errorResponse(res, "User not found", 200);
-    }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return errorResponse(res, "Invalid credentials", 401);
-    }
-    const token = jwt.sign(
-      {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-      process.env.JWT_SECRET_KEY,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "24h" },
-    );
-    return successResponse(res, "Login successful", 200, {
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-      token,
-    });
+  Loggers.info("Login attempt");
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  Loggers.info(`Login user found: ${user ? "yes" : "no"}`);
+
+  if (!user) {
+    return errorResponse(res, "User not found", 200);
+  }
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return errorResponse(res, "Invalid credentials", 401);
+  }
+  const token = jwt.sign(
+    {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+    process.env.JWT_SECRET_KEY,
+    { expiresIn: process.env.JWT_EXPIRES_IN || "24h" },
+  );
+  return successResponse(res, "Login successful", 200, {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+    token,
+  });
 });
 
 exports.GetUser = catchAsync(async (req, res) => {
@@ -100,6 +100,70 @@ exports.GetUser = catchAsync(async (req, res) => {
     });
   } catch (error) {
     Loggers.error(`GetUser error: ${error?.stack || error?.message || String(error)}`);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+
+exports.getUserProfileDashboard = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { type, filter } = req.query;
+    const now = new Date();
+
+    if (!type) {
+      return errorResponse(res, "Type is required", 200);
+    }
+
+    let data = null;
+
+    if (type === "entries") {
+
+      const tickets = await prisma.ticket.findMany({
+        where: { userId },
+        include: {
+          competition: true
+        },
+        orderBy: { createdAt: "desc" }
+      });
+
+      const grouped = {};
+
+      tickets.forEach((t) => {
+        const compId = parseInt(t.competitionId);
+        const isActive = new Date(t.competition.endTime) > now;
+
+        if (filter === "active" && !isActive) return;
+        if (filter === "past" && isActive) return;
+        // "all" → no filter
+
+        if (!grouped[compId]) {
+          grouped[compId] = {
+            competitionId: parseInt(compId),
+            title: t.competition.title,
+            image: t.competition.images?.[0] || t.competition.prizeDetailImage,
+            tickets: [],
+            isActive,
+            sold: t?.competition.soldTickets,
+            total: t?.competition.totalTickets,
+            drawDate: t?.competition.endTime
+          };
+        }
+
+        grouped[compId].tickets.push(t.ticketNumber);
+      });
+
+      data = Object.values(grouped);
+    }
+
+    else {
+      return errorResponse(res, "Invalid type", 400);
+    }
+
+    return successResponse(res, "Data fetched successfully", 200, data);
+
+  } catch (error) {
+    console.error("Dashboard Error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
