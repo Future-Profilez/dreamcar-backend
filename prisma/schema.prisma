@@ -29,7 +29,6 @@ model User {
   deletedAt DateTime? @db.Timestamp(0)
 
   instantWins       InstantWin[]
-  complianceAnswers ComplianceAnswer[]
   cart              Cart[]
   payments          StripePayment[]
   tickets           Ticket[]
@@ -56,6 +55,7 @@ model Competition {
   instantWinPrizes         InstantWinPrize[]
   questions                ComplianceQuestion[]
   tickets                  Ticket[]
+  payments                 StripePayment[]
 
   status    Int       @default(1)
   createdAt DateTime? @default(now()) @db.Timestamp(0)
@@ -70,8 +70,6 @@ model ComplianceQuestion {
   competition      Competition        @relation(fields: [competitionId], references: [id])
   options          String[]
   answers          String[]
-  ComplianceOption ComplianceOption[]
-  ComplianceAnswer ComplianceAnswer[]
 }
 
 //Prize is stored here
@@ -119,6 +117,7 @@ model StripePayment {
   competitionId Int?
   competition   Competition? @relation(fields: [competitionId], references: [id])
   quantity      Int?
+  tickets       Ticket[]
 
   createdAt DateTime? @default(now()) @db.Timestamp(0)
   updatedAt DateTime? @db.Timestamp(0)
@@ -161,8 +160,7 @@ model Ticket {
   user        User        @relation(fields: [userId], references: [id])
   payment     StripePayment @relation(fields: [paymentId], references: [id])
 
-  instantWin  InstantWin?
-  winner      Winner?
+  //instantWin  InstantWin?
 
   @@unique([competitionId, ticketNumber])
 }
