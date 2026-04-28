@@ -157,7 +157,7 @@ exports.getUserProfileDashboard = catchAsync(async (req, res) => {
     }
 
     else {
-      return errorResponse(res, "Invalid type", 400);
+      return errorResponse(res, "Invalid type", 200);
     }
 
     return successResponse(res, "Data fetched successfully", 200, data);

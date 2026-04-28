@@ -38,7 +38,7 @@ exports.addToCart = catchAsync(async (req, res) => {
       cartItem = await prisma.cartItem.update({
         where: { id: existingItem.id },
         data: {
-          quantity:  existingItem.quantity + parseInt(quantity),
+          quantity: existingItem.quantity + parseInt(quantity),
         },
       });
     } else {
@@ -77,14 +77,21 @@ exports.getCart = catchAsync(async (req, res) => {
       cart.items.map(async (item) => {
         let details = null;
 
-        // 👉 based on item type
         if (item.itemType === "competition") {
           details = await prisma.competition.findUnique({
             where: { id: item.itemId },
+            include: {
+              questions: {
+                select: {
+                  id: true,
+                  question: true,
+                  options: true
+                }
+              }
+            }
           });
         }
 
-        // future ready
         if (item.itemType === "gift_card") {
           details = await prisma.giftCard?.findUnique({
             where: { id: item.itemId },
@@ -120,7 +127,7 @@ exports.updateCartItem = catchAsync(async (req, res) => {
         itemId: parseInt(itemId),
       },
     });
-     if (!existingItem) {
+    if (!existingItem) {
       return errorResponse(res, "Cart item not found", 200);
     }
     if (quantity < 1) {
