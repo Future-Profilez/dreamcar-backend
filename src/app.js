@@ -23,26 +23,7 @@ const serializeError = (err) => {
 var accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' })
 app.use(morgan('combined', { stream: accessLogStream }))
 
-if (process.env.NODE_ENV == 'local') {
-  const corsOptionsLocal = {
-    origin: "*",
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    allowedHeaders: "*",
-    credentials: true,
-    optionsSuccessStatus: 200,
-  };
-  app.use(cors(corsOptionsLocal));
-} else {
-  const corsOptions = {
-    origin: "https://fp-dreamcar.vercel.app",
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-    optionsSuccessStatus: 200,
-  };
-  app.use(cors(corsOptions));
-  app.options("*", cors(corsOptions));
-}
+app.options('/*', cors());
 
 app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), require("./controller/stripeWebhook"));
 
