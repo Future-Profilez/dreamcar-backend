@@ -23,7 +23,7 @@ const serializeError = (err) => {
 var accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' })
 app.use(morgan('combined', { stream: accessLogStream }))
 
-if(process.env.NODE_ENV == 'local'){
+if (process.env.NODE_ENV == 'local') {
   const corsOptionsLocal = {
     origin: "*",
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
@@ -32,17 +32,17 @@ if(process.env.NODE_ENV == 'local'){
     optionsSuccessStatus: 200,
   };
   app.use(cors(corsOptionsLocal));
-} else { 
+} else {
   const corsOptions = {
     origin: "https://fp-dreamcar.vercel.app",
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    allowedHeaders: ["Content-Type","Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
     optionsSuccessStatus: 200,
   };
   app.use(cors(corsOptions));
 }
-
+app.options("*", cors());
 app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), require("./controller/stripeWebhook"));
 
 app.use(express.json({ limit: "2000mb" }));
@@ -83,14 +83,14 @@ let readable = current_time.toLocaleString('en-IN', {
   day: 'numeric',
   hour: 'numeric',
   minute: 'numeric'
-}); 
+});
 app.get("/", (req, res) => {
   res.json({
     msg: "Hello DreamCar 3",
-    status: 200, 
-    last_updated_at: readable, 
+    status: 200,
+    last_updated_at: readable,
   });
-}); 
+});
 
 const startDB = async () => {
   try {
