@@ -41,8 +41,9 @@ if (process.env.NODE_ENV == 'local') {
     optionsSuccessStatus: 200,
   };
   app.use(cors(corsOptions));
+  app.options("*", cors(corsOptions));
 }
-app.options("*", cors());
+
 app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), require("./controller/stripeWebhook"));
 
 app.use(express.json({ limit: "2000mb" }));
