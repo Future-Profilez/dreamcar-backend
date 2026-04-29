@@ -23,14 +23,6 @@ const serializeError = (err) => {
 var accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' })
 app.use(morgan('combined', { stream: accessLogStream }))
 
-const corsOptions = {
-  origin: "*",
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-  allowedHeaders: "*",
-  credentials: true,
-  optionsSuccessStatus: 200,
-};
-
 if(process.env.NODE_ENV == 'local'){
   const corsOptionsLocal = {
     origin: "*",
