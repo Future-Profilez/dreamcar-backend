@@ -21,12 +21,15 @@ const serializeError = (err) => {
 };
 
 var accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' })
-app.use(morgan('combined', { stream: accessLogStream }))
+app.use(morgan('combined', { stream: accessLogStream }));
 
-app.options('/*', cors());
+const corsOptionsLocal = {
+  origin: "*",
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+};
+app.use(cors(corsOptionsLocal));
 
 app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), require("./controller/stripeWebhook"));
-
 app.use(express.json({ limit: "2000mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2000mb" }));
 
