@@ -164,7 +164,7 @@ exports.competitionDetail = catchAsync(async (req, res) => {
   try {
     const id = parseInt(req.params.id);
 
-    const data = await prisma.competition.findUnique({
+    const data = await prisma.competition.findFirst({
       where: {
         id,
         deletedAt: null,
