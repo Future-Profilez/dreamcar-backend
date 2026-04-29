@@ -36,7 +36,7 @@ if(process.env.NODE_ENV == 'local'){
   const corsOptions = {
     origin: "https://fp-dreamcar.vercel.app",
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    allowedHeaders: "*",
+    allowedHeaders: ["Content-Type","Authorization"],
     credentials: true,
     optionsSuccessStatus: 200,
   };
