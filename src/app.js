@@ -42,10 +42,11 @@ app.use("/api", require("./routes/userRoutes"));
 app.use("/api", require("./routes/competitionRoutes"));
 app.use("/api", require("./routes/cartRoutes"));
 app.use("/api", require("./routes/paymentRoutes"));
+app.use("/api", require("./routes/ticketRoutes"));
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  const errDetails = {
+  const errDetails = { 
     message: err.message,
     code: err.code,
     meta: err.meta,
