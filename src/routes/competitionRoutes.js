@@ -11,6 +11,7 @@ router.post("/competition/create",
     { name: "prizeDetailImage", maxCount: 1 },
     // { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 }, // ✅ include here
+    { name: "instantWinImages", maxCount: 50 }
   ]), addCompetition);
 
 router.get("/competition/get",

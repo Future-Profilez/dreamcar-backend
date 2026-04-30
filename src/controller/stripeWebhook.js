@@ -25,9 +25,8 @@ module.exports = async (req, res) => {
 
       const {
         userId,
-        competitionId,
-        quantity,
-        type
+        items,
+        type,
       } = session.metadata;
 
       if (type !== "competition_ticket") {
@@ -35,76 +34,92 @@ module.exports = async (req, res) => {
       }
 
       const parsedUserId = parseInt(userId);
-      const parsedCompetitionId = parseInt(competitionId);
-      const parsedQty = parseInt(quantity);
+      let parsedItems = [];
 
+      try {
+        parsedItems = items ? JSON.parse(items) : [];
+      } catch (e) {
+        console.error("JSON parse error:", items);
+        throw new Error("Invalid metadata items");
+      }
+
+      for (const item of parsedItems) {
       // 🔥 Transaction (VERY IMPORTANT)
       await prisma.$transaction(async (tx) => {
 
-        // ✅ 1. Create Payment Record
-        const payment = await tx.stripePayment.create({
-          data: {
-            userId: parsedUserId,
-            competitionId: parsedCompetitionId,
-            amount: session.amount_total / 100,
-            currency: session.currency,
-            status: "success",
-            type: "competition",
-            stripePaymentId: session.payment_intent,
-            sessionId: session.id,
-            quantity: parsedQty
-          }
-        });
-
-        // ✅ 2. Get competition (for ticket number logic)
-        const competition = await tx.competition.findUnique({
-          where: { id: parsedCompetitionId }
-        });
-
-        if (!competition) {
-          throw new Error("Competition not found in webhook");
-        }
-
-        // ✅ 3. Generate ticket numbers safely
-        const startNumber = competition.soldTickets + 1;
-        const ticketsData = [];
-
-        for (let i = 0; i < parsedQty; i++) {
-          ticketsData.push({
-            userId: parsedUserId,
-            competitionId: parsedCompetitionId,
-            paymentId: payment.id,
-            ticketNumber: startNumber + i,
-            isEligible: true // later connect compliance logic
+          const parsedCompetitionId = parseInt(item.competitionId);
+          const parsedQty = parseInt(item.quantity);
+          const answer = item.answer;
+          // ✅ 1. Create Payment Record
+          const payment = await tx.stripePayment.create({
+            data: {
+              userId: parsedUserId,
+              competitionId: parsedCompetitionId,
+              amount: session.amount_total / 100,
+              currency: session.currency,
+              status: "success",
+              type: "competition",
+              stripePaymentId: session.payment_intent,
+              sessionId: session.id,
+              quantity: parsedQty
+            }
           });
-        }
 
-        // ✅ 4. Create tickets
-        await tx.ticket.createMany({
-          data: ticketsData
-        });
+          // ✅ 2. Get competition (for ticket number logic)
+          const competition = await tx.competition.findUnique({
+            where: { id: parsedCompetitionId }
+          });
 
-        // ✅ 5. Update sold tickets
-        await tx.competition.update({
-          where: { id: parsedCompetitionId },
-          data: {
-            soldTickets: {
-              increment: parsedQty
-            }
+          if (!competition) {
+            throw new Error("Competition not found in webhook");
           }
-        });
 
-        // ✅ 6. CLEAR USER CART
-        await tx.cartItem.deleteMany({
-          where: {
-            cart: {
-              userId: parsedUserId
-            }
+          const question = await tx.complianceQuestion.findFirst({
+            where: { competitionId: parsedCompetitionId }
+          });
+
+          const isCorrect = question?.answers?.includes(answer);
+          // ✅ 3. Generate ticket numbers safely
+          const startNumber = competition.soldTickets + 1;
+          const ticketsData = [];
+
+          for (let i = 0; i < parsedQty; i++) {
+            ticketsData.push({
+              userId: parsedUserId,
+              competitionId: parsedCompetitionId,
+              paymentId: payment.id,
+              ticketNumber: startNumber + i,
+              isEligible: isCorrect
+            });
           }
-        });
 
+          // ✅ 4. Create tickets
+          await tx.ticket.createMany({
+            data: ticketsData
+          });
+
+          // ✅ 5. Update sold tickets
+          await tx.competition.update({
+            where: { id: parsedCompetitionId },
+            data: {
+              soldTickets: {
+                increment: parsedQty
+              }
+            }
+          });
+
+          // ✅ 6. CLEAR USER CART
+          await tx.cartItem.deleteMany({
+            where: {
+              cart: {
+                userId: parsedUserId
+              }
+            }
+          });
+        
       });
     }
+  }
 
     return res.status(200).json({ received: true });
 

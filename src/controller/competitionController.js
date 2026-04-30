@@ -15,20 +15,18 @@ exports.addCompetition = catchAsync(async (req, res) => {
       endTime,
       prizeDetail,
       prizeFeatures,
-      // rules,
-      questions
+      questions,
+      instantWin
     } = req.body;
 
     if (
       !title ||
       !detail ||
-      // !productType ||
       !ticketPrice ||
       !totalTickets ||
       !startTime ||
       !endTime ||
       !prizeDetail ||
-      // !rules
       !questions
     ) {
       return errorResponse(res, "All required fields must be provided", 200);
@@ -49,9 +47,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
 
 
     if (
-      // !files.detailImage ||
       !files.prizeDetailImage ||
-      // !files.rulesImage ||
       !files.images ||
       files.images.length === 0
     ) {
@@ -83,11 +79,19 @@ exports.addCompetition = catchAsync(async (req, res) => {
       return errorResponse(res, "Invalid questions JSON", 400);
     }
 
+    let instantWinData = null;
+    if (instantWin) {
+      try {
+        instantWinData = JSON.parse(instantWin);
+      } catch (err) {
+        return errorResponse(res, "Invalid instant win JSON", 400);
+      }
+    }
+
     const competition = await prisma.competition.create({
       data: {
         title,
         detail,
-        // detailImage,
         productType,
         ticketPrice: parseInt(ticketPrice),
         totalTickets: parseInt(totalTickets),
@@ -96,9 +100,12 @@ exports.addCompetition = catchAsync(async (req, res) => {
         prizeDetail,
         prizeDetailImage,
         prizeFeatures: prizeFeatures ? JSON.parse(prizeFeatures) : [],
-        // rules,
-        // rulesImage,
         images,
+
+        instantWinEnabled: instantWinData?.enabled || false,
+        instantWinTriggerPercent: instantWinData?.enabled
+          ? parseInt(instantWinData.threshold)
+          : null,
       },
     });
 
@@ -113,6 +120,75 @@ exports.addCompetition = catchAsync(async (req, res) => {
           answers: [q.answer]
         }
       });
+    }
+
+    if (instantWinData?.enabled) {
+      if (!instantWinData.threshold || !instantWinData.prizes?.length) {
+        return errorResponse(res, "Invalid instant win configuration", 400);
+      }
+      if (!instantWinData.threshold) {
+        return errorResponse(res, "Instant win threshold required", 400);
+      }
+
+      if (!instantWinData.prizes?.length) {
+        return errorResponse(res, "At least one instant prize required", 400);
+      }
+
+      // Save Instant prizes
+      const createdPrizes = [];
+
+      for (let i = 0; i < instantWinData.prizes.length; i++) {
+        const prize = instantWinData.prizes[i];
+
+        let imageUrl = null;
+
+        // handle image if uploaded
+        if (files.instantWinImages && files.instantWinImages[i]) {
+          imageUrl = `${baseUrl}/uploads/${files.instantWinImages[i].filename}`;
+        }
+
+        const createdPrize = await prisma.instantWinPrize.create({
+          data: {
+            competitionId: competition.id,
+            title: prize.title,
+            image: imageUrl,
+            quantity: parseInt(prize.quantity || 1),
+          },
+        });
+
+        createdPrizes.push(createdPrize);
+      }
+      //Generate winning tickets
+      const thresholdTickets = Math.floor(
+        (competition.totalTickets * instantWinData.threshold) / 100
+      );
+
+      const startRange = thresholdTickets + 1;
+      const endRange = competition.totalTickets;
+
+      let usedNumbers = new Set();
+
+      for (const prize of createdPrizes) {
+        for (let i = 0; i < prize.quantity; i++) {
+          let num;
+
+          do {
+            num =
+              Math.floor(Math.random() * (endRange - startRange + 1)) +
+              startRange;
+          } while (usedNumbers.has(num));
+
+          usedNumbers.add(num);
+
+          await prisma.instantWin.create({
+            data: {
+              competitionId: competition.id,
+              prizeId: prize.id,
+              ticketNumber: num,
+            },
+          });
+        }
+      }
     }
 
     return successResponse(
@@ -333,82 +409,90 @@ exports.updateCompetition = catchAsync(async (req, res) => {
 exports.createCompetitionPayment = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;
-
-    const { competitionId, quantity } = req.body;
-
-    if (!competitionId || !quantity) {
-      return errorResponse(res, "competitionId and quantity are required", 200);
+    const { items } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return errorResponse(res, "Items are required", 200);
     }
 
-    if (req.user.role !== "user") {
-      return errorResponse(res, "Only users can buy tickets", 200);
-    }
+    let totalAmount = 0;
+    let lineItems = [];
 
-    if (quantity <= 0 || quantity > 10) {
-      return errorResponse(res, "Invalid ticket quantity (max 10)", 200);
-    }
+    for (const item of items) {
 
-    const competition = await prisma.competition.findUnique({
-      where: { id: parseInt(competitionId) }
-    });
+      const { competitionId, quantity, answer } = item;
 
-    if (!competition) {
-      return errorResponse(res, "Competition not found", 200);
-    }
-
-    const now = new Date();
-
-    if (competition.endTime <= now) {
-      return errorResponse(res, "Competition has ended", 200);
-    }
-
-    if (competition.startTime > now) {
-      return errorResponse(res, "Competition not started yet", 200);
-    }
-
-    if (competition.soldTickets + quantity > competition.totalTickets) {
-      return errorResponse(res, "Not enough tickets left", 200);
-    }
-
-    const existingTickets = await prisma.ticket.count({
-      where: {
-        userId,
-        competitionId: parseInt(competitionId)
+      if (!competitionId || !quantity) {
+        return errorResponse(res, "competitionId and quantity are required", 200);
       }
-    });
 
-    if (existingTickets + quantity > 10) {
-      return errorResponse(res, "Ticket limit exceeded (max 10 per user)", 200);
+      if (req.user.role !== "user") {
+        return errorResponse(res, "Only users can buy tickets", 200);
+      }
+
+      if (quantity <= 0 || quantity > 10) {
+        return errorResponse(res, "Invalid ticket quantity (max 10)", 200);
+      }
+
+      const competition = await prisma.competition.findUnique({
+        where: { id: parseInt(competitionId) }
+      });
+
+      if (!competition) {
+        return errorResponse(res, "Competition not found", 200);
+      }
+
+      const now = new Date();
+
+      if (competition.endTime <= now) {
+        return errorResponse(res, "Competition has ended", 200);
+      }
+
+      if (competition.startTime > now) {
+        return errorResponse(res, "Competition not started yet", 200);
+      }
+
+      if (competition.soldTickets + quantity > competition.totalTickets) {
+        return errorResponse(res, "Not enough tickets left", 200);
+      }
+
+      const existingTickets = await prisma.ticket.count({
+        where: {
+          userId,
+          competitionId: parseInt(competitionId)
+        }
+      });
+
+      if (existingTickets + quantity > 10) {
+        return errorResponse(res, "Ticket limit exceeded (max 10 per user)", 200);
+      }
+
+      const amount = competition.ticketPrice * quantity;
+      totalAmount += amount;
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `${competition.title} - ${quantity} Ticket(s)`
+          },
+          unit_amount: Math.round(amount * 100)
+        },
+        quantity: 1
+      });
     }
-
-    const amount = competition.ticketPrice * quantity;
-    const amountInCents = Math.round(amount * 100);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
       customer_email: req.user.email,
 
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `${competition.title} - ${quantity} Ticket(s)`
-            },
-            unit_amount: amountInCents
-          },
-          quantity: 1
-        }
-      ],
+      line_items: lineItems,
       success_url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/ticket/payment/cancel`,
 
       metadata: {
         userId: userId.toString(),
-        competitionId: competitionId.toString(),
-        quantity: quantity.toString(),
-        type: "competition_ticket"
+        type: "competition_ticket",
+        items: JSON.stringify(items)
       }
     });
 

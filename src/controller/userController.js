@@ -167,3 +167,49 @@ exports.getUserProfileDashboard = catchAsync(async (req, res) => {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
+
+exports.getAllUsers = catchAsync(async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        role: {
+          not: "admin",
+        },
+        deletedAt: null,
+      },
+      include: {
+        tickets: true, 
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    if (!users || users.length === 0) {
+      return successResponse(res, "No users found", 200, []);
+    }
+
+    const formattedUsers = users.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      tickets: user.tickets?.length || 0,
+      status: user.deletedAt ? "inactive" : "active",
+      createdAt: user.createdAt,
+    }));
+
+    return successResponse(
+      res,
+      "Users fetched successfully",
+      200,
+      formattedUsers
+    );
+  } catch (error) {
+    console.log("Get Users Error:", error);
+    return errorResponse(
+      res,
+      error.message || "Internal Server Error",
+      500
+    );
+  }
+});
