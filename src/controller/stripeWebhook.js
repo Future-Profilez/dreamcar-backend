@@ -84,12 +84,34 @@ module.exports = async (req, res) => {
           const ticketsData = [];
 
           for (let i = 0; i < parsedQty; i++) {
+            const ticketNumber = startNumber + i;
+
+            // ✅ Check if this ticket is a winning ticket
+            const instantWin = await tx.instantWin.findUnique({
+              where: {
+                competitionId_ticketNumber: {
+                  competitionId: parsedCompetitionId,
+                  ticketNumber: ticketNumber,
+                },
+              },
+            });
+
+            let instantWinId = null;
+            let isInstantWin = false;
+
+            if (instantWin) {
+              instantWinId = instantWin.id;
+              isInstantWin = true;
+            }
+
             ticketsData.push({
               userId: parsedUserId,
               competitionId: parsedCompetitionId,
               paymentId: payment.id,
-              ticketNumber: startNumber + i,
-              isEligible: isCorrect
+              ticketNumber,
+              isEligible: isCorrect,
+              isInstantWin,
+              instantWinId,
             });
           }
 
@@ -98,7 +120,21 @@ module.exports = async (req, res) => {
             data: ticketsData
           });
 
-          // ✅ 5. Update sold tickets
+          // ✅ 5. Claim instant wins automatically
+          for (const ticket of ticketsData) {
+            if (ticket.isInstantWin && ticket.instantWinId) {
+              await tx.instantWin.update({
+                where: { id: ticket.instantWinId },
+                data: {
+                  isClaimed: true,
+                  claimedById: parsedUserId,
+                  claimedAt: new Date(),
+                },
+              });
+            }
+          }
+
+          // ✅ 6. Update sold tickets
           await tx.competition.update({
             where: { id: parsedCompetitionId },
             data: {
@@ -108,7 +144,7 @@ module.exports = async (req, res) => {
             }
           });
 
-          // ✅ 6. CLEAR USER CART
+          // ✅ 7. CLEAR USER CART
           await tx.cartItem.deleteMany({
             where: {
               cart: {
