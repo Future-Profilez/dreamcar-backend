@@ -95,9 +95,12 @@ model InstantWin {
   claimedById Int?
   claimedAt   DateTime?
 
+  ticketId     String?  @unique
+
   competition Competition     @relation(fields: [competitionId], references: [id])
   prize       InstantWinPrize @relation(fields: [prizeId], references: [id])
   claimedBy   User?           @relation(fields: [claimedById], references: [id])
+  ticket      Ticket?         @relation(fields: [ticketId], references: [id])
 
   @@unique([competitionId, ticketNumber])
 }
@@ -154,13 +157,15 @@ model Ticket {
   isEligible    Boolean
   isInstantWin  Boolean @default(false)
 
+  instantWinId  String?  @unique
+
   createdAt     DateTime @default(now())
 
   competition Competition @relation(fields: [competitionId], references: [id])
   user        User        @relation(fields: [userId], references: [id])
   payment     StripePayment @relation(fields: [paymentId], references: [id])
 
-  //instantWin  InstantWin?
+  instantWin  InstantWin? @relation(fields: [instantWinId], references: [id])
 
   @@unique([competitionId, ticketNumber])
 }
