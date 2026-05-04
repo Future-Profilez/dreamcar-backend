@@ -32,6 +32,7 @@ model User {
   cart              Cart[]
   payments          StripePayment[]
   tickets           Ticket[]
+  results           Result[]
 }
 
 model Competition {
@@ -56,6 +57,7 @@ model Competition {
   questions                ComplianceQuestion[]
   tickets                  Ticket[]
   payments                 StripePayment[]
+  results                  Result[]
 
   status    Int       @default(1)
   createdAt DateTime? @default(now()) @db.Timestamp(0)
@@ -154,18 +156,38 @@ model Ticket {
   paymentId     String   // instead of orderId
 
   ticketNumber  Int
+  ticketCode    String?
   isEligible    Boolean
   isInstantWin  Boolean @default(false)
 
-  instantWinId  String?  @unique
-
-  createdAt     DateTime @default(now())
+  createdAt     DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt     DateTime? @db.Timestamp(0)
 
   competition Competition @relation(fields: [competitionId], references: [id])
   user        User        @relation(fields: [userId], references: [id])
   payment     StripePayment @relation(fields: [paymentId], references: [id])
 
-  instantWin  InstantWin? @relation(fields: [instantWinId], references: [id])
+  results       Result[]
+  instantWin    InstantWin?
 
   @@unique([competitionId, ticketNumber])
+}
+
+model Result {
+  id            String   @id @default(uuid())
+
+  competitionId Int
+  userId        Int
+  ticketId      String
+
+  position      Int   // 1 = winner, 2 = runner-up, 3 = runner-up
+  isManual      Boolean @default(false)
+
+  createdAt     DateTime @default(now())
+
+  competition   Competition @relation(fields: [competitionId], references: [id])
+  user          User        @relation(fields: [userId], references: [id])
+  ticket        Ticket      @relation(fields: [ticketId], references: [id])
+
+  @@unique([competitionId, position]) // only one winner per position
 }
