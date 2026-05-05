@@ -155,13 +155,13 @@ exports.getUserProfileDashboard = catchAsync(async (req, res) => {
 
       data = Object.values(grouped);
     }
-
     else {
       return errorResponse(res, "Invalid type", 200);
     }
 
     return successResponse(res, "Data fetched successfully", 200, data);
 
+    
   } catch (error) {
     console.error("Dashboard Error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -178,7 +178,7 @@ exports.getAllUsers = catchAsync(async (req, res) => {
         deletedAt: null,
       },
       include: {
-        tickets: true, 
+        tickets: true,
       },
       orderBy: {
         createdAt: "desc",

@@ -182,6 +182,7 @@ model Result {
 
   position      Int   // 1 = winner, 2 = runner-up, 3 = runner-up
   isManual      Boolean @default(false)
+  winnerImage   String? 
 
   createdAt     DateTime @default(now())
 
