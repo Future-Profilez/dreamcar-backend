@@ -53,8 +53,8 @@ exports.addCompetition = catchAsync(async (req, res) => {
     ) {
       return errorResponse(
         res,
-        "All images are required (detailImage, prizeDetailImage, rulesImage, images)",
-        400
+        "All images are required (detailImage, prizeDetailImage)",
+        200
       );
     }
 
@@ -69,14 +69,14 @@ exports.addCompetition = catchAsync(async (req, res) => {
     );
 
     if (new Date(endTime) <= new Date(startTime)) {
-      return errorResponse(res, "End time must be after start time", 400);
+      return errorResponse(res, "End time must be after start time", 200);
     }
 
     let parsedQuestions;
     try {
       parsedQuestions = JSON.parse(questions);
     } catch (err) {
-      return errorResponse(res, "Invalid questions JSON", 400);
+      return errorResponse(res, "Invalid questions JSON", 200);
     }
 
     let instantWinData = null;
@@ -124,14 +124,14 @@ exports.addCompetition = catchAsync(async (req, res) => {
 
     if (instantWinData?.enabled) {
       if (!instantWinData.threshold || !instantWinData.prizes?.length) {
-        return errorResponse(res, "Invalid instant win configuration", 400);
+        return errorResponse(res, "Invalid instant win configuration", 200);
       }
       if (!instantWinData.threshold) {
-        return errorResponse(res, "Instant win threshold required", 400);
+        return errorResponse(res, "Instant win threshold required", 200);
       }
 
       if (!instantWinData.prizes?.length) {
-        return errorResponse(res, "At least one instant prize required", 400);
+        return errorResponse(res, "At least one instant prize required", 200);
       }
 
       // Save Instant prizes

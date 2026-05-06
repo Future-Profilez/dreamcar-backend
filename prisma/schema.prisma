@@ -58,11 +58,28 @@ model Competition {
   tickets                  Ticket[]
   payments                 StripePayment[]
   results                  Result[]
+  prizes                   Prize[]
 
   status    Int       @default(1)
   createdAt DateTime? @default(now()) @db.Timestamp(0)
   updatedAt DateTime? @db.Timestamp(0)
   deletedAt DateTime? @db.Timestamp(0)
+}
+
+model Prize {
+  id                String   @id @default(uuid())
+  competitionId     Int
+  title             String
+  prizeDetail       String
+  prizeDetailImage  String
+  prizeFeatures     String[]
+  position          Int   // 1 = main winner, 2 = runner-up 1, 2 = runner-up 1
+  createdAt         DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt         DateTime? @db.Timestamp(0)
+  deletedAt         DateTime? @db.Timestamp(0)
+
+  competition   Competition @relation(fields: [competitionId], references: [id])
+  @@unique([competitionId, position]) // one prize per position
 }
 
 model ComplianceQuestion {
