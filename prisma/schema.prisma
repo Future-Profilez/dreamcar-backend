@@ -47,9 +47,6 @@ model Competition {
   soldTickets      Int             @default(0)
   startTime        DateTime
   endTime          DateTime
-  prizeDetail      String
-  prizeDetailImage String
-  prizeFeatures    String[]
 
   instantWinEnabled        Boolean              @default(false)
   instantWinTriggerPercent Int?

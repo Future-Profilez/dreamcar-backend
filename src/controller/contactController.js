@@ -42,3 +42,48 @@ exports.addEnquiry = catchAsync(async (req, res) => {
         );
     }
 });
+
+exports.listEnquiries = catchAsync(async (req, res) => {
+    try {
+        const enquiries = await prisma.contact.findMany({
+            where: {
+                deletedAt: null,
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+        if (!enquiries || enquiries.length === 0) {
+            return successResponse(
+                res,
+                "No enquiries found",
+                200,
+                []
+            );
+        }
+        const formatted = enquiries.map((item) => ({
+            id: item.id,
+            fullName: item.fullName,
+            phone: item.phone,
+            email: item.email,
+            subject: item.subject,
+            message: item.message,
+            createdAt: item.createdAt,
+        }));
+
+        return successResponse(
+            res,
+            "Enquiries fetched successfully",
+            200,
+            formatted
+        );
+
+    } catch (error) {
+        console.log("List Enquiries Error:", error);
+        return errorResponse(
+            res,
+            error.message || "Internal Server Error",
+            500
+        );
+    }
+});

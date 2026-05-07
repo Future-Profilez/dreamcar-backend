@@ -116,8 +116,7 @@ exports.getCart = catchAsync(async (req, res) => {
     console.log("Get Cart Error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
-});
-
+}); 
 
 exports.updateCartItem = catchAsync(async (req, res) => {
   try {
@@ -125,7 +124,7 @@ exports.updateCartItem = catchAsync(async (req, res) => {
     const existingItem = await prisma.cartItem.findFirst({
       where: {
         itemId: parseInt(itemId),
-      },
+      }, 
     });
     if (!existingItem) {
       return errorResponse(res, "Cart item not found", 200);

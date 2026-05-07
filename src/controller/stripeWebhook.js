@@ -149,6 +149,44 @@ module.exports = async (req, res) => {
             });
           }
 
+          // ✅ 6. Create tickets one by one
+          // for (const ticketData of ticketsData) {
+
+          //   const createdTicket = await tx.ticket.create({
+          //     data: ticketData
+          //   });
+
+          //   // ✅ If instant win ticket
+          //   if (createdTicket.isInstantWin) {
+
+          //     const matchingWin = await tx.instantWin.findUnique({
+          //       where: {
+          //         competitionId_ticketNumber: {
+          //           competitionId: parsedCompetitionId,
+          //           ticketNumber: createdTicket.ticketNumber,
+          //         },
+          //       },
+          //     });
+
+          //     if (matchingWin) {
+          //       await tx.instantWin.update({
+          //         where: {
+          //           id: matchingWin.id
+          //         },
+
+          //         data: {
+          //           isClaimed: true,
+          //           claimedById: parsedUserId,
+          //           claimedAt: new Date(),
+
+          //           // 🔥 IMPORTANT
+          //           ticketId: createdTicket.id,
+          //         },
+          //       });
+          //     }
+          //   }
+          // }
+
           // ✅ 8. CLEAR USER CART
           await tx.cartItem.deleteMany({
             where: {

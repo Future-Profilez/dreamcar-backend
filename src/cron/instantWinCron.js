@@ -48,7 +48,7 @@ cron.schedule('* * * * *', async () => {
 
         await prisma.$transaction(async (tx) => {
           for (const prize of comp.instantWinPrizes) {
-            for (let i = 0; i < prize.quantity; i++) {
+            for (let i = 0; i < prize?.quantity; i++) {
               await tx.instantWin.create({
                 data: {
                   competitionId: comp.id,

@@ -33,6 +33,7 @@ exports.getTickets = catchAsync(async (req, res) => {
             username: ticket.user?.name,
             competition: ticket.competition?.title,
             ticketNumber: ticket.ticketNumber,
+            ticketCode: ticket.ticketCode,
             isEligible: ticket.isEligible,
             isInstantWin: ticket.isInstantWin,
             date: ticket.createdAt,

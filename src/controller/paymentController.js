@@ -44,7 +44,7 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
         const payments = await prisma.stripePayment.findMany({
             where: {
                 userId,
-                
+
             },
             include: {
                 competition: true,
@@ -65,7 +65,7 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
             date: p.createdAt,
             competitionId: p.competitionId,
             ticketNumbers: p.tickets.map(t => t.ticketNumber),
-            status:p.status
+            status: p.status
         }));
 
         return successResponse(res, "Payment history fetched", 200, data);
@@ -73,5 +73,90 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
     } catch (error) {
         console.error("Payment History Error:", error);
         return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+exports.getAllPayments = catchAsync(async (req, res) => {
+    try {
+        const payments = await prisma.stripePayment.findMany({
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                competition: {
+                    select: {
+                        id: true,
+                        title: true,
+                        slug: true,
+                    },
+                },
+                tickets: {
+                    select: {
+                        ticketNumber: true,
+                        ticketCode: true,
+                        isEligible: true,
+                        isInstantWin: true,
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+        if (!payments || payments.length === 0) {
+            return successResponse(
+                res,
+                "No payments found",
+                200,
+                []
+            );
+        }
+        const data = payments.map((p) => ({
+            id: p.id,
+            orderId: p.id.slice(0, 6),
+            userName: p.user?.name,
+            userEmail: p.user?.email,
+            competition: p.competition?.title || "N/A",
+            competitionSlug: p.competition?.slug || null,
+            competitionId: p.competition?.id || null,
+            tickets: p.quantity || 0,
+            amount: p.amount,
+            currency: p.currency,
+            status: p.status,
+            paymentType: p.type,
+            sessionId: p.sessionId,
+            stripePaymentId: p.stripePaymentId,
+            ticketNumbers: p.tickets.map(
+                (t) => t.ticketNumber
+            ),
+            ticketCodes: p.tickets.map(
+                (t) => t.ticketCode
+            ),
+            eligibleTickets: p.tickets.filter(
+                (t) => t.isEligible
+            ).length,
+            instantWinTickets: p.tickets.filter(
+                (t) => t.isInstantWin
+            ).length,
+            createdAt: p.createdAt,
+        }));
+
+        return successResponse(
+            res,
+            "Payments fetched successfully",
+            200,
+            data
+        );
+    } catch (error) {
+        console.error("Get All Payments Error:",error);
+        return errorResponse(
+            res,
+            error.message || "Internal Server Error",
+            500
+        );
     }
 });

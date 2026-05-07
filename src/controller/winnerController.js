@@ -122,7 +122,7 @@ exports.getUserWins = catchAsync(async (req, res) => {
         const formatted = wins.map((w) => {
             // Find the specific prize for this position
             const wonPrize = w.competition.prizes?.find(p => p.position === w.position);
-            
+
             return {
                 id: w.id,
                 title: wonPrize ? wonPrize.title : w.competition.title,
@@ -149,6 +149,9 @@ exports.getUserWins = catchAsync(async (req, res) => {
 exports.getPublicWinners = catchAsync(async (req, res) => {
     try {
         const winners = await prisma.result.findMany({
+            where: {
+                position: 1
+            },
             include: {
                 competition: {
                     select: {
@@ -192,6 +195,84 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
         return successResponse(res, "Winners fetched", 200, data);
     } catch (error) {
         console.error("Public Winners Error:", error);
+        return errorResponse(
+            res,
+            error.message || "Internal Server Error",
+            500
+        );
+    }
+});
+
+
+exports.getUserInstantWins = catchAsync(async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const instantWins = await prisma.instantWin.findMany({
+            where: {
+                claimedById: userId,
+            },
+
+            include: {
+                competition: {
+                    select: {
+                        id: true,
+                        title: true,
+                        images: true,
+                        endTime: true,
+                    },
+                },
+                prize: {
+                    select: {
+                        title: true,
+                        image: true,
+                    },
+                },
+                ticket: {
+                    select: {
+                        ticketCode: true,
+                    },
+                },
+            },
+            orderBy: {
+                claimedAt: "desc",
+            },
+        });
+
+        if (!instantWins || instantWins.length === 0) {
+            return successResponse(
+                res,
+                "No instant wins found",
+                200,
+                []
+            );
+        }
+        console.log("Instant win :", instantWins);
+        const formatted = instantWins.map((w) => ({
+            id: w.id,
+            winType: "instant",
+            competitionId: w.competition.id,
+            competitionTitle: w.competition.title,
+            title: w.prize.title,
+            image:
+                w.prize.image ||
+                w.competition.images?.[0],
+            ticketCode: w.ticket?.ticketCode,
+            claimedAt: w.claimedAt,
+            drawDate: w.competition.endTime,
+            type: w.competition.productType,
+            position: "Instant Win",
+            ticketCode: w.ticket?.ticketCode
+        }));
+
+        return successResponse(
+            res,
+            "Instant wins fetched successfully",
+            200,
+            formatted
+        );
+
+    } catch (error) {
+        console.log("Get Instant Wins Error:", error);
         return errorResponse(
             res,
             error.message || "Internal Server Error",
