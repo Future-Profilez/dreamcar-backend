@@ -209,3 +209,15 @@ model Result {
 
   @@unique([competitionId, position]) // only one winner per position
 }
+
+model Contact {
+  id          Int             @id @default(autoincrement())
+  fullName    String
+  phone       String?
+  email       String
+  subject     String
+  message     String
+
+  createdAt         DateTime? @default(now()) @db.Timestamp(0)
+  deletedAt         DateTime? @db.Timestamp(0)
+}
