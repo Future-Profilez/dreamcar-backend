@@ -2,6 +2,7 @@ const { errorResponse, successResponse, validationErrorResponse, } = require("..
 const catchAsync = require("../utils/catchAsync");
 const prisma = require("../prismaconfig");
 const stripe = require('../utils/stripe');
+const generateSlug = require('../utils/generateSlug');
 
 exports.addCompetition = catchAsync(async (req, res) => {
   try {
@@ -13,10 +14,9 @@ exports.addCompetition = catchAsync(async (req, res) => {
       totalTickets,
       startTime,
       endTime,
-      prizeDetail,
-      prizeFeatures,
       questions,
-      instantWin
+      instantWin,
+      prizes // Added prizes array (JSON string)
     } = req.body;
 
     if (
@@ -26,7 +26,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
       !totalTickets ||
       !startTime ||
       !endTime ||
-      !prizeDetail ||
+      !prizes ||
       !questions
     ) {
       return errorResponse(res, "All required fields must be provided", 200);
@@ -45,24 +45,21 @@ exports.addCompetition = catchAsync(async (req, res) => {
     }
     const files = req.files || {};
 
-
     if (
-      !files.prizeDetailImage ||
       !files.images ||
-      files.images.length === 0
+      files.images.length === 0 ||
+      !files.prizeImages ||
+      files.prizeImages.length === 0
     ) {
       return errorResponse(
         res,
-        "All images are required (detailImage, prizeDetailImage)",
+        "All images are required (competition images, prize images)",
         200
       );
     }
 
     // ✅ Base URL
     const baseUrl = process.env.DOMAIN || "http://localhost:5003";
-
-    // ✅ Add prefix while saving
-    const prizeDetailImage = `${baseUrl}/uploads/${files.prizeDetailImage[0].filename}`;
 
     const images = files.images.map(
       (file) => `${baseUrl}/uploads/${file.filename}`
@@ -79,6 +76,16 @@ exports.addCompetition = catchAsync(async (req, res) => {
       return errorResponse(res, "Invalid questions JSON", 200);
     }
 
+    let parsedPrizes;
+    try {
+      parsedPrizes = JSON.parse(prizes);
+      if (!Array.isArray(parsedPrizes) || parsedPrizes.length === 0) {
+        return errorResponse(res, "At least one prize must be provided", 200);
+      }
+    } catch (err) {
+      return errorResponse(res, "Invalid prizes JSON", 200);
+    }
+
     let instantWinData = null;
     if (instantWin) {
       try {
@@ -88,18 +95,26 @@ exports.addCompetition = catchAsync(async (req, res) => {
       }
     }
 
+    const mainPrize = parsedPrizes[0];
+    const mainPrizeImage = files.prizeImages && files.prizeImages[0] 
+        ? `${baseUrl}/uploads/${files.prizeImages[0].filename}`
+        : "";
+
+    const slug = generateSlug(title, mainPrize.title || mainPrize.prizeDescription);
+
     const competition = await prisma.competition.create({
       data: {
         title,
+        slug,
         detail,
         productType,
         ticketPrice: parseInt(ticketPrice),
         totalTickets: parseInt(totalTickets),
         startTime: new Date(startTime),
         endTime: new Date(endTime),
-        prizeDetail,
-        prizeDetailImage,
-        prizeFeatures: prizeFeatures ? JSON.parse(prizeFeatures) : [],
+        prizeDetail: mainPrize.prizeDescription,
+        prizeDetailImage: mainPrizeImage,
+        prizeFeatures: mainPrize.prizeFeatures || [],
         images,
 
         instantWinEnabled: instantWinData?.enabled || false,
@@ -108,6 +123,26 @@ exports.addCompetition = catchAsync(async (req, res) => {
           : null,
       },
     });
+
+    for (let i = 0; i < parsedPrizes.length; i++) {
+      const p = parsedPrizes[i];
+      let pImage = "";
+      // Match the image by index
+      if (files.prizeImages && files.prizeImages[i]) {
+        pImage = `${baseUrl}/uploads/${files.prizeImages[i].filename}`;
+      }
+
+      await prisma.prize.create({
+        data: {
+          competitionId: competition.id,
+          title: p.title,
+          prizeDetail: p.prizeDescription,
+          prizeDetailImage: pImage,
+          prizeFeatures: p.prizeFeatures || [],
+          position: i + 1, // 1 for winner, 2 for runner-up 1, etc.
+        }
+      });
+    }
 
     for (const q of parsedQuestions) {
       if (!q.question || !q.options || !q.answer) continue;
@@ -137,8 +172,15 @@ exports.addCompetition = catchAsync(async (req, res) => {
       // Save Instant prizes
       const createdPrizes = [];
 
+      // Group identical prizes by name to calculate quantity
+      const prizeCounts = {};
+      const prizeImages = {};
+
       for (let i = 0; i < instantWinData.prizes.length; i++) {
         const prize = instantWinData.prizes[i];
+        const title = prize.title?.trim();
+
+        if (!title) continue;
 
         let imageUrl = null;
 
@@ -147,47 +189,28 @@ exports.addCompetition = catchAsync(async (req, res) => {
           imageUrl = `${baseUrl}/uploads/${files.instantWinImages[i].filename}`;
         }
 
+        if (prizeCounts[title]) {
+          prizeCounts[title] += 1;
+          if (!prizeImages[title] && imageUrl) {
+             prizeImages[title] = imageUrl;
+          }
+        } else {
+          prizeCounts[title] = 1;
+          prizeImages[title] = imageUrl;
+        }
+      }
+
+      for (const [title, quantity] of Object.entries(prizeCounts)) {
         const createdPrize = await prisma.instantWinPrize.create({
           data: {
             competitionId: competition.id,
-            title: prize.title,
-            image: imageUrl,
-            quantity: parseInt(prize.quantity || 1),
+            title: title,
+            image: prizeImages[title] || null,
+            quantity: quantity,
           },
         });
 
         createdPrizes.push(createdPrize);
-      }
-      //Generate winning tickets
-      const thresholdTickets = Math.floor(
-        (competition.totalTickets * instantWinData.threshold) / 100
-      );
-
-      const startRange = thresholdTickets + 1;
-      const endRange = competition.totalTickets;
-
-      let usedNumbers = new Set();
-
-      for (const prize of createdPrizes) {
-        for (let i = 0; i < prize.quantity; i++) {
-          let num;
-
-          do {
-            num =
-              Math.floor(Math.random() * (endRange - startRange + 1)) +
-              startRange;
-          } while (usedNumbers.has(num));
-
-          usedNumbers.add(num);
-
-          await prisma.instantWin.create({
-            data: {
-              competitionId: competition.id,
-              prizeId: prize.id,
-              ticketNumber: num,
-            },
-          });
-        }
       }
     }
 
@@ -238,14 +261,34 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
 
 exports.competitionDetail = catchAsync(async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const identifier = req.params.id;
+    let whereCondition = { deletedAt: null };
+
+    if (!isNaN(identifier)) {
+      whereCondition.id = parseInt(identifier);
+    } else {
+      whereCondition.slug = identifier;
+    }
 
     const data = await prisma.competition.findFirst({
-      where: {
-        id,
-        deletedAt: null,
-      }, include: {
+      where: whereCondition,
+      include: {
         questions: true,
+        prizes: {
+          orderBy: { position: 'asc' }
+        },
+        instantWinPrizes: true,
+        instantWins: {
+          include: {
+            prize: true,
+            claimedBy: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        }
       }
 
     });
@@ -254,11 +297,22 @@ exports.competitionDetail = catchAsync(async (req, res) => {
       return errorResponse(res, "Competition not found", 200);
     }
 
+    let thresholdReached = false;
+    if (data.instantWinEnabled && data.instantWinTriggerPercent) {
+      const thresholdTickets = Math.floor((data.totalTickets * data.instantWinTriggerPercent) / 100);
+      thresholdReached = data.soldTickets >= thresholdTickets;
+    }
+
+    const responseData = {
+      ...data,
+      thresholdReached
+    };
+
     return successResponse(
       res,
       "Competition fetched successfully",
       200,
-      data
+      responseData
     );
   } catch (error) {
     console.log("Get Competition detail Error:", error);
@@ -294,42 +348,51 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       totalTickets,
       startTime,
       endTime,
-      prizeDetail,
-      prizeFeatures,
+      prizes,
+      existingImages,
       // rules,
       questions,
+      instantWin,
     } = req.body;
 
     const files = req.files || {};
 
     const baseUrl = process.env.DOMAIN || "http://localhost:5003";
 
-    // ✅ Handle optional image updates
-    // let detailImage = existingCompetition.detailImage;
-    // if (files.detailImage) {
-    //   detailImage = `${baseUrl}/public/uploads/${files.detailImage[0].filename}`;
-    // }
-
-    let prizeDetailImage = existingCompetition.prizeDetailImage;
-    if (files.prizeDetailImage) {
-      prizeDetailImage = `${baseUrl}/uploads/${files.prizeDetailImage[0].filename}`;
+    let parsedPrizes;
+    if (prizes) {
+      try {
+        parsedPrizes = JSON.parse(prizes);
+      } catch (err) {
+        return errorResponse(res, "Invalid prizes JSON", 400);
+      }
     }
 
-    // let rulesImage = existingCompetition.rulesImage;
-    // if (files.rulesImage) {
-    //   rulesImage = `${baseUrl}/uploads/${files.rulesImage[0].filename}`;
-    // }
+    let instantWinData = null;
+    if (instantWin) {
+      try {
+        instantWinData = JSON.parse(instantWin);
+      } catch (err) {
+        return errorResponse(res, "Invalid instant win JSON", 400);
+      }
+    }
 
-    const previousimages = existingCompetition.images;
-    let images;
+    // Reconstruct the images array
+    // existingImages can be undefined, string, or array of strings
+    let finalImages = [];
+    if (existingImages) {
+      if (Array.isArray(existingImages)) {
+        finalImages = [...existingImages];
+      } else {
+        finalImages = [existingImages];
+      }
+    }
+
     if (files.images && files.images.length > 0) {
-      images = files.images.map(
+      const newImages = files.images.map(
         (file) => `${baseUrl}/uploads/${file.filename}`
       );
-    }
-
-    if (images?.length) {
-      images = [...previousimages, ...images]
+      finalImages = [...finalImages, ...newImages];
     }
 
     // ✅ Time validation (only if both provided)
@@ -339,30 +402,85 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       }
     }
 
+    if (totalTickets && parseInt(totalTickets) !== existingCompetition.totalTickets) {
+      if (existingCompetition.instantWinEnabled && existingCompetition.soldTickets > 0) {
+        return errorResponse(res, "Cannot change total tickets after tickets have been sold in an instant win competition.", 200);
+      }
+    }
+
+    let mainPrizeDetail = existingCompetition.prizeDetail;
+    let mainPrizeImage = existingCompetition.prizeDetailImage;
+    let mainPrizeFeatures = existingCompetition.prizeFeatures;
+    let mainPrizeTitle = "";
+
+    if (parsedPrizes && parsedPrizes.length > 0) {
+      const mainPrize = parsedPrizes[0];
+      mainPrizeTitle = mainPrize.title || mainPrize.prizeDescription;
+      mainPrizeDetail = mainPrize.prizeDescription;
+      mainPrizeFeatures = mainPrize.prizeFeatures || [];
+      if (mainPrize.hasNewImage && files.prizeImages && files.prizeImages[0]) {
+        mainPrizeImage = `${baseUrl}/uploads/${files.prizeImages[0].filename}`;
+      } else if (mainPrize.existingImage) {
+        mainPrizeImage = mainPrize.existingImage;
+      }
+    }
+
+    let finalSlug = existingCompetition.slug;
+    if (!finalSlug) {
+      finalSlug = generateSlug(title || existingCompetition.title, mainPrizeTitle || existingCompetition.prizeDetail);
+    }
+
     // ✅ Build update object dynamically
     const updateData = {
       ...(title && { title }),
+      slug: finalSlug,
       ...(detail && { detail }),
       ...(productType && { productType }),
       ...(ticketPrice && { ticketPrice: parseInt(ticketPrice) }),
       ...(totalTickets && { totalTickets: parseInt(totalTickets) }),
       ...(startTime && { startTime: new Date(startTime) }),
       ...(endTime && { endTime: new Date(endTime) }),
-      ...(prizeDetail && { prizeDetail }),
-      ...(prizeFeatures && { prizeFeatures: JSON.parse(prizeFeatures) }),
-      // ...(rules && { rules }),
-
-      // images (always included because we fallback to existing)
-      // detailImage,
-      prizeDetailImage,
-      // rulesImage,
-      images,
+      prizeDetail: mainPrizeDetail,
+      prizeFeatures: mainPrizeFeatures,
+      prizeDetailImage: mainPrizeImage,
+      images: finalImages,
+      ...(instantWinData && {
+        instantWinEnabled: instantWinData.enabled,
+        instantWinTriggerPercent: instantWinData.enabled ? parseInt(instantWinData.threshold) : null,
+      })
     };
 
     const updatedCompetition = await prisma.competition.update({
       where: { id: parseInt(id) },
       data: updateData,
     });
+
+    if (parsedPrizes) {
+      await prisma.prize.deleteMany({
+        where: { competitionId: parseInt(id) }
+      });
+
+      let newImageIndex = 0;
+      for (let i = 0; i < parsedPrizes.length; i++) {
+        const p = parsedPrizes[i];
+        let pImage = p.existingImage || "";
+        if (p.hasNewImage && files.prizeImages && files.prizeImages[newImageIndex]) {
+          pImage = `${baseUrl}/uploads/${files.prizeImages[newImageIndex].filename}`;
+          newImageIndex++;
+        }
+
+        await prisma.prize.create({
+          data: {
+            competitionId: parseInt(id),
+            title: p.title,
+            prizeDetail: p.prizeDescription,
+            prizeDetailImage: pImage,
+            prizeFeatures: p.prizeFeatures || [],
+            position: i + 1,
+          }
+        });
+      }
+    }
 
     if (questions) {
       let parsedQuestions;
@@ -386,6 +504,55 @@ exports.updateCompetition = catchAsync(async (req, res) => {
             options: q.options,
             answers: [q.answer]
           }
+        });
+      }
+    }
+
+    if (instantWinData?.enabled && !existingCompetition.instantWinGenerated) {
+      if (!instantWinData.threshold || !instantWinData.prizes?.length) {
+        return errorResponse(res, "Invalid instant win configuration", 200);
+      }
+
+      // Delete existing prizes only if they haven't been generated yet
+      await prisma.instantWinPrize.deleteMany({
+        where: { competitionId: parseInt(id) }
+      });
+
+      // Group identical prizes by name to calculate quantity
+      const prizeCounts = {};
+      const prizeImages = {};
+
+      for (let i = 0; i < instantWinData.prizes.length; i++) {
+        const prize = instantWinData.prizes[i];
+        const title = prize.title.trim();
+
+        if (!title) continue;
+
+        let imageUrl = prize.existingImage || null;
+        if (prize.hasNewImage && files.instantWinImages && files.instantWinImages[i]) {
+          imageUrl = `${baseUrl}/uploads/${files.instantWinImages[i].filename}`;
+        }
+
+        if (prizeCounts[title]) {
+          prizeCounts[title] += 1;
+          // Keep the first image uploaded for this title
+          if (!prizeImages[title] && imageUrl) {
+             prizeImages[title] = imageUrl;
+          }
+        } else {
+          prizeCounts[title] = 1;
+          prizeImages[title] = imageUrl;
+        }
+      }
+
+      for (const [title, quantity] of Object.entries(prizeCounts)) {
+        await prisma.instantWinPrize.create({
+          data: {
+            competitionId: parseInt(id),
+            title: title,
+            image: prizeImages[title] || null,
+            quantity: quantity,
+          },
         });
       }
     }

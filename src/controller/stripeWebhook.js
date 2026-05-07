@@ -1,6 +1,5 @@
 const stripe = require("../utils/stripe");
 const prisma = require("../prismaconfig");
-const { generateInstantWinTickets } = require("../utils/instantWinTickets");
 const { generateTicketCode } = require("../utils/ticketCode");
 
 module.exports = async (req, res) => {
@@ -92,9 +91,6 @@ module.exports = async (req, res) => {
               }
             }
           });
-
-          // ✅ 5. See Threshold if crossed GENERATE INSTANT WINS tickets
-          await generateInstantWinTickets(tx, updatedCompetition);
 
           // ✅ 5.Generate ticket numbers safely + check wins
           const startNumber = updatedCompetition.soldTickets - parsedQty + 1;

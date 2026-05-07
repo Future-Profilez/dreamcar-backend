@@ -39,6 +39,7 @@ model Competition {
   id               Int             @id @default(autoincrement())
   title            String
   images           String[]
+  slug             String?         @unique
   detail           String
   productType      productTypeEnum @default(car_bike)
   ticketPrice      Int
@@ -52,6 +53,7 @@ model Competition {
 
   instantWinEnabled        Boolean              @default(false)
   instantWinTriggerPercent Int?
+  instantWinGenerated      Boolean              @default(false)
   instantWins              InstantWin[]
   instantWinPrizes         InstantWinPrize[]
   questions                ComplianceQuestion[]

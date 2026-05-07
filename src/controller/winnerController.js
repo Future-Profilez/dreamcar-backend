@@ -102,7 +102,8 @@ exports.getUserWins = catchAsync(async (req, res) => {
                         title: true,
                         images: true,
                         endTime: true,
-                        productType: true
+                        productType: true,
+                        prizes: true
                     },
                 },
                 ticket: {
@@ -118,16 +119,21 @@ exports.getUserWins = catchAsync(async (req, res) => {
             return errorResponse(res, "No winning entries found", 200, []);
         }
 
-        const formatted = wins.map((w) => ({
-            id: w.id,
-            title: w.competition.title,
-            image: w.competition.images?.[0],
-            ticketCode: w.ticket?.ticketCode,
-            position: w.position,
-            drawDate: w.competition.endTime,
-            competitionId: w.competition.id,
-            type: w.competition.productType
-        }));
+        const formatted = wins.map((w) => {
+            // Find the specific prize for this position
+            const wonPrize = w.competition.prizes?.find(p => p.position === w.position);
+            
+            return {
+                id: w.id,
+                title: wonPrize ? wonPrize.title : w.competition.title,
+                image: wonPrize?.prizeDetailImage || w.competition.images?.[0],
+                ticketCode: w.ticket?.ticketCode,
+                position: w.position,
+                drawDate: w.competition.endTime,
+                competitionId: w.competition.id,
+                type: w.competition.productType
+            };
+        });
 
         return successResponse(res, "Wins fetched", 200, formatted);
     } catch (error) {
@@ -138,20 +144,17 @@ exports.getUserWins = catchAsync(async (req, res) => {
             500
         );
     }
-
 });
 
 exports.getPublicWinners = catchAsync(async (req, res) => {
     try {
         const winners = await prisma.result.findMany({
-            where: {
-                position: 1,
-            },
             include: {
                 competition: {
                     select: {
                         title: true,
                         endTime: true,
+                        prizes: true
                     },
                 },
                 user: {
@@ -173,14 +176,18 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
             return errorResponse(res, "No winners found", 200, []);
         }
 
-        const data = winners.map((w) => ({
-            title: w.competition.title,
-            image: '/img/car3d1.png',
-            date: w.competition.endTime,
-            winnerName: w.user.name,
-            image: w.winnerImage || "/img/trophy.png",
-            ticketCode: w.ticket?.ticketCode
-        }));
+        const data = winners.map((w) => {
+            const wonPrize = w.competition.prizes?.find(p => p.position === w.position);
+            return {
+                title: wonPrize ? wonPrize.title : w.competition.title,
+                prizeImage: wonPrize?.prizeDetailImage || '/img/car3d1.png',
+                date: w.competition.endTime,
+                winnerName: w.user.name,
+                image: w.winnerImage || "/img/trophy.png",
+                ticketCode: w.ticket?.ticketCode,
+                position: w.position
+            };
+        });
 
         return successResponse(res, "Winners fetched", 200, data);
     } catch (error) {
@@ -191,5 +198,4 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
             500
         );
     }
-
 });

@@ -9,6 +9,9 @@ const path = require("path");
 const fs = require("fs");
 const Loggers = require("./utils/Logger");
 
+// Initialize Cron Jobs
+require('./cron/instantWinCron');
+
 const serializeError = (err) => {
   if (!err) return "Unknown error";
   if (typeof err === "string") return err;

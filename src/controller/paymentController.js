@@ -59,6 +59,7 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
             id: p.id,
             orderId: p.id.slice(0, 6), // short display id
             competition: p.competition?.title || "N/A",
+            competitionSlug: p.competition?.slug || null,
             tickets: p.quantity || 0,
             amount: p.amount,
             date: p.createdAt,

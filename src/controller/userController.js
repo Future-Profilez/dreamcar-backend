@@ -140,6 +140,7 @@ exports.getUserProfileDashboard = catchAsync(async (req, res) => {
         if (!grouped[compId]) {
           grouped[compId] = {
             competitionId: parseInt(compId),
+            competitionSlug: t.competition.slug,
             title: t.competition.title,
             image: t.competition.images?.[0] || t.competition.prizeDetailImage,
             tickets: [],
