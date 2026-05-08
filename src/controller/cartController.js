@@ -6,7 +6,7 @@ const prisma = require("../prismaconfig");
 exports.addToCart = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;
-    const { itemId, quantity, itemType } = req.body;
+    const { itemId, quantity, itemType, answer } = req.body;
 
     if (!itemId || !quantity) {
       return errorResponse(res, "Missing required fields", 200);
@@ -32,13 +32,28 @@ exports.addToCart = catchAsync(async (req, res) => {
       },
     });
 
+    if (itemType === "competition" || !itemType) {
+      const competition = await prisma.competition.findUnique({
+        where: { id: parseInt(itemId) },
+        select: { totalTickets: true, soldTickets: true }
+      });
+      if (competition) {
+        const available = competition.totalTickets - competition.soldTickets;
+        const requestedQty = parseInt(quantity);
+        if (requestedQty > available) {
+          return errorResponse(res, `Only ${available} tickets remaining`, 200);
+        }
+      }
+    }
+
     let cartItem;
 
     if (existingItem) {
       cartItem = await prisma.cartItem.update({
         where: { id: existingItem.id },
         data: {
-          quantity: existingItem.quantity + parseInt(quantity),
+          quantity: parseInt(quantity),
+          answer: answer || existingItem.answer
         },
       });
     } else {
@@ -48,6 +63,7 @@ exports.addToCart = catchAsync(async (req, res) => {
           itemId: parseInt(itemId),
           quantity: parseInt(quantity),
           itemType: itemType || "competition",
+          answer: answer || null
         },
       });
     }
@@ -116,8 +132,7 @@ exports.getCart = catchAsync(async (req, res) => {
     console.log("Get Cart Error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
-});
-
+}); 
 
 exports.updateCartItem = catchAsync(async (req, res) => {
   try {
@@ -125,7 +140,7 @@ exports.updateCartItem = catchAsync(async (req, res) => {
     const existingItem = await prisma.cartItem.findFirst({
       where: {
         itemId: parseInt(itemId),
-      },
+      }, 
     });
     if (!existingItem) {
       return errorResponse(res, "Cart item not found", 200);
@@ -135,6 +150,19 @@ exports.updateCartItem = catchAsync(async (req, res) => {
         where: { id: existingItem.id },
       });
       return successResponse(res, "Item removed", 200);
+    }
+
+    if (existingItem.itemType === "competition") {
+      const competition = await prisma.competition.findUnique({
+        where: { id: parseInt(itemId) },
+        select: { totalTickets: true, soldTickets: true }
+      });
+      if (competition) {
+        const available = competition.totalTickets - competition.soldTickets;
+        if (parseInt(quantity) > available) {
+          return errorResponse(res, `Only ${available} tickets remaining`, 200);
+        }
+      }
     }
 
     const updatedItem = await prisma.cartItem.update({

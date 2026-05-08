@@ -112,11 +112,10 @@ exports.addCompetition = catchAsync(async (req, res) => {
         totalTickets: parseInt(totalTickets),
         startTime: new Date(startTime),
         endTime: new Date(endTime),
-        prizeDetail: mainPrize.prizeDescription,
-        prizeDetailImage: mainPrizeImage,
-        prizeFeatures: mainPrize.prizeFeatures || [],
+        // prizeDetail: mainPrize.prizeDescription,
+        // prizeDetailImage: mainPrizeImage,
+        // prizeFeatures: mainPrize.prizeFeatures || [],
         images,
-
         instantWinEnabled: instantWinData?.enabled || false,
         instantWinTriggerPercent: instantWinData?.enabled
           ? parseInt(instantWinData.threshold)
@@ -287,6 +286,11 @@ exports.competitionDetail = catchAsync(async (req, res) => {
                 name: true
               }
             }
+          }
+        },
+        results: {
+          include: {
+            user: true
           }
         }
       }
@@ -619,7 +623,8 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
       }
 
       if (competition.soldTickets + quantity > competition.totalTickets) {
-        return errorResponse(res, "Not enough tickets left", 200);
+        const available = competition.totalTickets - competition.soldTickets;
+        return errorResponse(res, `Not enough tickets left for ${competition.title}. Only ${available} available.`, 200);
       }
 
       const existingTickets = await prisma.ticket.count({
