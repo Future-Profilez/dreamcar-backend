@@ -143,6 +143,7 @@ exports.getUserWins = catchAsync(async (req, res) => {
                 ticket: {
                     select: {
                         ticketCode: true,
+                        ticketNumber: true,
                     },
                 },
             },
@@ -161,7 +162,7 @@ exports.getUserWins = catchAsync(async (req, res) => {
                 id: w.id,
                 title: wonPrize ? wonPrize.title : w.competition.title,
                 image: wonPrize?.prizeDetailImage || w.competition.images?.[0],
-                ticketCode: w.ticket?.ticketCode,
+                ticketCode: w.ticket?.ticketCode || `#${w.ticket?.ticketNumber || w.ticketId.slice(0, 6)}`,
                 position: w.position,
                 drawDate: w.competition.endTime,
                 competitionId: w.competition.id,
@@ -314,12 +315,11 @@ exports.getUserInstantWins = catchAsync(async (req, res) => {
             image:
                 w.prize.image ||
                 w.competition.images?.[0],
-            ticketCode: w.ticket?.ticketCode,
+            ticketCode: w.ticket?.ticketCode || `#${w.ticketNumber}`,
             claimedAt: w.claimedAt,
             drawDate: w.competition.endTime,
             type: w.competition.productType,
-            position: "Instant Win",
-            ticketCode: w.ticket?.ticketCode
+            position: "Instant Win"
         }));
 
         return successResponse(
