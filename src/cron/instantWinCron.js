@@ -42,6 +42,22 @@ cron.schedule('* * * * *', async () => {
       const thresholdTickets = Math.floor((comp.totalTickets * comp.instantWinTriggerPercent) / 100);
 
       if (comp.soldTickets >= thresholdTickets) {
+        // Atomic update to prevent race conditions when running in cluster mode
+        const updateResult = await prisma.competition.updateMany({
+          where: {
+            id: comp.id,
+            instantWinGenerated: false
+          },
+          data: {
+            instantWinGenerated: true
+          }
+        });
+
+        if (updateResult.count === 0) {
+          Loggers.info(`Cron: Instant wins already generated or being generated for comp ${comp.id}`);
+          continue;
+        }
+
         Loggers.info(`Cron: Threshold reached for competition ${comp.id}. Generating instant wins...`);
         console.log(`Cron: Threshold reached for competition ${comp.id}. Generating instant wins...`);
 
@@ -52,6 +68,11 @@ cron.schedule('* * * * *', async () => {
         if (totalPrizes > (endRange - startRange + 1)) {
           Loggers.error(`Cron: Not enough unsold tickets to assign instant wins for competition ${comp.id}`);
           console.log(`Cron: Not enough unsold tickets to assign instant wins for competition ${comp.id}`);
+          // Rollback the generation flag
+          await prisma.competition.update({
+            where: { id: comp.id },
+            data: { instantWinGenerated: false }
+          });
           continue;
         }
 
@@ -65,28 +86,32 @@ cron.schedule('* * * * *', async () => {
         const numbersArray = Array.from(winningNumbers);
         let index = 0;
 
-        await prisma.$transaction(async (tx) => {
-          for (const prize of comp.instantWinPrizes) {
-            for (let i = 0; i < prize?.quantity; i++) {
-              await tx.instantWin.create({
-                data: {
-                  competitionId: comp.id,
-                  prizeId: prize.id,
-                  ticketNumber: numbersArray[index++]
-                }
-              });
+        try {
+          await prisma.$transaction(async (tx) => {
+            for (const prize of comp.instantWinPrizes) {
+              for (let i = 0; i < prize?.quantity; i++) {
+                await tx.instantWin.create({
+                  data: {
+                    competitionId: comp.id,
+                    prizeId: prize.id,
+                    ticketNumber: numbersArray[index++]
+                  }
+                });
+              }
             }
-          }
-
-          // Mark as generated
-          await tx.competition.update({
-            where: { id: comp.id },
-            data: { instantWinGenerated: true }
           });
-        });
 
-        Loggers.info(`Cron: Instant wins generated successfully for competition ${comp.id}`);
-        console.log(`Cron: Instant wins generated successfully for competition ${comp.id}`);
+          Loggers.info(`Cron: Instant wins generated successfully for competition ${comp.id}`);
+          console.log(`Cron: Instant wins generated successfully for competition ${comp.id}`);
+        } catch (err) {
+          Loggers.error(`Cron Error (InstantWin transaction): ${err.message}`);
+          console.log(`Cron Error (InstantWin transaction): ${err.message}`);
+          // Rollback the generation flag if transaction failed
+          await prisma.competition.update({
+            where: { id: comp.id },
+            data: { instantWinGenerated: false }
+          });
+        }
       }
     }
   } catch (error) {

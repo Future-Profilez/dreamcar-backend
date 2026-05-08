@@ -89,7 +89,7 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
             amount: p.amount,
             date: p.createdAt,
             competitionId: p.competitionId,
-            ticketNumbers: p.tickets.map(t => t.ticketNumber),
+            ticketNumbers: p.tickets.map(t => t.ticketCode || `#${t.ticketNumber}`),
             status: p.status
         }));
 

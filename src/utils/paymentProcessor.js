@@ -24,6 +24,9 @@ const processSuccessfulPayment = async (session) => {
             const parsedQty = parseInt(item.quantity);
             const answer = item.answer;
 
+            // Lock the competition row to prevent race conditions (double processing)
+            await tx.$executeRaw`SELECT id FROM "Competition" WHERE id = ${parsedCompetitionId} FOR UPDATE`;
+
             // Check if payment already exists to prevent duplicate processing
             const existingPayment = await tx.stripePayment.findFirst({
                 where: { sessionId: session.id, competitionId: parsedCompetitionId }
