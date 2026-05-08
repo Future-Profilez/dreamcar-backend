@@ -46,7 +46,7 @@ exports.login = catchAsync(async (req, res) => {
   Loggers.info(`Login user found: ${user ? "yes" : "no"}`);
 
   if (!user) {
-    return errorResponse(res, "User not found", 200);
+    return errorResponse(res, "User not found", 401);
   }
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {

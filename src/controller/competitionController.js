@@ -287,6 +287,11 @@ exports.competitionDetail = catchAsync(async (req, res) => {
               }
             }
           }
+        },
+        results: {
+          include: {
+            user: true
+          }
         }
       }
 
@@ -618,7 +623,8 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
       }
 
       if (competition.soldTickets + quantity > competition.totalTickets) {
-        return errorResponse(res, "Not enough tickets left", 200);
+        const available = competition.totalTickets - competition.soldTickets;
+        return errorResponse(res, `Not enough tickets left for ${competition.title}. Only ${available} available.`, 200);
       }
 
       const existingTickets = await prisma.ticket.count({

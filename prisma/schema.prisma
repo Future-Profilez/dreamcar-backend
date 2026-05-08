@@ -159,6 +159,7 @@ model CartItem {
   itemId           Int             
   quantity         Int
   itemType         itemTypeEnum   @default(competition)
+  answer           String?
   cart Cart @relation(fields: [cartId], references: [id])    
 
   @@unique([cartId, itemId, itemType])                                               

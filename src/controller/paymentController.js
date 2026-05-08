@@ -1,6 +1,8 @@
 const { errorResponse, successResponse, validationErrorResponse, } = require("../utils/ErrorHandling");
 const catchAsync = require("../utils/catchAsync");
 const prisma = require("../prismaconfig");
+const stripe = require("../utils/stripe");
+const { processSuccessfulPayment } = require("../utils/paymentProcessor");
 
 exports.verifyPayment = catchAsync(async (req, res) => {
     try {
@@ -10,15 +12,38 @@ exports.verifyPayment = catchAsync(async (req, res) => {
         if (!session_id) {
             return errorResponse(res, "Session ID is required", 200);
         }
-        const payment = await prisma.stripePayment.findFirst({
+
+        let payment = await prisma.stripePayment.findFirst({
             where: {
                 sessionId: session_id,
                 userId: userId
+            },
+            include: {
+                tickets: true
             }
         });
 
         if (!payment) {
-            return errorResponse(res, "Payment not found", 200);
+            // If payment not in DB, fallback to querying Stripe directly (handles webhook delays or local testing)
+            const session = await stripe.checkout.sessions.retrieve(session_id);
+            if (session.payment_status === 'paid') {
+                await processSuccessfulPayment(session);
+                
+                // Fetch the newly created payment
+                payment = await prisma.stripePayment.findFirst({
+                    where: {
+                        sessionId: session_id,
+                        userId: userId
+                    },
+                    include: {
+                        tickets: true
+                    }
+                });
+            }
+        }
+
+        if (!payment) {
+            return errorResponse(res, "Payment not found or not completed", 200);
         }
 
         const competition = await prisma.competition.findUnique({

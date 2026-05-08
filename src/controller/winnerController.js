@@ -90,6 +90,40 @@ exports.drawWinner = catchAsync(async (req, res) => {
     }
 });
 
+exports.resetWinners = catchAsync(async (req, res) => {
+    try {
+        const { competitionId } = req.params;
+
+        if (!competitionId) {
+            return validationErrorResponse(res, "Competition ID is required");
+        }
+
+        // Check if there are any results
+        const existingResults = await prisma.result.findMany({
+            where: { competitionId: Number(competitionId) }
+        });
+
+        if (existingResults.length === 0) {
+            return errorResponse(res, "No winners found to reset", 200);
+        }
+
+        // Delete results
+        await prisma.result.deleteMany({
+            where: { competitionId: Number(competitionId) }
+        });
+
+        return successResponse(res, "Winners reset successfully", 200);
+
+    } catch (error) {
+        console.error("Reset Winners Error:", error);
+        return errorResponse(
+            res,
+            error.message || "Internal Server Error",
+            500
+        );
+    }
+});
+
 exports.getUserWins = catchAsync(async (req, res) => {
     try {
         const userId = req.user.id;
@@ -148,41 +182,57 @@ exports.getUserWins = catchAsync(async (req, res) => {
 
 exports.getPublicWinners = catchAsync(async (req, res) => {
     try {
-        const winners = await prisma.result.findMany({
-            where: {
-                position: 1
-            },
-            include: {
-                competition: {
-                    select: {
-                        title: true,
-                        endTime: true,
-                        prizes: true
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 15;
+        const skip = (page - 1) * limit;
+
+        const [winners, totalCount] = await Promise.all([
+            prisma.result.findMany({
+                include: {
+                    competition: {
+                        select: {
+                            title: true,
+                            endTime: true,
+                            prizes: true
+                        },
                     },
-                },
-                user: {
-                    select: {
-                        name: true,
+                    user: {
+                        select: {
+                            name: true,
+                        },
                     },
-                },
-                ticket: {
-                    select: {
-                        ticketCode: true
+                    ticket: {
+                        select: {
+                            ticketCode: true
+                        }
                     }
-                }
-            },
-            orderBy: {
-                createdAt: "desc",
-            },
-        });
+                },
+                orderBy: {
+                    createdAt: "desc",
+                },
+                skip: skip,
+                take: limit,
+            }),
+            prisma.result.count()
+        ]);
+        
         if (!winners || winners.length === 0) {
-            return errorResponse(res, "No winners found", 200, []);
+            return successResponse(res, "No winners found", 200, {
+                winners: [],
+                pagination: {
+                    totalItems: 0,
+                    totalPages: 0,
+                    currentPage: page,
+                    limit: limit
+                }
+            });
         }
 
         const data = winners.map((w) => {
             const wonPrize = w.competition.prizes?.find(p => p.position === w.position);
             return {
                 title: wonPrize ? wonPrize.title : w.competition.title,
+                competitionTitle: w.competition.title,
                 prizeImage: wonPrize?.prizeDetailImage || '/img/car3d1.png',
                 date: w.competition.endTime,
                 winnerName: w.user.name,
@@ -192,7 +242,15 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
             };
         });
 
-        return successResponse(res, "Winners fetched", 200, data);
+        return successResponse(res, "Winners fetched", 200, {
+            winners: data,
+            pagination: {
+                totalItems: totalCount,
+                totalPages: Math.ceil(totalCount / limit),
+                currentPage: page,
+                limit: limit
+            }
+        });
     } catch (error) {
         console.error("Public Winners Error:", error);
         return errorResponse(

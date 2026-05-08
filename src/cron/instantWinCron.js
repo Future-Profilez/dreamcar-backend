@@ -5,6 +5,7 @@ const Loggers = require('../utils/Logger');
 // Run every minute
 cron.schedule('* * * * *', async () => {
   try {
+    console.log(`Cron: Instant win generation started...`);
     const competitions = await prisma.competition.findMany({
       where: {
         instantWinEnabled: true,
@@ -13,19 +14,36 @@ cron.schedule('* * * * *', async () => {
         deletedAt: null
       },
       include: {
-        instantWinPrizes: true
+        instantWinPrizes: true,
+        _count: {
+          select: { instantWins: true }
+        }
       }
     });
+    if (competitions.length === 0) {
+      console.log(`Cron: No active competitions found with instant win generation enabled.`);
+      return;
+    }
 
     for (const comp of competitions) {
+      console.log(`Cron: Processing competition ${comp.id}`);
       if (!comp.instantWinTriggerPercent) continue;
+
+      const totalPrizes = comp.instantWinPrizes.reduce((sum, p) => sum + p.quantity, 0);
+
+      // If all tickets already generated, skip
+      if (comp._count.instantWins >= totalPrizes) {
+        if (!comp.instantWinGenerated) {
+          await prisma.competition.update({ where: { id: comp.id }, data: { instantWinGenerated: true } });
+        }
+        continue;
+      }
 
       const thresholdTickets = Math.floor((comp.totalTickets * comp.instantWinTriggerPercent) / 100);
 
       if (comp.soldTickets >= thresholdTickets) {
         Loggers.info(`Cron: Threshold reached for competition ${comp.id}. Generating instant wins...`);
-
-        const totalPrizes = comp.instantWinPrizes.reduce((sum, p) => sum + p.quantity, 0);
+        console.log(`Cron: Threshold reached for competition ${comp.id}. Generating instant wins...`);
 
         // Pick numbers from soldTickets + 1 to totalTickets
         const startRange = comp.soldTickets + 1;
@@ -33,6 +51,7 @@ cron.schedule('* * * * *', async () => {
 
         if (totalPrizes > (endRange - startRange + 1)) {
           Loggers.error(`Cron: Not enough unsold tickets to assign instant wins for competition ${comp.id}`);
+          console.log(`Cron: Not enough unsold tickets to assign instant wins for competition ${comp.id}`);
           continue;
         }
 
@@ -67,9 +86,11 @@ cron.schedule('* * * * *', async () => {
         });
 
         Loggers.info(`Cron: Instant wins generated successfully for competition ${comp.id}`);
+        console.log(`Cron: Instant wins generated successfully for competition ${comp.id}`);
       }
     }
   } catch (error) {
     Loggers.error(`Cron Error (InstantWin): ${error.message}`);
+    console.log(`Cron Error (InstantWin): ${error.message}`);
   }
 });

@@ -3,19 +3,29 @@ const generateInstantWinTickets = async (tx, competition) => {
     (competition.instantWinTriggerPercent / 100) * competition.totalTickets
   );
 
-  if (
-    !competition.instantWinEnabled ||
-    competition.instantWinGenerated ||
-    competition.soldTickets < threshold
-  ) {
-    return;
-  }
+  const existingWinsCount = await tx.instantWin.count({
+    where: { competitionId: competition.id }
+  });
 
   const prizeData = await tx.instantWinPrize.findMany({
     where: { competitionId: competition.id },
   });
 
   const totalPrizes = prizeData.reduce((sum, p) => sum + p.quantity, 0);
+
+  if (
+    !competition.instantWinEnabled ||
+    existingWinsCount >= totalPrizes ||
+    competition.soldTickets < threshold
+  ) {
+    if (existingWinsCount >= totalPrizes && !competition.instantWinGenerated) {
+      await tx.competition.update({
+        where: { id: competition.id },
+        data: { instantWinGenerated: true },
+      });
+    }
+    return;
+  }
 
   const winningNumbers = new Set();
 
