@@ -221,3 +221,24 @@ model Contact {
   createdAt         DateTime? @default(now()) @db.Timestamp(0)
   deletedAt         DateTime? @db.Timestamp(0)
 }
+
+model Wallet {
+  id          Int        @id @default(autoincrement())
+  userId      String
+  balance     Int
+
+  user        User       @relation(fields: [userId], references: [id])
+  createdAt   DateTime?  @default(now()) @db.Timestamp(0)
+}
+
+model WalletTransaction {
+  id          Int        @id @default(autoincrement())
+  userId      String
+  type        String    //credit or debit
+  amount      Int
+  reason      String  
+  balance     Int       // balance after transaction
+
+  user        User       @relation(fields: [userId], references: [id])
+  createdAt   DateTime?  @default(now()) @db.Timestamp(0)
+}
