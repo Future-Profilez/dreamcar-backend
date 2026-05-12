@@ -1,6 +1,7 @@
 const stripe = require("../utils/stripe");
 const prisma = require("../prismaconfig");
 const { processSuccessfulPayment } = require("../utils/paymentProcessor");
+const { processGiftCreditPayment } = require("../utils/giftCreditProcessor");
 
 module.exports = async (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -22,7 +23,11 @@ module.exports = async (req, res) => {
     // ✅ Only handle successful checkout
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      await processSuccessfulPayment(session);
+      if (session.metadata?.type === "gift_credit") {
+        await processGiftCreditPayment(session);
+      } else {
+        await processSuccessfulPayment(session);
+      }
     }
 
     return res.status(200).json({ received: true });

@@ -33,6 +33,10 @@ model User {
   payments          StripePayment[]
   tickets           Ticket[]
   results           Result[]
+  wallet              Wallet?
+  walletTransactions  WalletTransaction[]
+  purchasedGiftCredits GiftCredit[] @relation("PurchasedGift")
+  redeemedGiftCredits  GiftCredit[] @relation("RedeemedGift")
 }
 
 model Competition {
@@ -224,7 +228,7 @@ model Contact {
 
 model Wallet {
   id          Int        @id @default(autoincrement())
-  userId      String
+  userId      Int        @unique
   balance     Int
 
   user        User       @relation(fields: [userId], references: [id])
@@ -233,7 +237,7 @@ model Wallet {
 
 model WalletTransaction {
   id          Int        @id @default(autoincrement())
-  userId      String
+  userId      Int        @unique
   type        String    //credit or debit
   amount      Int
   reason      String  
@@ -241,4 +245,21 @@ model WalletTransaction {
 
   user        User       @relation(fields: [userId], references: [id])
   createdAt   DateTime?  @default(now()) @db.Timestamp(0)
+}
+
+model GiftCredit {
+  id                Int      @id @default(autoincrement())
+  redeemcode        String   @unique
+  amount            Int
+  paymentId         Int
+  purchasedBy       Int?
+  purchasedByUser   User?    @relation("PurchasedGift", fields: [purchasedBy], references: [id])
+
+  redeemedBy        Int?
+  redeemedByUser    User?    @relation("RedeemedGift", fields: [redeemedBy], references: [id])
+  isRedeemed        Int
+  expiresAt         DateTime?
+  redeemedAt        DateTime?
+  
+  createdAt         DateTime? @default(now()) @db.Timestamp(0)
 }
