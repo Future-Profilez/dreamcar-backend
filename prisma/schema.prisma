@@ -142,9 +142,10 @@ model StripePayment {
   competition   Competition? @relation(fields: [competitionId], references: [id])
   quantity      Int?
   tickets       Ticket[]
+  walletTransactions WalletTransaction[]
 
   createdAt DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt DateTime? @db.Timestamp(0)
+  updatedAt     DateTime?  @updatedAt @db.Timestamp(0)
 }
 
 model Cart {
