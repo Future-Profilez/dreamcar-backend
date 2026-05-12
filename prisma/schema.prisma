@@ -12,6 +12,7 @@ enum productTypeEnum {
   tech_luxury
   cash
 }
+
 enum itemTypeEnum {
   competition
   gift_card
@@ -35,8 +36,11 @@ model User {
   results           Result[]
   wallet              Wallet?
   walletTransactions  WalletTransaction[]
+<<<<<<< HEAD
   purchasedGiftCredits GiftCredit[] @relation("PurchasedGift")
   redeemedGiftCredits  GiftCredit[] @relation("RedeemedGift")
+=======
+>>>>>>> 74d563c3bae73883a7438f6c5a862e732ea6624d
 }
 
 model Competition {
@@ -134,7 +138,7 @@ model StripePayment {
   amount         Float
   currency       String   @default("USD")
   status         String   @default("pending") // pending / success / failed
-  type           itemTypeEnum
+  type           String?
 
   stripePaymentId String?
   sessionId       String?
@@ -143,9 +147,10 @@ model StripePayment {
   competition   Competition? @relation(fields: [competitionId], references: [id])
   quantity      Int?
   tickets       Ticket[]
+  walletTransactions WalletTransaction[]
 
   createdAt DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt DateTime? @db.Timestamp(0)
+  updatedAt     DateTime?  @updatedAt @db.Timestamp(0)
 }
 
 model Cart {
@@ -226,25 +231,57 @@ model Contact {
   deletedAt         DateTime? @db.Timestamp(0)
 }
 
+<<<<<<< HEAD
 model Wallet {
   id          Int        @id @default(autoincrement())
   userId      Int        @unique
   balance     Int
+=======
+enum WalletTransactionType {
+  credit
+  debit
+}
+>>>>>>> 74d563c3bae73883a7438f6c5a862e732ea6624d
 
-  user        User       @relation(fields: [userId], references: [id])
-  createdAt   DateTime?  @default(now()) @db.Timestamp(0)
+model Wallet {
+  id            Int        @id @default(autoincrement())
+  userId        Int        @unique
+  balance       Decimal    @default(0) @db.Decimal(10,2)
+
+  user          User       @relation(fields: [userId], references: [id])
+  transactions  WalletTransaction[]
+
+  createdAt     DateTime?  @default(now()) @db.Timestamp(0)
+  updatedAt     DateTime?  @updatedAt @db.Timestamp(0)
 }
 
 model WalletTransaction {
   id          Int        @id @default(autoincrement())
+<<<<<<< HEAD
   userId      Int        @unique
   type        String    //credit or debit
   amount      Int
   reason      String  
   balance     Int       // balance after transaction
+=======
+  walletId    Int
+  userId      Int
+>>>>>>> 74d563c3bae73883a7438f6c5a862e732ea6624d
 
+  type        WalletTransactionType
+  amount      Decimal    @db.Decimal(10,2)
+
+  reason      String
+  balance     Decimal    @db.Decimal(10,2)  // balance after this transaction
+
+  stripePaymentId  String?
+  stripePayment    StripePayment? @relation(fields: [stripePaymentId], references: [id])
+
+  wallet      Wallet     @relation(fields: [walletId], references: [id])
   user        User       @relation(fields: [userId], references: [id])
+
   createdAt   DateTime?  @default(now()) @db.Timestamp(0)
+<<<<<<< HEAD
 }
 
 model GiftCredit {
@@ -262,4 +299,9 @@ model GiftCredit {
   redeemedAt        DateTime?
   
   createdAt         DateTime? @default(now()) @db.Timestamp(0)
+=======
+  
+  @@index([userId])
+  @@index([walletId])
+>>>>>>> 74d563c3bae73883a7438f6c5a862e732ea6624d
 }
