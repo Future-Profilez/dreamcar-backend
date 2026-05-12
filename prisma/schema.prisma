@@ -12,6 +12,7 @@ enum productTypeEnum {
   tech_luxury
   cash
 }
+
 enum itemTypeEnum {
   competition
   gift_card
@@ -33,6 +34,8 @@ model User {
   payments          StripePayment[]
   tickets           Ticket[]
   results           Result[]
+  wallet              Wallet?
+  walletTransactions  WalletTransaction[]
 }
 
 model Competition {
@@ -130,7 +133,7 @@ model StripePayment {
   amount         Float
   currency       String   @default("USD")
   status         String   @default("pending") // pending / success / failed
-  type           itemTypeEnum
+  type           String?
 
   stripePaymentId String?
   sessionId       String?
@@ -222,23 +225,42 @@ model Contact {
   deletedAt         DateTime? @db.Timestamp(0)
 }
 
-model Wallet {
-  id          Int        @id @default(autoincrement())
-  userId      String
-  balance     Int
+enum WalletTransactionType {
+  credit
+  debit
+}
 
-  user        User       @relation(fields: [userId], references: [id])
-  createdAt   DateTime?  @default(now()) @db.Timestamp(0)
+model Wallet {
+  id            Int        @id @default(autoincrement())
+  userId        Int        @unique
+  balance       Decimal    @default(0) @db.Decimal(10,2)
+
+  user          User       @relation(fields: [userId], references: [id])
+  transactions  WalletTransaction[]
+
+  createdAt     DateTime?  @default(now()) @db.Timestamp(0)
+  updatedAt     DateTime?  @updatedAt @db.Timestamp(0)
 }
 
 model WalletTransaction {
   id          Int        @id @default(autoincrement())
-  userId      String
-  type        String    //credit or debit
-  amount      Int
-  reason      String  
-  balance     Int       // balance after transaction
+  walletId    Int
+  userId      Int
 
+  type        WalletTransactionType
+  amount      Decimal    @db.Decimal(10,2)
+
+  reason      String
+  balance     Decimal    @db.Decimal(10,2)  // balance after this transaction
+
+  stripePaymentId  String?
+  stripePayment    StripePayment? @relation(fields: [stripePaymentId], references: [id])
+
+  wallet      Wallet     @relation(fields: [walletId], references: [id])
   user        User       @relation(fields: [userId], references: [id])
+
   createdAt   DateTime?  @default(now()) @db.Timestamp(0)
+  
+  @@index([userId])
+  @@index([walletId])
 }

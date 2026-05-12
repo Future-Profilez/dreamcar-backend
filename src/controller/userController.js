@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const catchAsync = require("../utils/catchAsync");
 const prisma = require("../prismaconfig");
 const Loggers = require("../utils/Logger");
+const stripe = require('../utils/stripe');
 
 exports.signup = catchAsync(async (req, res) => {
   try {
@@ -78,7 +79,7 @@ exports.GetUser = catchAsync(async (req, res) => {
     const id = req.user.id;
 
     if (!id) {
-      Loggers.error("Invalid User");
+      // Loggers.error("Invalid User");
       return errorResponse(res, "Invalid User", 401);
     }
 
@@ -212,5 +213,87 @@ exports.getAllUsers = catchAsync(async (req, res) => {
       error.message || "Internal Server Error",
       500
     );
+  }
+});
+
+exports.getWallet = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    if (!userId) {
+      return errorResponse(res, "Unauthorized", 401);
+    }
+
+    const wallet = await prisma.wallet.findUnique({
+      where: {
+        userId,
+      },
+      include: {
+        transactions: {
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
+      },
+    });
+
+    if (!wallet) {
+      return successResponse(res, "Wallet fetched successfully", 200,
+        {
+          balance: 0,
+          transactions: [],
+        });
+    }
+
+    return successResponse(res, "Wallet fetched successfully", 200, wallet);
+
+  } catch (error) {
+    console.error("Get Wallet Error:", error);
+
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.createWalletPayment = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { amount } = req.body;
+    if (!amount || amount <= 0) {
+      return errorResponse(res, "Valid amount is required", 200);
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "payment",
+      customer_email: req.user.email,
+
+      line_items: [{
+        price_data: {
+          currency: "USD",
+          product_data: {
+            name: "Wallet Recharge"
+          },
+          unit_amount: Math.round(amount * 100)
+        },
+        quantity: 1
+      }],
+      success_url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/ticket/payment/cancel`,
+
+      metadata: {
+        userId,
+        amount,
+        currency: "USD",
+        type: "wallet_recharge",
+      }
+    });
+
+    return successResponse(res, "Wallet recharge session created", 200, {
+      url: session.url
+    });
+
+  } catch (error) {
+    console.error("Wallet recharge session create error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });

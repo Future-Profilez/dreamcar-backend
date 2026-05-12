@@ -1,6 +1,6 @@
 const stripe = require("../utils/stripe");
 const prisma = require("../prismaconfig");
-const { processSuccessfulPayment } = require("../utils/paymentProcessor");
+const { processSuccessfulPayment, processWalletRecharge } = require("../utils/paymentProcessor");
 
 module.exports = async (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -22,11 +22,18 @@ module.exports = async (req, res) => {
     // ✅ Only handle successful checkout
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      await processSuccessfulPayment(session);
+      switch (session.metadata.type) {
+          case "competition_ticket":
+            await processSuccessfulPayment(session);
+              break;
+          case "wallet_recharge":
+              await processWalletRecharge(session);
+              break;
+          default:
+              console.log("Unknown payment type");
+      }
     }
-
     return res.status(200).json({ received: true });
-
   } catch (error) {
     console.error("Webhook processing error:", error);
     return res.status(500).send("Webhook handler failed");
