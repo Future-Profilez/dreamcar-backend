@@ -1,9 +1,93 @@
 const prisma = require("../prismaconfig");
 const { generateTicketCode } = require("./ticketCode");
 
+const processWalletRecharge = async (session) => {
+    const { userId, amount, type } = session.metadata;
+
+    if (type !== "wallet_recharge") {
+        return;
+    }
+
+    const parsedUserId = parseInt(userId);
+    const parsedAmount = parseFloat(amount);
+
+    if (!parsedUserId || !parsedAmount) {
+        throw new Error("Invalid wallet recharge metadata");
+    }
+
+    await prisma.$transaction(async (tx) => {
+
+        // Prevent duplicate processing
+        const existingTransaction = await tx.walletTransaction.findFirst({
+            where: {
+                stripePaymentId: session.payment_intent
+            }
+        });
+
+        if (existingTransaction) {
+            return;
+        }
+
+        // Create payment record
+        const payment = await tx.stripePayment.create({
+            data: {
+                userId: parsedUserId,
+                amount: parsedAmount,
+                currency: session.currency?.toUpperCase() || "USD",
+                status: "success",
+                type: "wallet_recharge",
+                stripePaymentId: session.payment_intent,
+                sessionId: session.id,
+            }
+        });
+
+        // Get or create wallet
+        let wallet = await tx.wallet.findUnique({
+            where: {
+                userId: parsedUserId
+            }
+        });
+
+        if (!wallet) {
+            wallet = await tx.wallet.create({
+                data: {
+                    userId: parsedUserId,
+                    balance: 0
+                }
+            });
+        }
+
+        // Update wallet balance
+        const updatedWallet = await tx.wallet.update({
+            where: {
+                id: wallet.id
+            },
+            data: {
+                balance: {
+                    increment: parsedAmount
+                }
+            }
+        });
+
+        // Create wallet transaction
+        await tx.walletTransaction.create({
+            data: {
+                walletId: wallet.id,
+                userId: parsedUserId,
+                type: "credit",
+                amount: parsedAmount,
+                balance: updatedWallet.balance,
+                reason: "Wallet recharge via Stripe",
+                stripePaymentId: payment.id
+            }
+        });
+
+    });
+};
+
 const processSuccessfulPayment = async (session) => {
     const { userId, items, type } = session.metadata;
-
+    
     if (type !== "competition_ticket") {
         return;
     }
@@ -155,4 +239,33 @@ const processSuccessfulPayment = async (session) => {
     }
 };
 
-module.exports = { processSuccessfulPayment };
+function generateGiftCode() {
+  return (
+    "DRM-" +
+    Math.random().toString(36).substring(2, 6).toUpperCase() +
+    "-" +
+    Math.random().toString(36).substring(2, 6).toUpperCase()
+  );
+}
+
+const processGiftCreditPayment = async (session) => {
+  const userId = Number(session.metadata.userId);
+
+  const amount = Number(session.metadata.amount);
+
+  await prisma.giftCredit.create({
+    data: {
+      code: generateGiftCode(),
+
+      amount,
+
+      purchasedById: userId,
+
+      expiresAt: new Date(
+        Date.now() + 365 * 24 * 60 * 60 * 1000
+      ),
+    },
+  });
+};
+
+module.exports = { processSuccessfulPayment, processWalletRecharge, processGiftCreditPayment };

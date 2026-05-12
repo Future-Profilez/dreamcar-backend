@@ -48,6 +48,7 @@ app.use("/api", require("./routes/paymentRoutes"));
 app.use("/api", require("./routes/ticketRoutes"));
 app.use("/api", require("./routes/winnerRoutes"));
 app.use("/api", require("./routes/contactRoutes"));
+app.use("/api", require("./routes/giftCreditRoutes"));
 
 // Global Error Handler
 app.use((err, req, res, next) => {
