@@ -115,9 +115,11 @@ exports.getCart = catchAsync(async (req, res) => {
         }
 
         if (item.itemType === "gift_credit") {
-          details = await prisma.giftCredit?.findUnique({
-            where: { id: item.itemId },
-          });
+          details = {
+            title: `DreamCar Gift Credit (£${item.itemId})`,
+            price: item.itemId,
+            image: "/img/giftCredit.png",
+          };
         }
 
         return {
@@ -132,7 +134,7 @@ exports.getCart = catchAsync(async (req, res) => {
     console.log("Get Cart Error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
-}); 
+});
 
 exports.updateCartItem = catchAsync(async (req, res) => {
   try {
@@ -140,7 +142,10 @@ exports.updateCartItem = catchAsync(async (req, res) => {
     const existingItem = await prisma.cartItem.findFirst({
       where: {
         itemId: parseInt(itemId),
-      }, 
+        cart: {
+          userId: req.user.id
+        }
+      },
     });
     if (!existingItem) {
       return errorResponse(res, "Cart item not found", 200);

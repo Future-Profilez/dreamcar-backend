@@ -9,11 +9,12 @@ exports.verifyPayment = catchAsync(async (req, res) => {
         const userId = req.user.id;
         const { session_id } = req.query;
 
+
+        console.log("session_id", session_id)
         if (!session_id) {
             return errorResponse(res, "Session ID is required", 200);
         }
-
-        let payment = await prisma.stripePayment.findFirst({
+        let payment = await prisma.stripePayment.findMany({
             where: {
                 sessionId: session_id,
                 userId: userId
@@ -27,8 +28,8 @@ exports.verifyPayment = catchAsync(async (req, res) => {
             // If payment not in DB, fallback to querying Stripe directly (handles webhook delays or local testing)
             const session = await stripe.checkout.sessions.retrieve(session_id);
             if (session.payment_status === 'paid') {
-                await processSuccessfulPayment(session);
-                
+                // await processSuccessfulPayment(session);
+
                 // Fetch the newly created payment
                 payment = await prisma.stripePayment.findFirst({
                     where: {
@@ -40,21 +41,45 @@ exports.verifyPayment = catchAsync(async (req, res) => {
                     }
                 });
             }
+            // return errorResponse(
+            //     res,
+            //     "Payment processing, please wait a few seconds",
+            //     200
+            // );
         }
 
         if (!payment) {
             return errorResponse(res, "Payment not found or not completed", 200);
         }
 
-        const competition = await prisma.competition.findUnique({
-            where: { id: payment.competitionId }
-        });
+        // const competition = await prisma.competition.findUnique({
+        //     where: { id: payment.competitionId }
+        // });
 
-        return successResponse(res, "Payment fetched successfully", 200, {
-            ...payment,
-            competition
-        });
+        // return successResponse(res, "Payment fetched successfully", 200, {
+        //     ...payment,
+        //     competition
+        // });
 
+        let competition = null;
+
+        if (payment.competitionId) {
+            competition = await prisma.competition.findUnique({
+                where: {
+                    id: payment.competitionId
+                }
+            });
+        }
+
+        return successResponse(
+            res,
+            "Payment fetched successfully",
+            200,
+            {
+                ...payment,
+                competition
+            }
+        );
     } catch (error) {
         console.error("Verify Payment Error:", error);
         return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -177,7 +202,7 @@ exports.getAllPayments = catchAsync(async (req, res) => {
             data
         );
     } catch (error) {
-        console.error("Get All Payments Error:",error);
+        console.error("Get All Payments Error:", error);
         return errorResponse(
             res,
             error.message || "Internal Server Error",

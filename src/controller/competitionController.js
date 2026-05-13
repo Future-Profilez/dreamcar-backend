@@ -96,9 +96,9 @@ exports.addCompetition = catchAsync(async (req, res) => {
     }
 
     const mainPrize = parsedPrizes[0];
-    const mainPrizeImage = files.prizeImages && files.prizeImages[0] 
-        ? `${baseUrl}/uploads/${files.prizeImages[0].filename}`
-        : "";
+    const mainPrizeImage = files.prizeImages && files.prizeImages[0]
+      ? `${baseUrl}/uploads/${files.prizeImages[0].filename}`
+      : "";
 
     const slug = generateSlug(title, mainPrize.title || mainPrize.prizeDescription);
 
@@ -191,7 +191,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
         if (prizeCounts[title]) {
           prizeCounts[title] += 1;
           if (!prizeImages[title] && imageUrl) {
-             prizeImages[title] = imageUrl;
+            prizeImages[title] = imageUrl;
           }
         } else {
           prizeCounts[title] = 1;
@@ -541,7 +541,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
           prizeCounts[title] += 1;
           // Keep the first image uploaded for this title
           if (!prizeImages[title] && imageUrl) {
-             prizeImages[title] = imageUrl;
+            prizeImages[title] = imageUrl;
           }
         } else {
           prizeCounts[title] = 1;
@@ -590,9 +590,42 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
 
     for (const item of items) {
 
-      const { competitionId, quantity, answer } = item;
+      const { competitionId, quantity, answer, itemType, itemId } = item;
 
-      if (!competitionId || !quantity) {
+      //for gift credit
+      if (itemType === "gift_credit") {
+
+        const amount = Number(itemId);
+
+        if (!amount || amount <= 0) {
+          return errorResponse(
+            res,
+            "Invalid gift credit amount",
+            200
+          );
+        }
+
+        totalAmount += amount;
+
+        lineItems.push({
+          price_data: {
+            currency: "usd",
+
+            product_data: {
+              name:
+                `DreamCar Gift Credit (£${amount})`
+            },
+
+            unit_amount: Math.round(amount * 100)
+          },
+
+          quantity: 1
+        });
+
+        continue;
+      }
+
+      if (!itemId || !quantity) {
         return errorResponse(res, "competitionId and quantity are required", 200);
       }
 
@@ -605,7 +638,7 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
       }
 
       const competition = await prisma.competition.findUnique({
-        where: { id: parseInt(competitionId) }
+        where: { id: parseInt(itemId) }
       });
 
       if (!competition) {
@@ -630,7 +663,7 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
       const existingTickets = await prisma.ticket.count({
         where: {
           userId,
-          competitionId: parseInt(competitionId)
+          competitionId: parseInt(itemId)
         }
       });
 

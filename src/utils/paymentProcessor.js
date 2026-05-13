@@ -87,8 +87,8 @@ const processWalletRecharge = async (session) => {
 
 const processSuccessfulPayment = async (session) => {
     const { userId, items, type } = session.metadata;
-    
-    if (type !== "competition_ticket") {
+
+    if (type !== "competition_ticket" && type !== "gift_credit") {
         return;
     }
 
@@ -103,8 +103,51 @@ const processSuccessfulPayment = async (session) => {
     }
 
     for (const item of parsedItems) {
+        //for gift credit
+        if (item.itemType === "gift_credit") {
+
+            // create payment entry first
+            await prisma.stripePayment.create({
+                data: {
+                    userId: parsedUserId,
+
+                    amount: Number(item.itemId),
+
+                    currency:
+                        session.currency?.toUpperCase()
+                        || "USD",
+
+                    status: "success",
+
+                    type: "gift_credit",
+
+                    stripePaymentId:
+                        session.payment_intent,
+
+                    sessionId: session.id,
+                }
+            });
+            
+            await prisma.giftCredit.create({
+                data: {
+
+                    code: generateGiftCode(),
+
+                    amount: Number(item.itemId),
+
+                    purchasedById: parsedUserId,
+
+                    expiresAt: new Date(
+                        Date.now() +
+                        365 * 24 * 60 * 60 * 1000
+                    )
+                }
+            });
+
+            continue;
+        }
         await prisma.$transaction(async (tx) => {
-            const parsedCompetitionId = parseInt(item.competitionId);
+            const parsedCompetitionId = parseInt(item.itemId);  //changed from competitionId
             const parsedQty = parseInt(item.quantity);
             const answer = item.answer;
 
@@ -221,7 +264,11 @@ const processSuccessfulPayment = async (session) => {
                     },
                 });
             }
-        });
+        },
+            {
+                timeout: 20000
+            }
+        );
     }
 
     // 8. CLEAR USER CART
@@ -240,32 +287,32 @@ const processSuccessfulPayment = async (session) => {
 };
 
 function generateGiftCode() {
-  return (
-    "DRM-" +
-    Math.random().toString(36).substring(2, 6).toUpperCase() +
-    "-" +
-    Math.random().toString(36).substring(2, 6).toUpperCase()
-  );
+    return (
+        "DRM-" +
+        Math.random().toString(36).substring(2, 6).toUpperCase() +
+        "-" +
+        Math.random().toString(36).substring(2, 6).toUpperCase()
+    );
 }
 
 const processGiftCreditPayment = async (session) => {
-  const userId = Number(session.metadata.userId);
+    const userId = Number(session.metadata.userId);
 
-  const amount = Number(session.metadata.amount);
+    const amount = Number(session.metadata.amount);
 
-  await prisma.giftCredit.create({
-    data: {
-      code: generateGiftCode(),
+    await prisma.giftCredit.create({
+        data: {
+            code: generateGiftCode(),
 
-      amount,
+            amount,
 
-      purchasedById: userId,
+            purchasedById: userId,
 
-      expiresAt: new Date(
-        Date.now() + 365 * 24 * 60 * 60 * 1000
-      ),
-    },
-  });
+            expiresAt: new Date(
+                Date.now() + 365 * 24 * 60 * 60 * 1000
+            ),
+        },
+    });
 };
 
 module.exports = { processSuccessfulPayment, processWalletRecharge, processGiftCreditPayment };
