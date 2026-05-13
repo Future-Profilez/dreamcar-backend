@@ -3,6 +3,7 @@ const catchAsync = require("../utils/catchAsync");
 const prisma = require("../prismaconfig");
 const stripe = require('../utils/stripe');
 const generateSlug = require('../utils/generateSlug');
+const { generateTicketCode } = require("../utils/ticketCode");
 
 exports.addCompetition = catchAsync(async (req, res) => {
   try {
@@ -678,8 +679,6 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
   }
 });
 
-
-
 exports.deleteCompetition = catchAsync(async (req, res) => {
   try {
     const { id } = req.params;
@@ -706,5 +705,284 @@ exports.deleteCompetition = catchAsync(async (req, res) => {
       error.message || "Internal Server Error",
       500
     );
+  }
+});
+
+exports.buyCompetitionTicketWithWallet = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return errorResponse(res, "Items are required", 200);
+    }
+
+    let totalAmount = 0;
+
+    // 1. VALIDATIONS
+    for (const item of items) {
+      const { competitionId, quantity } = item;
+      if (!competitionId || !quantity) {
+        return errorResponse(res, "competitionId and quantity are required", 200);
+      }
+
+      if (quantity <= 0 || quantity > 10) {
+        return errorResponse(res, "Invalid ticket quantity (max 10)", 200);
+      }
+
+      const competition = await prisma.competition.findUnique({
+        where: {
+          id: parseInt(competitionId)
+        }
+      });
+
+      if (!competition) {
+        return errorResponse(res, "Competition not found", 200);
+      }
+
+      const now = new Date();
+
+      if (competition.endTime <= now) {
+        return errorResponse(res, "Competition has ended", 200);
+      }
+
+      if (competition.startTime > now) {
+        return errorResponse(res, "Competition not started yet", 200);
+      }
+
+      if (competition.soldTickets + quantity > competition.totalTickets) {
+        const available = competition.totalTickets - competition.soldTickets;
+        return errorResponse(res, `Only ${available} tickets left`, 200);
+      }
+
+      const existingTickets = await prisma.ticket.count({
+        where: {
+          userId,
+          competitionId: parseInt(competitionId)
+        }
+      });
+
+      if (existingTickets + quantity > 10) {
+        return errorResponse(res, "Ticket limit exceeded (max 10 per user)", 200);
+      }
+      totalAmount += competition.ticketPrice * quantity;
+    }
+
+    // 2. CHECK WALLET BALANCE
+    const wallet = await prisma.wallet.findUnique({
+      where: {
+        userId
+      }
+    });
+
+    if (!wallet) {
+      return errorResponse(res, "Wallet not found", 200);
+    }
+
+    if (Number(wallet.balance) < totalAmount) {
+      return errorResponse(res, "Insufficient wallet balance", 200);
+    }
+
+    // 3. MAIN TRANSACTION
+    await prisma.$transaction(async (tx) => {
+
+      // Lock wallet row
+      await tx.$executeRaw`
+        SELECT id FROM "Wallet"
+        WHERE id = ${wallet.id}
+        FOR UPDATE
+      `;
+
+      // Re-fetch wallet safely
+      const lockedWallet = await tx.wallet.findUnique({
+        where: {
+          id: wallet.id
+        }
+      });
+
+      if (Number(lockedWallet.balance) < totalAmount) {
+        throw new Error("Insufficient wallet balance");
+      }
+
+      // Deduct wallet balance
+      const updatedWallet = await tx.wallet.update({
+        where: {
+          id: wallet.id
+        },
+        data: {
+          balance: {
+            decrement: totalAmount
+          }
+        }
+      });
+
+      // Create wallet transaction
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          userId,
+          type: "debit",
+          amount: totalAmount,
+          balance: updatedWallet.balance,
+          reason: "Competition ticket purchase"
+        }
+      });
+
+      // PROCESS ALL ITEMS
+      for (const item of items) {
+
+        const parsedCompetitionId = parseInt(item.competitionId);
+        const parsedQty = parseInt(item.quantity);
+        const answer = item.answer;
+
+        // Lock competition
+        await tx.$executeRaw`
+          SELECT id FROM "Competition"
+          WHERE id = ${parsedCompetitionId}
+          FOR UPDATE
+        `;
+
+        // Create payment record
+        const payment = await tx.stripePayment.create({
+          data: {
+            userId,
+            competitionId: parsedCompetitionId,
+            amount: item.amount || 0,
+            currency: "USD",
+            status: "success",
+            type: "wallet"
+          }
+        });
+
+        // Get competition
+        const competition = await tx.competition.findUnique({
+          where: {
+            id: parsedCompetitionId
+          },
+          select: {
+            soldTickets: true
+          }
+        });
+
+        // Check answer
+        const question = await tx.complianceQuestion.findFirst({
+          where: {
+            competitionId: parsedCompetitionId
+          }
+        });
+
+        const isCorrect =
+          question?.answers?.includes(answer);
+
+        // Update sold tickets
+        const updatedCompetition =
+          await tx.competition.update({
+            where: {
+              id: parsedCompetitionId
+            },
+            data: {
+              soldTickets: {
+                increment: parsedQty
+              }
+            }
+          });
+
+        // Ticket generation
+        const startNumber = updatedCompetition.soldTickets - parsedQty + 1;
+        const ticketsData = [];
+        const instantWinUpdates = [];
+
+        const potentialWins =
+          await tx.instantWin.findMany({
+            where: {
+              competitionId: parsedCompetitionId,
+              ticketNumber: {
+                gte: startNumber,
+                lt: startNumber + parsedQty
+              }
+            }
+          });
+
+        const instantWinsMap = new Map(
+          potentialWins.map(w => [w.ticketNumber, w])
+        );
+
+        for (let i = 0; i < parsedQty; i++) {
+
+          const ticketNumber = startNumber + i;
+
+          const instantWin =
+            instantWinsMap.get(ticketNumber);
+
+          let isInstantWin = false;
+
+          if (instantWin && !instantWin.isClaimed) {
+            isInstantWin = true;
+
+            instantWinUpdates.push({
+              id: instantWin.id
+            });
+          }
+
+          ticketsData.push({
+            userId,
+            competitionId: parsedCompetitionId,
+            paymentId: payment.id,
+            ticketNumber,
+            ticketCode: generateTicketCode(
+              parsedCompetitionId,
+              ticketNumber
+            ),
+            isEligible: isCorrect,
+            isInstantWin
+          });
+        }
+
+        // Create tickets
+        await tx.ticket.createMany({
+          data: ticketsData
+        });
+
+        // Claim instant wins
+        for (const win of instantWinUpdates) {
+
+          await tx.instantWin.update({
+            where: {
+              id: win.id
+            },
+            data: {
+              isClaimed: true,
+              claimedById: userId,
+              claimedAt: new Date()
+            }
+          });
+        }
+      }
+    });
+
+    // 4. CLEAR CART
+    try {
+      const userCart = await prisma.cart.findUnique({
+        where: {
+          userId
+        }
+      });
+
+      if (userCart) {
+        await prisma.cartItem.deleteMany({
+          where: {
+            cartId: userCart.id
+          }
+        });
+      }
+
+    } catch (err) {
+      console.error("Failed to clear cart:", err);
+    }
+    return successResponse(res, "Tickets purchased successfully", 200);
+
+  } catch (error) {
+    console.error("Wallet Ticket Purchase Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
