@@ -71,13 +71,19 @@ exports.verifyPayment = catchAsync(async (req, res) => {
             });
         }
 
+        const totalAmount = payment.reduce(
+            (sum, p) => sum + Number(p.amount),
+            0
+        );
+
         return successResponse(
             res,
             "Payment fetched successfully",
             200,
             {
-                ...payment,
-                competition
+                payments: payment,
+                totalAmount,
+                createdAt: payment[0]?.createdAt
             }
         );
     } catch (error) {
@@ -108,6 +114,7 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
         const data = payments.map((p) => ({
             id: p.id,
             orderId: p.id.slice(0, 6), // short display id
+            paymentType: p.type || "competition",
             competition: p.competition?.title || "N/A",
             competitionSlug: p.competition?.slug || null,
             tickets: p.quantity || 0,

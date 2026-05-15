@@ -110,33 +110,23 @@ const processSuccessfulPayment = async (session) => {
             await prisma.stripePayment.create({
                 data: {
                     userId: parsedUserId,
-
                     amount: Number(item.itemId),
-
                     currency:
                         session.currency?.toUpperCase()
                         || "USD",
-
                     status: "success",
-
                     type: "gift_credit",
-
                     stripePaymentId:
                         session.payment_intent,
-
                     sessionId: session.id,
                 }
             });
-            
+
             await prisma.giftCredit.create({
                 data: {
-
                     code: generateGiftCode(),
-
                     amount: Number(item.itemId),
-
                     purchasedById: parsedUserId,
-
                     expiresAt: new Date(
                         Date.now() +
                         365 * 24 * 60 * 60 * 1000
@@ -163,12 +153,21 @@ const processSuccessfulPayment = async (session) => {
                 return; // Already processed
             }
 
+            const competition = await tx.competition.findUnique({
+                where: { id: parsedCompetitionId },
+                select: {
+                    id: true,
+                    soldTickets: true,
+                    ticketPrice: true
+                }
+            });
             // 1. Create Payment Record
             const payment = await tx.stripePayment.create({
                 data: {
                     userId: parsedUserId,
                     competitionId: parsedCompetitionId,
-                    amount: session.amount_total / 100,
+                    // amount: session.amount_total / 100,
+                    amount: parsedQty * Number(competition.ticketPrice),
                     currency: session.currency,
                     status: "success",
                     type: "competition",
@@ -179,10 +178,10 @@ const processSuccessfulPayment = async (session) => {
             });
 
             // 2. Get competition
-            const competition = await tx.competition.findUnique({
-                where: { id: parsedCompetitionId },
-                select: { id: true, soldTickets: true } // use select to lock or just read
-            });
+            // const competition = await tx.competition.findUnique({
+            //     where: { id: parsedCompetitionId },
+            //     select: { id: true, soldTickets: true } // use select to lock or just read
+            // });
 
             if (!competition) {
                 throw new Error("Competition not found");

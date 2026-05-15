@@ -30,6 +30,7 @@ router.post("/competition/update/:id",
     { name: "prizeDetailImage", maxCount: 1 },
     // { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 },
+    { name: "instantWinImages", maxCount: 50 },
     { name: "prizeImages", maxCount: 10 }
   ]), updateCompetition);
 
