@@ -124,7 +124,7 @@ const processSuccessfulPayment = async (session) => {
 
             await prisma.giftCredit.create({
                 data: {
-                    code: generateGiftCode(),
+                    code: generateUniqueGiftCode(),
                     amount: Number(item.itemId),
                     purchasedById: parsedUserId,
                     expiresAt: new Date(
@@ -285,13 +285,27 @@ const processSuccessfulPayment = async (session) => {
     }
 };
 
-function generateGiftCode() {
-    return (
-        "DRM-" +
-        Math.random().toString(36).substring(2, 6).toUpperCase() +
-        "-" +
-        Math.random().toString(36).substring(2, 6).toUpperCase()
-    );
+async function generateUniqueGiftCode() {
+
+    let code;
+    let exists = true;
+
+    while (exists) {
+
+        code =
+            "DRM-" +
+            crypto.randomBytes(3).toString("hex").toUpperCase() +
+            "-" +
+            crypto.randomBytes(3).toString("hex").toUpperCase() +
+            "-" +
+            crypto.randomBytes(3).toString("hex").toUpperCase();
+
+        exists = await prisma.giftCredit.findUnique({
+            where: { code }
+        });
+    }
+
+    return code;
 }
 
 const processGiftCreditPayment = async (session) => {

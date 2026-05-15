@@ -65,3 +65,114 @@ exports.purchaseGiftCredit = catchAsync(async (req, res) => {
     );
   }
 });
+
+exports.redeemGiftCredit = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { code } = req.body;
+
+    if (!code) {
+      return errorResponse(res, "Gift code is required", 200);
+    }
+
+    // 1. Find gift credit
+    const giftCredit = await prisma.giftCredit.findUnique({
+      where: {
+        code: code.trim().toUpperCase()
+      }
+    });
+
+    if (!giftCredit) {
+      return errorResponse(res, "Invalid gift code", 200);
+    }
+
+    // 2. Already redeemed
+    if (giftCredit.isRedeemed) {
+      return errorResponse(res, "Gift code already redeemed", 200);
+    }
+
+    // 3. Expired
+    if (
+      giftCredit.expiresAt &&
+      new Date(giftCredit.expiresAt) < new Date()
+    ) {
+      return errorResponse(res, "Gift code expired", 200);
+    }
+
+    // 4. Get/create wallet
+    let wallet = await prisma.wallet.findUnique({
+      where: { userId }
+    });
+
+    if (!wallet) {
+      wallet = await prisma.wallet.create({
+        data: {
+          userId,
+          balance: 0
+        }
+      });
+    }
+
+    const newBalance =
+      Number(wallet.balance) + Number(giftCredit.amount);
+
+    // 5. Transaction
+    await prisma.$transaction(async (tx) => {
+
+      // update wallet
+      await tx.wallet.update({
+        where: {
+          id: wallet.id
+        },
+        data: {
+          balance: newBalance
+        }
+      });
+
+      // wallet transaction
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          userId,
+          type: "credit",
+          amount: giftCredit.amount,
+          reason: `Gift credit redeemed (${giftCredit.code})`,
+          balance: newBalance
+        }
+      });
+
+      // mark redeemed
+      await tx.giftCredit.update({
+        where: {
+          id: giftCredit.id
+        },
+        data: {
+          isRedeemed: 1,
+          redeemedById: userId,
+          redeemedAt: new Date()
+        }
+      });
+
+    });
+
+    return successResponse(
+      res,
+      "Gift credit redeemed successfully",
+      200,
+      {
+        amount: giftCredit.amount,
+        balance: newBalance
+      }
+    );
+
+  } catch (error) {
+
+    console.log("Redeem Gift Credit Error:", error);
+
+    return errorResponse(
+      res,
+      error.message || "Internal Server Error",
+      500
+    );
+  }
+});

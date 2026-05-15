@@ -9,7 +9,7 @@ router.get("/user/profile", verifyToken, GetUser);
 router.get("/user/profile/dashboard", verifyToken, getUserProfileDashboard);
 router.get("/users", verifyToken, getWallet);
 
-router.get("/users/wallet/get", verifyToken, createWalletPayment);
+router.get("/user/wallet/get", verifyToken, getWallet);
 router.post("/users/wallet/recharge", verifyToken, createWalletPayment);
 
 

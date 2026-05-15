@@ -2,9 +2,136 @@ const { errorResponse, successResponse, validationErrorResponse, } = require("..
 const catchAsync = require("../utils/catchAsync");
 const prisma = require("../prismaconfig");
 
+// exports.getTickets = catchAsync(async (req, res) => {
+//     try {
+//         const tickets = await prisma.ticket.findMany({
+//             include: {
+//                 user: {
+//                     select: {
+//                         id: true,
+//                         name: true,
+//                     },
+//                 },
+//                 competition: {
+//                     select: {
+//                         id: true,
+//                         title: true,
+//                     },
+//                 },
+//             },
+//             orderBy: {
+//                 createdAt: "desc",
+//             },
+//         });
+
+//         if (!tickets || tickets.length === 0) {
+//             return successResponse(res, "No tickets found", 200, []);
+//         }
+
+//         const formattedTickets = tickets.map((ticket) => ({
+//             ticketId: ticket.id,
+//             username: ticket.user?.name,
+//             competition: ticket.competition?.title,
+//             ticketNumber: ticket.ticketNumber,
+//             ticketCode: ticket.ticketCode,
+//             isEligible: ticket.isEligible,
+//             isInstantWin: ticket.isInstantWin,
+//             date: ticket.createdAt,
+//         }));
+
+//         return successResponse(
+//             res,
+//             "Tickets fetched successfully",
+//             200,
+//             formattedTickets
+//         );
+//     } catch (error) {
+//         console.log("Get Tickets Error:", error);
+//         return errorResponse(
+//             res,
+//             error.message || "Internal Server Error",
+//             500
+//         );
+//     }
+// });
+
 exports.getTickets = catchAsync(async (req, res) => {
     try {
+        const {
+            search,
+            eligibility,
+            instantWin,
+            sort,
+            competition
+        } = req.query;
+        let where = {};
+        // SEARCH
+        if (search) {
+            where.OR = [
+                {
+                    ticketCode: {
+                        contains: search,
+                        mode: "insensitive"
+                    }
+                },
+                {
+                    user: {
+                        name: {
+                            contains: search,
+                            mode: "insensitive"
+                        }
+                    }
+                },
+                {
+                    competition: {
+                        title: {
+                            contains: search,
+                            mode: "insensitive"
+                        }
+                    }
+                }
+            ];
+        }
+        // ELIGIBILITY
+        if (eligibility === "eligible") {
+            where.isEligible = true;
+        } else if (eligibility === "not_eligible") {
+            where.isEligible = false;
+        }
+
+        // WIN STATUS
+        if (instantWin === "won") {
+
+            where.results = {
+                some: {}
+            };
+
+        } else if (instantWin === "lost") {
+
+            where.results = {
+                none: {}
+            };
+        }
+        if (competition) {
+
+            where.competition = {
+                title: {
+                    contains: competition,
+                    mode: "insensitive"
+                }
+            };
+        }
+        // SORT
+        let orderBy = {
+            createdAt: "desc"
+        };
+        if (sort === "oldest") {
+            orderBy = {
+                createdAt: "asc"
+            };
+        }
         const tickets = await prisma.ticket.findMany({
+            where,
             include: {
                 user: {
                     select: {
@@ -18,16 +145,23 @@ exports.getTickets = catchAsync(async (req, res) => {
                         title: true,
                     },
                 },
+                results: {
+                    select: {
+                        id: true,
+                        position: true
+                    }
+                }
             },
-            orderBy: {
-                createdAt: "desc",
-            },
+            orderBy,
         });
-
         if (!tickets || tickets.length === 0) {
-            return successResponse(res, "No tickets found", 200, []);
+            return successResponse(
+                res,
+                "No tickets found",
+                200,
+                []
+            );
         }
-
         const formattedTickets = tickets.map((ticket) => ({
             ticketId: ticket.id,
             username: ticket.user?.name,
@@ -35,10 +169,11 @@ exports.getTickets = catchAsync(async (req, res) => {
             ticketNumber: ticket.ticketNumber,
             ticketCode: ticket.ticketCode,
             isEligible: ticket.isEligible,
-            isInstantWin: ticket.isInstantWin,
+            hasWon: ticket.results.length > 0,
+            winningPosition:
+                ticket.results[0]?.position || null,
             date: ticket.createdAt,
         }));
-
         return successResponse(
             res,
             "Tickets fetched successfully",

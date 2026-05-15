@@ -229,27 +229,136 @@ exports.addCompetition = catchAsync(async (req, res) => {
   }
 });
 
+// exports.getAllCompetitions = catchAsync(async (req, res) => {
+//   try {
+//     const competitions = await prisma.competition.findMany({
+//       where: {
+//         deletedAt: null,
+//       },
+//       orderBy: {
+//         createdAt: "desc",
+//       },
+//     });
+
+//     return successResponse(
+//       res,
+//       competitions.length
+//         ? "Competitions fetched successfully"
+//         : "No competitions found",
+//       200,
+//       competitions
+//     );
+//   } catch (error) {
+//     console.log("Get Competitions Error:", error);
+//     return errorResponse(
+//       res,
+//       error.message || "Internal Server Error",
+//       500
+//     );
+//   }
+// });
+
 exports.getAllCompetitions = catchAsync(async (req, res) => {
+
   try {
-    const competitions = await prisma.competition.findMany({
-      where: {
-        deletedAt: null,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+
+    const {
+      search,
+      status,
+      instantWin,
+      sort,
+      type
+    } = req.query;
+
+    let where = {
+      deletedAt: null
+    };
+
+    if (type) {
+      where.productType = type;
+    }
+
+    // SEARCH
+    if (search) {
+
+      where.OR = [
+        {
+          title: {
+            contains: search,
+            mode: "insensitive"
+          }
+        },
+        {
+          slug: {
+            contains: search,
+            mode: "insensitive"
+          }
+        }
+      ];
+    }
+
+    // STATUS
+    const now = new Date();
+
+    if (status === "live") {
+
+      where.startTime = { lte: now };
+      where.endTime = { gte: now };
+
+    } else if (status === "ended") {
+
+      where.endTime = { lt: now };
+
+    } else if (status === "upcoming") {
+
+      where.startTime = { gt: now };
+    }
+
+    // INSTANT WIN
+    if (instantWin === "enabled") {
+
+      where.instantWinEnabled = true;
+
+    } else if (instantWin === "disabled") {
+
+      where.instantWinEnabled = false;
+    }
+
+    // SORT
+    let orderBy = {
+      createdAt: "desc"
+    };
+
+    if (sort === "oldest") {
+
+      orderBy = {
+        createdAt: "asc"
+      };
+
+    } else if (sort === "sold") {
+
+      orderBy = {
+        soldTickets: "desc"
+      };
+    }
+
+    const competitions =
+      await prisma.competition.findMany({
+        where,
+        orderBy
+      });
 
     return successResponse(
       res,
-      competitions.length
-        ? "Competitions fetched successfully"
-        : "No competitions found",
+      "Competitions fetched successfully",
       200,
       competitions
     );
+
   } catch (error) {
-    console.log("Get Competitions Error:", error);
+
+    console.log(error);
+
     return errorResponse(
       res,
       error.message || "Internal Server Error",
@@ -710,8 +819,6 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
-
-
 
 exports.deleteCompetition = catchAsync(async (req, res) => {
   try {
