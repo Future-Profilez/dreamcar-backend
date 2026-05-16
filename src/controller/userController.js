@@ -49,6 +49,11 @@ exports.login = catchAsync(async (req, res) => {
   if (!user) {
     return errorResponse(res, "User not found", 401);
   }
+
+  if (user.deletedAt) {
+    return errorResponse(res, "Account deleted", 401);
+  }
+
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     return errorResponse(res, "Invalid credentials", 401);
@@ -217,17 +222,17 @@ exports.getUserProfileDashboard = catchAsync(async (req, res) => {
 // });
 exports.getAllUsers = catchAsync(async (req, res) => {
   try {
-    const {
-      search,
-      status,
-      sort
-    } = req.query;
+    if (req.user?.role !== "admin") {
+      return errorResponse(res, "Forbidden", 403);
+    }
 
-    let where = {
-      role: {
-        not: "admin",
+    const users = await prisma.user.findMany({
+      where: {
+        role: {
+          not: "admin",
+        }
       },
-    };
+    });
     // SEARCH
     if (search) {
       where.OR = [
@@ -269,7 +274,7 @@ exports.getAllUsers = catchAsync(async (req, res) => {
         }
       };
     }
-    const users = await prisma.user.findMany({
+    const allUsers = await prisma.user.findMany({
       where,
       include: {
         tickets: true,
@@ -277,7 +282,7 @@ exports.getAllUsers = catchAsync(async (req, res) => {
       orderBy,
     });
 
-    if (!users || users.length === 0) {
+    if (!allUsers || allUsers.length === 0) {
       return successResponse(
         res,
         "No users found",
@@ -285,12 +290,12 @@ exports.getAllUsers = catchAsync(async (req, res) => {
         []
       );
     }
-    const formattedUsers = users.map((user) => ({
+    const formattedUsers = allUsers.map((user) => ({
       id: user.id,
       name: user.name,
       email: user.email,
       tickets: user.tickets?.length || 0,
-      status: user.deletedAt ? "inactive" : "active",
+      status: user.deletedAt ? "deleted" : "active",
       createdAt: user.createdAt,
     }));
 
@@ -388,6 +393,35 @@ exports.createWalletPayment = catchAsync(async (req, res) => {
 
   } catch (error) {
     console.error("Wallet recharge session create error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.deleteAccount = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    if (!userId) {
+      return errorResponse(res, "Unauthorized", 401);
+    }
+
+    const deletedAt = new Date();
+    const unusablePassword = await bcrypt.hash(`${userId}_${deletedAt.toISOString()}_${Math.random()}`, 12);
+
+    // Soft delete user by setting deletedAt timestamp and invalidating credentials
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt,
+        email: `deleted_${userId}_${deletedAt.getTime()}_${req.user.email}`,
+        name: "Deleted User",
+        password: unusablePassword
+      }
+    });
+
+    Loggers.info(`User account deleted: ${userId}`);
+    return successResponse(res, "Account deleted successfully", 200);
+  } catch (error) {
+    Loggers.error(`Delete account error: ${error?.stack || error?.message || String(error)}`);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });

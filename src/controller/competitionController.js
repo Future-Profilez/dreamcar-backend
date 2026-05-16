@@ -277,8 +277,6 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
     if (type) {
       where.productType = type;
     }
-
-    // SEARCH
     if (search) {
 
       where.OR = [
@@ -846,5 +844,29 @@ exports.deleteCompetition = catchAsync(async (req, res) => {
       error.message || "Internal Server Error",
       500
     );
+  }
+});
+
+exports.getCurrencyRates = catchAsync(async (req, res) => {
+  try {
+    const rates = await prisma.currencyRate.findMany();
+    const rateMap = {};
+    rates.forEach(r => {
+      rateMap[r.currency] = r.rate;
+    });
+    // Add default GBP rate just in case
+    if (!rateMap['GBP']) rateMap['GBP'] = 1;
+    if (!rateMap['EUR']) rateMap['EUR'] = 1.17;
+    if (!rateMap['USD']) rateMap['USD'] = 1.25;
+    
+    return successResponse(res, "Currency rates fetched successfully", 200, rateMap);
+  } catch (error) {
+    console.error("Fetch Currency Rates Error:", error);
+    // Return fallback rates if DB fails
+    return successResponse(res, "Fallback currency rates returned", 200, {
+      GBP: 1,
+      EUR: 1.17,
+      USD: 1.25
+    });
   }
 });

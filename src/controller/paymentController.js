@@ -24,14 +24,14 @@ exports.verifyPayment = catchAsync(async (req, res) => {
             }
         });
 
-        if (!payment) {
+        if (!payment || payment.length === 0) {
             // If payment not in DB, fallback to querying Stripe directly (handles webhook delays or local testing)
             const session = await stripe.checkout.sessions.retrieve(session_id);
             if (session.payment_status === 'paid') {
-                // await processSuccessfulPayment(session);
+                await processSuccessfulPayment(session);
 
                 // Fetch the newly created payment
-                payment = await prisma.stripePayment.findFirst({
+                payment = await prisma.stripePayment.findMany({
                     where: {
                         sessionId: session_id,
                         userId: userId
@@ -41,14 +41,9 @@ exports.verifyPayment = catchAsync(async (req, res) => {
                     }
                 });
             }
-            // return errorResponse(
-            //     res,
-            //     "Payment processing, please wait a few seconds",
-            //     200
-            // );
         }
 
-        if (!payment) {
+        if (!payment || payment.length === 0) {
             return errorResponse(res, "Payment not found or not completed", 200);
         }
 
@@ -100,7 +95,6 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
         const payments = await prisma.stripePayment.findMany({
             where: {
                 userId,
-
             },
             include: {
                 competition: true,
@@ -111,19 +105,29 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
             }
         });
 
-        const data = payments.map((p) => ({
-            id: p.id,
-            orderId: p.id.slice(0, 6), // short display id
-            paymentType: p.type || "competition",
-            competition: p.competition?.title || "N/A",
-            competitionSlug: p.competition?.slug || null,
-            tickets: p.quantity || 0,
-            amount: p.amount,
-            date: p.createdAt,
-            competitionId: p.competitionId,
-            ticketNumbers: p.tickets.map(t => t.ticketCode || `#${t.ticketNumber}`),
-            status: p.status
-        }));
+        const data = payments.map((p) => {
+            let competitionName = p.competition?.title || "N/A";
+            
+            if (p.type === "gift_credit") {
+                competitionName = "Gift Card / Credit";
+            } else if (p.type === "wallet_recharge") {
+                competitionName = "Wallet Recharge";
+            }
+
+            return {
+                id: p.id,
+                orderId: p.id.slice(0, 6), // short display id
+                paymentType: p.type || "competition",
+                competition: competitionName,
+                competitionSlug: p.competition?.slug || null,
+                tickets: p.quantity || 0,
+                amount: p.amount,
+                date: p.createdAt,
+                competitionId: p.competitionId,
+                ticketNumbers: p.tickets.map(t => t.ticketCode || `#${t.ticketNumber}`),
+                status: p.status
+            };
+        });
 
         return successResponse(res, "Payment history fetched", 200, data);
 

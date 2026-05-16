@@ -108,20 +108,6 @@ exports.getCart = catchAsync(async (req, res) => {
           });
         }
 
-        if (item.itemType === "gift_card") {
-          details = await prisma.giftCard?.findUnique({
-            where: { id: item.itemId },
-          });
-        }
-
-        if (item.itemType === "gift_credit") {
-          details = {
-            title: `DreamCar Gift Credit (£${item.itemId})`,
-            price: item.itemId,
-            image: "/img/giftCredit.png",
-          };
-        }
-
         return {
           ...item,
           details,

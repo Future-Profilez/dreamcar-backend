@@ -9,11 +9,21 @@ const {
 exports.purchaseGiftCredit = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;
-    const { amount } = req.body;
+    const { amount, giftType, recipientEmail, competitionName } = req.body;
 
     if (!amount || amount <= 0) {
       return errorResponse(res, "Invalid amount", 200);
     }
+
+    const metadata = {
+      type: "gift_credit",
+      userId: String(userId),
+      amount: String(amount),
+      giftType: giftType || "custom",
+    };
+
+    if (recipientEmail) metadata.recipientEmail = recipientEmail;
+    if (competitionName) metadata.competitionName = competitionName;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -24,7 +34,9 @@ exports.purchaseGiftCredit = catchAsync(async (req, res) => {
             currency: "gbp",
 
             product_data: {
-              name: `DreamCar Gift Credit (£${amount})`,
+              name: giftType === "competition" && competitionName 
+                ? `Gift Ticket: ${competitionName}` 
+                : `DreamCar Gift Credit (£${amount})`,
             },
 
             unit_amount: amount * 100,
@@ -41,9 +53,14 @@ exports.purchaseGiftCredit = catchAsync(async (req, res) => {
       cancel_url: `${process.env.FRONTEND_URL}/gift-cancel`,
 
       metadata: {
-        type: "gift_credit",
-        userId: String(userId),
-        amount: String(amount),
+        ...metadata,
+        items: JSON.stringify([
+          {
+            itemType: "gift_credit",
+            itemId: amount,
+            quantity: 1
+          }
+        ])
       },
     });
 
@@ -174,5 +191,60 @@ exports.redeemGiftCredit = catchAsync(async (req, res) => {
       error.message || "Internal Server Error",
       500
     );
+  }
+});
+
+exports.getAllGiftCredits = catchAsync(async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "" } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    let where = {};
+    if (search) {
+      where = {
+        code: { contains: search, mode: "insensitive" }
+      };
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.giftCredit.findMany({
+        where,
+        include: {
+          purchasedByUser: { select: { id: true, name: true, email: true } },
+          redeemedByUser: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: parseInt(limit),
+      }),
+      prisma.giftCredit.count({ where }),
+    ]);
+
+    return successResponse(res, "Gift credits fetched", 200, {
+      items,
+      totalPages: Math.ceil(total / parseInt(limit)),
+      currentPage: parseInt(page),
+      totalItems: total
+    });
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.myGiftCredits = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const items = await prisma.giftCredit.findMany({
+      where: {
+        OR: [{ purchasedById: userId }, { redeemedById: userId }],
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        redeemedByUser: { select: { id: true, name: true, email: true } },
+      }
+    });
+    return successResponse(res, "My gift credits fetched", 200, items);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
