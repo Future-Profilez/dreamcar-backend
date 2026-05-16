@@ -286,3 +286,11 @@ model GiftCredit {
 
   
 }
+
+model CurrencyRate {
+  id        Int       @id @default(autoincrement())
+  currency  String    @unique // e.g., 'GBP', 'EUR', 'USD'
+  rate      Float     // rate relative to GBP (GBP will be 1)
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt DateTime? @updatedAt @db.Timestamp(0)
+}

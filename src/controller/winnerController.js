@@ -1,6 +1,7 @@
 const catchAsync = require("../utils/catchAsync");
 const { validationErrorResponse, errorResponse, successResponse } = require("../utils/ErrorHandling");
 const prisma = require("../prismaconfig");
+const sendEmail = require("../utils/EmailMailler");
 
 exports.drawWinner = catchAsync(async (req, res) => {
     try {
@@ -13,6 +14,7 @@ exports.drawWinner = catchAsync(async (req, res) => {
         // ✅ get competition
         const competition = await prisma.competition.findUnique({
             where: { id: Number(competitionId) },
+            include: { prizes: true }
         });
 
         if (!competition) {
@@ -77,6 +79,56 @@ exports.drawWinner = catchAsync(async (req, res) => {
                 isManual: true,
             },
         });
+
+        // ✅ send winner email
+        try {
+            if (ticket.user && ticket.user.email) {
+                const wonPrize = competition.prizes?.find(p => p.position === Number(position));
+                const prizeTitle = wonPrize ? wonPrize.title : competition.title;
+                const positionText = Number(position) === 1 ? "Main Winner" : `Runner-up (Position ${position})`;
+                const ticketCode = ticket.ticketCode || `#${ticket.ticketNumber}`;
+
+                const emailHtml = `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #f0f0f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+                        <div style="text-align: center; margin-bottom: 32px;">
+                            <h1 style="color: #1a1a1a; margin: 0; display: inline-block; background-color: #e6ffe6; padding: 6px 12px; border-radius: 4px; font-size: 28px;">Congratulations! 🎉</h1>
+                        </div>
+                        
+                        <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6; margin-bottom: 16px;">
+                            Hi ${ticket.user.name},
+                        </p>
+                        <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6; margin-bottom: 32px;">
+                            You are the <strong>${positionText}</strong> in the <strong>${competition.title}</strong> competition!
+                        </p>
+
+                        <div style="background: #fafafa; padding: 32px 24px; border-radius: 12px; text-align: center; margin: 32px 0;">
+                            <p style="color: #666; margin-top: 0; font-size: 13px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Your Prize</p>
+                            <h2 style="color: #42BE38; font-size: 24px; margin: 12px 0;">${prizeTitle}</h2>
+                            <p style="color: #666; font-size: 15px; margin-bottom: 0;">Winning Ticket: <strong>${ticketCode}</strong></p>
+                        </div>
+
+                        <p style="color: #4a4a4a; font-size: 15px; line-height: 1.8; margin-bottom: 32px;">
+                            Our team will be in touch with you shortly to arrange the delivery of your prize. You can view your winning details anytime in your profile under <strong>My Wins</strong>.
+                        </p>
+
+                        <hr style="border: none; border-top: 1px solid #f0f0f0; margin: 32px 0;" />
+                        
+                        <p style="color: #888; font-size: 14px; text-align: center; margin: 0;">
+                            Enjoy your prize!<br/>
+                            <strong>The DreamCar Competitions Team</strong>
+                        </p>
+                    </div>
+                `;
+
+                await sendEmail({
+                    email: ticket.user.email,
+                    subject: `You're a Winner! 🎉 - ${competition.title}`,
+                    emailHtml
+                });
+            }
+        } catch (emailErr) {
+            console.error("Failed to send winner email:", emailErr);
+        }
 
         return successResponse(res, "Winner assigned successfully", 200, result);
 

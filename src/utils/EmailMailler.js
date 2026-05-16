@@ -3,18 +3,24 @@ const logger = require('./Logger');
 
 const sendEmail = async (data) => {
     const { email, subject, emailHtml } = data;
+    
+    const host = process.env.SMTP_HOST || "smtp.gmail.com";
+    const port = process.env.SMTP_PORT || 587;
+    const user = process.env.SMTP_USER || "mern.dev.fp01@gmail.com";
+    const pass = process.env.SMTP_PASS || "xqblmcptbmvozyrn";
+
     let transporter = nodemailer.createTransport({
-        host: "smtpout.secureserver.net",
-        port: 465,
-        secure: true,
+        host: host,
+        port: port,
+        secure: port == 465, // true for 465, false for other ports
         auth: {
-            user: process.env.MAIL_USERNAME,
-            pass: process.env.MAIL_PASSWORD,
+            user: user,
+            pass: pass,
         },
     });
 
     const mailOptions = {
-        from: `"Japanese For Me" <${process.env.MAIL_USERNAME}>`,
+        from: `"Dream Car Competitions" <${user}>`,
         to: email,
         subject: subject,
         html: emailHtml,

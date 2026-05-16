@@ -1,8 +1,10 @@
-const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition } = require("../controller/competitionController");
+const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition, getCurrencyRates } = require("../controller/competitionController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
 const router = require("express").Router();
+
+router.get("/currency-rates", getCurrencyRates);
 
 router.post("/competition/create",
   verifyToken,
