@@ -284,7 +284,7 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
           title: {
             contains: search,
             mode: "insensitive"
-          }
+          } 
         },
         {
           slug: {
