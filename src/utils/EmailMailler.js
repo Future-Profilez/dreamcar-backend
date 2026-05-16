@@ -3,16 +3,21 @@ const logger = require('./Logger');
 
 const sendEmail = async (data) => {
     const { email, subject, emailHtml } = data;
-    
-    const host = process.env.SMTP_HOST || "smtp.gmail.com";
-    const port = process.env.SMTP_PORT || 587;
-    const user = process.env.SMTP_USER || "mern.dev.fp01@gmail.com";
-    const pass = process.env.SMTP_PASS || "xqblmcptbmvozyrn";
+
+    const host = process.env.SMTP_HOST;
+    const port = Number(process.env.SMTP_PORT);
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+
+    if (!host || !Number.isFinite(port) || !user || !pass) {
+        throw new Error('Missing required SMTP configuration (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)');
+    }
+
 
     let transporter = nodemailer.createTransport({
         host: host,
         port: port,
-        secure: port == 465, // true for 465, false for other ports
+        secure: port === 465, // true for 465, false for other ports
         auth: {
             user: user,
             pass: pass,
