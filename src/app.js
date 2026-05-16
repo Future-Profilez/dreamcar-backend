@@ -11,6 +11,7 @@ const Loggers = require("./utils/Logger");
 
 // Initialize Cron Jobs
 require('./cron/instantWinCron');
+require('./cron/currencyCron');
 
 const serializeError = (err) => {
   if (!err) return "Unknown error";

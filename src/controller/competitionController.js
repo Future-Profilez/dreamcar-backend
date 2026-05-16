@@ -96,9 +96,9 @@ exports.addCompetition = catchAsync(async (req, res) => {
     }
 
     const mainPrize = parsedPrizes[0];
-    const mainPrizeImage = files.prizeImages && files.prizeImages[0] 
-        ? `${baseUrl}/uploads/${files.prizeImages[0].filename}`
-        : "";
+    const mainPrizeImage = files.prizeImages && files.prizeImages[0]
+      ? `${baseUrl}/uploads/${files.prizeImages[0].filename}`
+      : "";
 
     const slug = generateSlug(title, mainPrize.title || mainPrize.prizeDescription);
 
@@ -191,7 +191,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
         if (prizeCounts[title]) {
           prizeCounts[title] += 1;
           if (!prizeImages[title] && imageUrl) {
-             prizeImages[title] = imageUrl;
+            prizeImages[title] = imageUrl;
           }
         } else {
           prizeCounts[title] = 1;
@@ -229,27 +229,134 @@ exports.addCompetition = catchAsync(async (req, res) => {
   }
 });
 
+// exports.getAllCompetitions = catchAsync(async (req, res) => {
+//   try {
+//     const competitions = await prisma.competition.findMany({
+//       where: {
+//         deletedAt: null,
+//       },
+//       orderBy: {
+//         createdAt: "desc",
+//       },
+//     });
+
+//     return successResponse(
+//       res,
+//       competitions.length
+//         ? "Competitions fetched successfully"
+//         : "No competitions found",
+//       200,
+//       competitions
+//     );
+//   } catch (error) {
+//     console.log("Get Competitions Error:", error);
+//     return errorResponse(
+//       res,
+//       error.message || "Internal Server Error",
+//       500
+//     );
+//   }
+// });
+
 exports.getAllCompetitions = catchAsync(async (req, res) => {
+
   try {
-    const competitions = await prisma.competition.findMany({
-      where: {
-        deletedAt: null,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+
+    const {
+      search,
+      status,
+      instantWin,
+      sort,
+      type
+    } = req.query;
+
+    let where = {
+      deletedAt: null
+    };
+
+    if (type) {
+      where.productType = type;
+    }
+    if (search) {
+
+      where.OR = [
+        {
+          title: {
+            contains: search,
+            mode: "insensitive"
+          }
+        },
+        {
+          slug: {
+            contains: search,
+            mode: "insensitive"
+          }
+        }
+      ];
+    }
+
+    // STATUS
+    const now = new Date();
+
+    if (status === "live") {
+
+      where.startTime = { lte: now };
+      where.endTime = { gte: now };
+
+    } else if (status === "ended") {
+
+      where.endTime = { lt: now };
+
+    } else if (status === "upcoming") {
+
+      where.startTime = { gt: now };
+    }
+
+    // INSTANT WIN
+    if (instantWin === "enabled") {
+
+      where.instantWinEnabled = true;
+
+    } else if (instantWin === "disabled") {
+
+      where.instantWinEnabled = false;
+    }
+
+    // SORT
+    let orderBy = {
+      createdAt: "desc"
+    };
+
+    if (sort === "oldest") {
+
+      orderBy = {
+        createdAt: "asc"
+      };
+
+    } else if (sort === "sold") {
+
+      orderBy = {
+        soldTickets: "desc"
+      };
+    }
+
+    const competitions =
+      await prisma.competition.findMany({
+        where,
+        orderBy
+      });
 
     return successResponse(
       res,
-      competitions.length
-        ? "Competitions fetched successfully"
-        : "No competitions found",
+      "Competitions fetched successfully",
       200,
       competitions
     );
+
   } catch (error) {
-    console.log("Get Competitions Error:", error);
+
+    console.log(error);
+
     return errorResponse(
       res,
       error.message || "Internal Server Error",
@@ -541,7 +648,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
           prizeCounts[title] += 1;
           // Keep the first image uploaded for this title
           if (!prizeImages[title] && imageUrl) {
-             prizeImages[title] = imageUrl;
+            prizeImages[title] = imageUrl;
           }
         } else {
           prizeCounts[title] = 1;
@@ -590,9 +697,42 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
 
     for (const item of items) {
 
-      const { competitionId, quantity, answer } = item;
+      const { competitionId, quantity, answer, itemType, itemId } = item;
 
-      if (!competitionId || !quantity) {
+      //for gift credit
+      if (itemType === "gift_credit") {
+
+        const amount = Number(itemId);
+
+        if (!amount || amount <= 0) {
+          return errorResponse(
+            res,
+            "Invalid gift credit amount",
+            200
+          );
+        }
+
+        totalAmount += amount;
+
+        lineItems.push({
+          price_data: {
+            currency: "usd",
+
+            product_data: {
+              name:
+                `DreamCar Gift Credit (£${amount})`
+            },
+
+            unit_amount: Math.round(amount * 100)
+          },
+
+          quantity: 1
+        });
+
+        continue;
+      }
+
+      if (!itemId || !quantity) {
         return errorResponse(res, "competitionId and quantity are required", 200);
       }
 
@@ -605,7 +745,7 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
       }
 
       const competition = await prisma.competition.findUnique({
-        where: { id: parseInt(competitionId) }
+        where: { id: parseInt(itemId) }
       });
 
       if (!competition) {
@@ -630,7 +770,7 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
       const existingTickets = await prisma.ticket.count({
         where: {
           userId,
-          competitionId: parseInt(competitionId)
+          competitionId: parseInt(itemId)
         }
       });
 
@@ -678,8 +818,6 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
   }
 });
 
-
-
 exports.deleteCompetition = catchAsync(async (req, res) => {
   try {
     const { id } = req.params;
@@ -707,4 +845,174 @@ exports.deleteCompetition = catchAsync(async (req, res) => {
       500
     );
   }
+});
+
+exports.getCurrencyRates = catchAsync(async (req, res) => {
+  try {
+    const rates = await prisma.currencyRate.findMany();
+    const rateMap = {};
+    rates.forEach(r => {
+      rateMap[r.currency] = r.rate;
+    });
+    // Add default GBP rate just in case
+    if (!rateMap['GBP']) rateMap['GBP'] = 1;
+    if (!rateMap['EUR']) rateMap['EUR'] = 1.17;
+    if (!rateMap['USD']) rateMap['USD'] = 1.25;
+
+    return successResponse(res, "Currency rates fetched successfully", 200, rateMap);
+  } catch (error) {
+    console.error("Fetch Currency Rates Error:", error);
+    // Return fallback rates if DB fails
+    return successResponse(res, "Fallback currency rates returned", 200, {
+      GBP: 1,
+      EUR: 1.17,
+      USD: 1.25
+    });
+  }
+});
+
+exports.getDashboardData = catchAsync(async (req, res) => {
+
+  // RECENT DATA
+  const recentCompetitions =
+    await prisma.competition.findMany({
+      take: 5,
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+  const recentPayments =
+    await prisma.stripePayment.findMany({
+      take: 5,
+      include: {
+        user: true,
+        competition: true
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+  const recentResults =
+    await prisma.result.findMany({
+      take: 5,
+      include: {
+        user: true,
+        competition: true
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+  // DASHBOARD STATS
+  const [
+    totalUsers,
+    totalTickets,
+    activeCompetitions,
+    allPayments
+  ] = await Promise.all([
+
+    prisma.user.count({
+      where: {
+        role: {
+          not: "admin"
+        }
+      }
+    }),
+
+    prisma.ticket.count(),
+
+    prisma.competition.count({
+      where: {
+        endTime: {
+          gte: new Date()
+        }
+      }
+    }),
+
+    prisma.stripePayment.findMany({
+      where: {
+        status: "success"
+      },
+      select: {
+        amount: true
+      }
+    })
+
+  ]);
+
+  // TOTAL REVENUE
+  const totalRevenue =
+    allPayments.reduce(
+      (sum, item) =>
+        sum + Number(item.amount),
+      0
+    );
+
+  // BUILD ACTIVITY ARRAY
+  const activities = [
+
+    // COMPETITIONS
+    ...recentCompetitions.map(item => ({
+      id: `competition-${item.id}`,
+      type: "competition_created",
+      title: item.title,
+      description: "Competition created",
+      status: "live",
+      createdAt: item.createdAt
+    })),
+
+    // PAYMENTS
+    ...recentPayments.map(item => ({
+      id: `payment-${item.id}`,
+      type: "payment",
+      title: item.user?.name || "User",
+      description:
+        `Purchased ${item.competition?.title || "Gift Credit"
+        }`,
+      amount: item.amount,
+      createdAt: item.createdAt,
+      status: item.status
+    })),
+
+    // WINNERS
+    ...recentResults.map(item => ({
+      id: `winner-${item.id}`,
+      type: "winner",
+      title: item.user?.name || "Winner",
+      description:
+        `Won ${item.competition?.title}`,
+      position: item.position,
+      createdAt: item.createdAt,
+      status: "winner"
+    }))
+  ];
+
+  // SORT ACTIVITIES
+  activities.sort(
+    (a, b) =>
+      new Date(b.createdAt) -
+      new Date(a.createdAt)
+  );
+
+  return successResponse(
+    res,
+    "Dashboard data fetched",
+    200,
+    {
+      stats: {
+        totalRevenue,
+        activeCompetitions,
+        totalTickets,
+        totalUsers
+      },
+
+      latestCompetitions: recentCompetitions,
+
+      recentActivity:
+        activities.slice(0, 10)
+    }
+  );
 });

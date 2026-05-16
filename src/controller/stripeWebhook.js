@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
               await processWalletRecharge(session);
               break;
           case "gift_credit":
-              await processGiftCreditPayment(session);
+              await processSuccessfulPayment(session);
               break;
           default:
               console.log("Unknown payment type");

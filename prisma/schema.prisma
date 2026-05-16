@@ -36,11 +36,8 @@ model User {
   results           Result[]
   wallet              Wallet?
   walletTransactions  WalletTransaction[]
-<<<<<<< HEAD
   purchasedGiftCredits GiftCredit[] @relation("PurchasedGift")
   redeemedGiftCredits  GiftCredit[] @relation("RedeemedGift")
-=======
->>>>>>> 74d563c3bae73883a7438f6c5a862e732ea6624d
 }
 
 model Competition {
@@ -231,17 +228,10 @@ model Contact {
   deletedAt         DateTime? @db.Timestamp(0)
 }
 
-<<<<<<< HEAD
-model Wallet {
-  id          Int        @id @default(autoincrement())
-  userId      Int        @unique
-  balance     Int
-=======
 enum WalletTransactionType {
   credit
   debit
 }
->>>>>>> 74d563c3bae73883a7438f6c5a862e732ea6624d
 
 model Wallet {
   id            Int        @id @default(autoincrement())
@@ -257,16 +247,11 @@ model Wallet {
 
 model WalletTransaction {
   id          Int        @id @default(autoincrement())
-<<<<<<< HEAD
-  userId      Int        @unique
-  type        String    //credit or debit
-  amount      Int
-  reason      String  
-  balance     Int       // balance after transaction
-=======
+  
+   
+  
   walletId    Int
   userId      Int
->>>>>>> 74d563c3bae73883a7438f6c5a862e732ea6624d
 
   type        WalletTransactionType
   amount      Decimal    @db.Decimal(10,2)
@@ -281,27 +266,31 @@ model WalletTransaction {
   user        User       @relation(fields: [userId], references: [id])
 
   createdAt   DateTime?  @default(now()) @db.Timestamp(0)
-<<<<<<< HEAD
 }
 
 model GiftCredit {
   id                Int      @id @default(autoincrement())
-  redeemcode        String   @unique
+  code        String   @unique
   amount            Int
-  paymentId         Int
-  purchasedBy       Int?
-  purchasedByUser   User?    @relation("PurchasedGift", fields: [purchasedBy], references: [id])
+  
+  purchasedById       Int?
+  purchasedByUser   User?    @relation("PurchasedGift", fields: [purchasedById], references: [id])
 
-  redeemedBy        Int?
-  redeemedByUser    User?    @relation("RedeemedGift", fields: [redeemedBy], references: [id])
-  isRedeemed        Int
+  redeemedById        Int?
+  redeemedByUser    User?    @relation("RedeemedGift", fields: [redeemedById], references: [id])
+  isRedeemed        Int  @default(0)  //0->active 1->redeemed 2-> expired
   expiresAt         DateTime?
   redeemedAt        DateTime?
   
   createdAt         DateTime? @default(now()) @db.Timestamp(0)
-=======
+
   
-  @@index([userId])
-  @@index([walletId])
->>>>>>> 74d563c3bae73883a7438f6c5a862e732ea6624d
+}
+
+model CurrencyRate {
+  id        Int       @id @default(autoincrement())
+  currency  String    @unique // e.g., 'GBP', 'EUR', 'USD'
+  rate      Float     // rate relative to GBP (GBP will be 1)
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt DateTime? @updatedAt @db.Timestamp(0)
 }

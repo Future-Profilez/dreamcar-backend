@@ -49,6 +49,11 @@ exports.login = catchAsync(async (req, res) => {
   if (!user) {
     return errorResponse(res, "User not found", 401);
   }
+
+  if (user.deletedAt) {
+    return errorResponse(res, "Account deleted", 401);
+  }
+
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     return errorResponse(res, "Invalid credentials", 401);
@@ -163,35 +168,139 @@ exports.getUserProfileDashboard = catchAsync(async (req, res) => {
 
     return successResponse(res, "Data fetched successfully", 200, data);
 
-    
+
   } catch (error) {
     console.error("Dashboard Error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
 
+// exports.getAllUsers = catchAsync(async (req, res) => {
+//   try {
+//     const users = await prisma.user.findMany({
+//       where: {
+//         role: {
+//           not: "admin",
+//         },
+//         deletedAt: null,
+//       },
+//       include: {
+//         tickets: true,
+//       },
+//       orderBy: {
+//         createdAt: "desc",
+//       },
+//     });
+
+//     if (!users || users.length === 0) {
+//       return successResponse(res, "No users found", 200, []);
+//     }
+
+//     const formattedUsers = users.map((user) => ({
+//       id: user.id,
+//       name: user.name,
+//       email: user.email,
+//       tickets: user.tickets?.length || 0,
+//       status: user.deletedAt ? "inactive" : "active",
+//       createdAt: user.createdAt,
+//     }));
+
+//     return successResponse(
+//       res,
+//       "Users fetched successfully",
+//       200,
+//       formattedUsers
+//     );
+//   } catch (error) {
+//     console.log("Get Users Error:", error);
+//     return errorResponse(
+//       res,
+//       error.message || "Internal Server Error",
+//       500
+//     );
+//   }
+// });
 exports.getAllUsers = catchAsync(async (req, res) => {
   try {
-    const users = await prisma.user.findMany({
-      where: {
-        role: {
-          not: "admin",
+    if (req.user?.role !== "admin") {
+      return errorResponse(
+        res,
+        "Forbidden",
+        403
+      );
+    }
+
+    const {
+      search,
+      status,
+      sort
+    } = req.query;
+
+    let where = {
+      role: {
+        not: "admin",
+      }
+    };
+    // SEARCH
+    if (search) {
+      where.OR = [
+        {
+          name: {
+            contains: search,
+            mode: "insensitive"
+          }
         },
-        deletedAt: null,
-      },
+        {
+          email: {
+            contains: search,
+            mode: "insensitive"
+          }
+        }
+      ];
+    }
+
+    // STATUS
+    if (status === "active") {
+      where.deletedAt = null;
+    } else if (status === "inactive") {
+      where.deletedAt = {
+        not: null
+      };
+    }
+
+    // SORT
+    let orderBy = {
+      createdAt: "desc"
+    };
+
+    if (sort === "oldest") {
+      orderBy = {
+        createdAt: "asc"
+      };
+    } else if (sort === "tickets") {
+      orderBy = {
+        tickets: {
+          _count: "desc"
+        }
+      };
+    }
+    const allUsers = await prisma.user.findMany({
+      where,
       include: {
         tickets: true,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy,
     });
 
-    if (!users || users.length === 0) {
-      return successResponse(res, "No users found", 200, []);
+    if (!allUsers || allUsers.length === 0) {
+      return successResponse(
+        res,
+        "No users found",
+        200,
+        []
+      );
     }
-
-    const formattedUsers = users.map((user) => ({
+    const formattedUsers = allUsers.map((user) => ({
       id: user.id,
       name: user.name,
       email: user.email,
@@ -206,6 +315,7 @@ exports.getAllUsers = catchAsync(async (req, res) => {
       200,
       formattedUsers
     );
+
   } catch (error) {
     console.log("Get Users Error:", error);
     return errorResponse(
@@ -294,6 +404,35 @@ exports.createWalletPayment = catchAsync(async (req, res) => {
 
   } catch (error) {
     console.error("Wallet recharge session create error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.deleteAccount = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    if (!userId) {
+      return errorResponse(res, "Unauthorized", 401);
+    }
+
+    const deletedAt = new Date();
+    const unusablePassword = await bcrypt.hash(`${userId}_${deletedAt.toISOString()}_${Math.random()}`, 12);
+
+    // Soft delete user by setting deletedAt timestamp and invalidating credentials
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt,
+        email: `deleted_${userId}_${deletedAt.getTime()}_${req.user.email}`,
+        name: "Deleted User",
+        password: unusablePassword
+      }
+    });
+
+    Loggers.info(`User account deleted: ${userId}`);
+    return successResponse(res, "Account deleted successfully", 200);
+  } catch (error) {
+    Loggers.error(`Delete account error: ${error?.stack || error?.message || String(error)}`);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
