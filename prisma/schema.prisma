@@ -278,7 +278,7 @@ model GiftCredit {
 
   redeemedById        Int?
   redeemedByUser    User?    @relation("RedeemedGift", fields: [redeemedById], references: [id])
-  isRedeemed        Int  @default(0)
+  isRedeemed        Int  @default(0)  //0->active 1->redeemed 2-> expired
   expiresAt         DateTime?
   redeemedAt        DateTime?
   

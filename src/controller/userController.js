@@ -223,16 +223,24 @@ exports.getUserProfileDashboard = catchAsync(async (req, res) => {
 exports.getAllUsers = catchAsync(async (req, res) => {
   try {
     if (req.user?.role !== "admin") {
-      return errorResponse(res, "Forbidden", 403);
+      return errorResponse(
+        res,
+        "Forbidden",
+        403
+      );
     }
 
-    const users = await prisma.user.findMany({
-      where: {
-        role: {
-          not: "admin",
-        }
-      },
-    });
+    const {
+      search,
+      status,
+      sort
+    } = req.query;
+
+    let where = {
+      role: {
+        not: "admin",
+      }
+    };
     // SEARCH
     if (search) {
       where.OR = [
@@ -259,10 +267,12 @@ exports.getAllUsers = catchAsync(async (req, res) => {
         not: null
       };
     }
+
     // SORT
     let orderBy = {
       createdAt: "desc"
     };
+
     if (sort === "oldest") {
       orderBy = {
         createdAt: "asc"
@@ -295,7 +305,7 @@ exports.getAllUsers = catchAsync(async (req, res) => {
       name: user.name,
       email: user.email,
       tickets: user.tickets?.length || 0,
-      status: user.deletedAt ? "deleted" : "active",
+      status: user.deletedAt ? "inactive" : "active",
       createdAt: user.createdAt,
     }));
 
@@ -305,6 +315,7 @@ exports.getAllUsers = catchAsync(async (req, res) => {
       200,
       formattedUsers
     );
+
   } catch (error) {
     console.log("Get Users Error:", error);
     return errorResponse(

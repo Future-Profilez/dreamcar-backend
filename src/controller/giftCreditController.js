@@ -34,8 +34,8 @@ exports.purchaseGiftCredit = catchAsync(async (req, res) => {
             currency: "gbp",
 
             product_data: {
-              name: giftType === "competition" && competitionName 
-                ? `Gift Ticket: ${competitionName}` 
+              name: giftType === "competition" && competitionName
+                ? `Gift Ticket: ${competitionName}`
                 : `DreamCar Gift Credit (£${amount})`,
             },
 
@@ -194,40 +194,211 @@ exports.redeemGiftCredit = catchAsync(async (req, res) => {
   }
 });
 
+// exports.getAllGiftCredits = catchAsync(async (req, res) => {
+//   try {
+//     const { page = 1, limit = 10, search = "" } = req.query;
+//     const skip = (parseInt(page) - 1) * parseInt(limit);
+
+//     let where = {};
+//     if (search) {
+//       where = {
+//         code: { contains: search, mode: "insensitive" }
+//       };
+//     }
+
+//     const [items, total] = await Promise.all([
+//       prisma.giftCredit.findMany({
+//         where,
+//         include: {
+//           purchasedByUser: { select: { id: true, name: true, email: true } },
+//           redeemedByUser: { select: { id: true, name: true, email: true } },
+//         },
+//         orderBy: { createdAt: "desc" },
+//         skip,
+//         take: parseInt(limit),
+//       }),
+//       prisma.giftCredit.count({ where }),
+//     ]);
+
+//     return successResponse(res, "Gift credits fetched", 200, {
+//       items,
+//       totalPages: Math.ceil(total / parseInt(limit)),
+//       currentPage: parseInt(page),
+//       totalItems: total
+//     });
+//   } catch (error) {
+//     return errorResponse(res, error.message || "Internal Server Error", 500);
+//   }
+// });
+
 exports.getAllGiftCredits = catchAsync(async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "" } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      status,
+      sort,
+     
+    } = req.query;
+
+    const skip =
+      (parseInt(page) - 1) * parseInt(limit);
 
     let where = {};
+    // SEARCH
     if (search) {
-      where = {
-        code: { contains: search, mode: "insensitive" }
+
+      where.OR = [
+
+        {
+          code: {
+            contains: search,
+            mode: "insensitive"
+          }
+        },
+
+        {
+          purchasedByUser: {
+            is: {
+              name: {
+                contains: search,
+                mode: "insensitive"
+              }
+            }
+          }
+        },
+
+        {
+          purchasedByUser: {
+            is: {
+              email: {
+                contains: search,
+                mode: "insensitive"
+              }
+            }
+          }
+        }
+
+      ];
+    }
+
+    // STATUS
+    if (status === "redeemed") {
+      where.isRedeemed = 1;
+    } else if (status === "active") {
+      where.isRedeemed = 0;
+    } else if (status === "expired") {
+      where.expiresAt = {
+        lt: new Date()
       };
     }
 
-    const [items, total] = await Promise.all([
-      prisma.giftCredit.findMany({
-        where,
-        include: {
-          purchasedByUser: { select: { id: true, name: true, email: true } },
-          redeemedByUser: { select: { id: true, name: true, email: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: parseInt(limit),
-      }),
-      prisma.giftCredit.count({ where }),
-    ]);
+ 
 
-    return successResponse(res, "Gift credits fetched", 200, {
-      items,
-      totalPages: Math.ceil(total / parseInt(limit)),
-      currentPage: parseInt(page),
-      totalItems: total
-    });
+    // SORT
+    let orderBy = {
+      createdAt: "desc"
+    };
+
+    if (sort === "oldest") {
+      orderBy = {
+        createdAt: "asc"
+      };
+    } else if (sort === "highest") {
+      orderBy = {
+        amount: "desc"
+      };
+    } else if (sort === "lowest") {
+      orderBy = {
+        amount: "asc"
+      };
+    }
+
+    const [items, total, allCredits] =
+      await Promise.all([
+        prisma.giftCredit.findMany({
+          where,
+          include: {
+            purchasedByUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            },
+
+            redeemedByUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            },
+
+          },
+          orderBy,
+          skip,
+          take: parseInt(limit),
+        }),
+        prisma.giftCredit.count({ where }),
+        prisma.giftCredit.findMany()
+      ]);
+
+    // STATS
+    const totalRevenue =
+      allCredits.reduce(
+        (sum, item) => sum + Number(item.amount),
+        0
+      );
+
+    const redeemedRevenue =
+      allCredits
+        .filter(item => item.isRedeemed)
+        .reduce(
+          (sum, item) => sum + Number(item.amount),
+          0
+        );
+
+    const activeRevenue =
+      allCredits
+        .filter(item => !item.isRedeemed)
+        .reduce(
+          (sum, item) => sum + Number(item.amount),
+          0
+        );
+
+    return successResponse(
+      res,
+      "Gift credits fetched",
+      200,
+      {
+        items,
+        stats: {
+          totalRevenue,
+          redeemedRevenue,
+          activeRevenue,
+          totalCredits: allCredits.length,
+          redeemedCount:
+            allCredits.filter(i => i.isRedeemed).length,
+          activeCount:
+            allCredits.filter(i => !i.isRedeemed).length
+        },
+
+        totalPages:
+          Math.ceil(total / parseInt(limit)),
+        currentPage:
+          parseInt(page),
+        totalItems:
+          total
+      }
+    );
   } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
+    return errorResponse(
+      res,
+      error.message || "Internal Server Error",
+      500
+    );
   }
 });
 

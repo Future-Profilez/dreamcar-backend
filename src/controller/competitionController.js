@@ -284,7 +284,7 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
           title: {
             contains: search,
             mode: "insensitive"
-          } 
+          }
         },
         {
           slug: {
@@ -858,7 +858,7 @@ exports.getCurrencyRates = catchAsync(async (req, res) => {
     if (!rateMap['GBP']) rateMap['GBP'] = 1;
     if (!rateMap['EUR']) rateMap['EUR'] = 1.17;
     if (!rateMap['USD']) rateMap['USD'] = 1.25;
-    
+
     return successResponse(res, "Currency rates fetched successfully", 200, rateMap);
   } catch (error) {
     console.error("Fetch Currency Rates Error:", error);
@@ -869,4 +869,150 @@ exports.getCurrencyRates = catchAsync(async (req, res) => {
       USD: 1.25
     });
   }
+});
+
+exports.getDashboardData = catchAsync(async (req, res) => {
+
+  // RECENT DATA
+  const recentCompetitions =
+    await prisma.competition.findMany({
+      take: 5,
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+  const recentPayments =
+    await prisma.stripePayment.findMany({
+      take: 5,
+      include: {
+        user: true,
+        competition: true
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+  const recentResults =
+    await prisma.result.findMany({
+      take: 5,
+      include: {
+        user: true,
+        competition: true
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+  // DASHBOARD STATS
+  const [
+    totalUsers,
+    totalTickets,
+    activeCompetitions,
+    allPayments
+  ] = await Promise.all([
+
+    prisma.user.count({
+      where: {
+        role: {
+          not: "admin"
+        }
+      }
+    }),
+
+    prisma.ticket.count(),
+
+    prisma.competition.count({
+      where: {
+        endTime: {
+          gte: new Date()
+        }
+      }
+    }),
+
+    prisma.stripePayment.findMany({
+      where: {
+        status: "success"
+      },
+      select: {
+        amount: true
+      }
+    })
+
+  ]);
+
+  // TOTAL REVENUE
+  const totalRevenue =
+    allPayments.reduce(
+      (sum, item) =>
+        sum + Number(item.amount),
+      0
+    );
+
+  // BUILD ACTIVITY ARRAY
+  const activities = [
+
+    // COMPETITIONS
+    ...recentCompetitions.map(item => ({
+      id: `competition-${item.id}`,
+      type: "competition_created",
+      title: item.title,
+      description: "Competition created",
+      status: "live",
+      createdAt: item.createdAt
+    })),
+
+    // PAYMENTS
+    ...recentPayments.map(item => ({
+      id: `payment-${item.id}`,
+      type: "payment",
+      title: item.user?.name || "User",
+      description:
+        `Purchased ${item.competition?.title || "Gift Credit"
+        }`,
+      amount: item.amount,
+      createdAt: item.createdAt,
+      status: item.status
+    })),
+
+    // WINNERS
+    ...recentResults.map(item => ({
+      id: `winner-${item.id}`,
+      type: "winner",
+      title: item.user?.name || "Winner",
+      description:
+        `Won ${item.competition?.title}`,
+      position: item.position,
+      createdAt: item.createdAt,
+      status: "winner"
+    }))
+  ];
+
+  // SORT ACTIVITIES
+  activities.sort(
+    (a, b) =>
+      new Date(b.createdAt) -
+      new Date(a.createdAt)
+  );
+
+  return successResponse(
+    res,
+    "Dashboard data fetched",
+    200,
+    {
+      stats: {
+        totalRevenue,
+        activeCompetitions,
+        totalTickets,
+        totalUsers
+      },
+
+      latestCompetitions: recentCompetitions,
+
+      recentActivity:
+        activities.slice(0, 10)
+    }
+  );
 });

@@ -137,9 +137,166 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
     }
 });
 
+// exports.getAllPayments = catchAsync(async (req, res) => {
+//     try {
+//         const payments = await prisma.stripePayment.findMany({
+//             include: {
+//                 user: {
+//                     select: {
+//                         id: true,
+//                         name: true,
+//                         email: true,
+//                     },
+//                 },
+//                 competition: {
+//                     select: {
+//                         id: true,
+//                         title: true,
+//                         slug: true,
+//                     },
+//                 },
+//                 tickets: {
+//                     select: {
+//                         ticketNumber: true,
+//                         ticketCode: true,
+//                         isEligible: true,
+//                         isInstantWin: true,
+//                     },
+//                 },
+//             },
+//             orderBy: {
+//                 createdAt: "desc",
+//             },
+//         });
+//         if (!payments || payments.length === 0) {
+//             return successResponse(
+//                 res,
+//                 "No payments found",
+//                 200,
+//                 []
+//             );
+//         }
+//         const data = payments.map((p) => ({
+//             id: p.id,
+//             orderId: p.id.slice(0, 6),
+//             userName: p.user?.name,
+//             userEmail: p.user?.email,
+//             competition: p.competition?.title || "N/A",
+//             competitionSlug: p.competition?.slug || null,
+//             competitionId: p.competition?.id || null,
+//             tickets: p.quantity || 0,
+//             amount: p.amount,
+//             currency: p.currency,
+//             status: p.status,
+//             paymentType: p.type,
+//             sessionId: p.sessionId,
+//             stripePaymentId: p.stripePaymentId,
+//             ticketNumbers: p.tickets.map(
+//                 (t) => t.ticketNumber
+//             ),
+//             ticketCodes: p.tickets.map(
+//                 (t) => t.ticketCode
+//             ),
+//             eligibleTickets: p.tickets.filter(
+//                 (t) => t.isEligible
+//             ).length,
+//             instantWinTickets: p.tickets.filter(
+//                 (t) => t.isInstantWin
+//             ).length,
+//             createdAt: p.createdAt,
+//         }));
+
+//         return successResponse(
+//             res,
+//             "Payments fetched successfully",
+//             200,
+//             data
+//         );
+//     } catch (error) {
+//         console.error("Get All Payments Error:", error);
+//         return errorResponse(
+//             res,
+//             error.message || "Internal Server Error",
+//             500
+//         );
+//     }
+// });
+
+
 exports.getAllPayments = catchAsync(async (req, res) => {
     try {
+        const {
+            search,
+            status,
+            paymentType,
+            sort
+        } = req.query;
+        let where = {};
+        // SEARCH
+        if (search) {
+            where.OR = [
+                {
+                    user: {
+                        name: {
+                            contains: search,
+                            mode: "insensitive"
+                        }
+                    }
+                },
+                {
+                    user: {
+                        email: {
+                            contains: search,
+                            mode: "insensitive"
+                        }
+                    }
+                },
+                {
+                    competition: {
+                        title: {
+                            contains: search,
+                            mode: "insensitive"
+                        }
+                    }
+                },
+                {
+                    sessionId: {
+                        contains: search,
+                        mode: "insensitive"
+                    }
+                }
+            ];
+        }
+        // STATUS FILTER
+        if (status) {
+            where.status = status;
+        }
+        // PAYMENT TYPE FILTER
+        if (paymentType) {
+            where.type = paymentType;
+        }
+        // SORT
+        let orderBy = {
+            createdAt: "desc"
+        };
+        if (sort === "oldest") {
+            orderBy = {
+                createdAt: "asc"
+            };
+
+        } else if (sort === "highest") {
+            orderBy = {
+                amount: "desc"
+            };
+
+        } else if (sort === "lowest") {
+            orderBy = {
+                amount: "asc"
+            };
+        }
+
         const payments = await prisma.stripePayment.findMany({
+            where,
             include: {
                 user: {
                     select: {
@@ -164,24 +321,35 @@ exports.getAllPayments = catchAsync(async (req, res) => {
                     },
                 },
             },
-            orderBy: {
-                createdAt: "desc",
-            },
+            orderBy,
         });
-        if (!payments || payments.length === 0) {
-            return successResponse(
-                res,
-                "No payments found",
-                200,
-                []
-            );
-        }
+        // DASHBOARD STATS
+        const totalRevenue = payments.reduce(
+            (sum, p) => sum + Number(p.amount),
+            0
+        );
+        const totalCompetitionRevenue = payments
+            .filter(p => p.type === "competition")
+            .reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalGiftRevenue = payments
+            .filter(p => p.type === "gift_credit")
+            .reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalWalletRevenue = payments
+            .filter(p => p.type === "wallet_recharge")
+            .reduce((sum, p) => sum + Number(p.amount), 0);
+
         const data = payments.map((p) => ({
             id: p.id,
             orderId: p.id.slice(0, 6),
             userName: p.user?.name,
             userEmail: p.user?.email,
-            competition: p.competition?.title || "N/A",
+            competition:
+                p.type === "gift_credit"
+                    ? "Gift Credit"
+                    : p.type === "wallet_recharge"
+                    ? "Wallet Recharge"
+                    : p.competition?.title || "N/A",
+
             competitionSlug: p.competition?.slug || null,
             competitionId: p.competition?.id || null,
             tickets: p.quantity || 0,
@@ -197,12 +365,6 @@ exports.getAllPayments = catchAsync(async (req, res) => {
             ticketCodes: p.tickets.map(
                 (t) => t.ticketCode
             ),
-            eligibleTickets: p.tickets.filter(
-                (t) => t.isEligible
-            ).length,
-            instantWinTickets: p.tickets.filter(
-                (t) => t.isInstantWin
-            ).length,
             createdAt: p.createdAt,
         }));
 
@@ -210,8 +372,18 @@ exports.getAllPayments = catchAsync(async (req, res) => {
             res,
             "Payments fetched successfully",
             200,
-            data
+            {
+                payments: data,
+                stats: {
+                    totalRevenue,
+                    totalCompetitionRevenue,
+                    totalGiftRevenue,
+                    totalWalletRevenue,
+                    totalTransactions: payments.length
+                }
+            }
         );
+
     } catch (error) {
         console.error("Get All Payments Error:", error);
         return errorResponse(
