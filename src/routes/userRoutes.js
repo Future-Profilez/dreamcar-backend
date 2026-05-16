@@ -7,7 +7,7 @@ router.post("/user/register", signup);
 router.post("/user/login", login);
 router.get("/user/profile", verifyToken, GetUser);
 router.get("/user/profile/dashboard", verifyToken, getUserProfileDashboard);
-router.get("/users", verifyToken, getWallet);
+router.get("/users", verifyToken, getAllUsers);
 
 router.get("/user/wallet/get", verifyToken, getWallet);
 router.post("/users/wallet/recharge", verifyToken, createWalletPayment);

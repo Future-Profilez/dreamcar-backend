@@ -163,34 +163,128 @@ exports.getUserProfileDashboard = catchAsync(async (req, res) => {
 
     return successResponse(res, "Data fetched successfully", 200, data);
 
-    
+
   } catch (error) {
     console.error("Dashboard Error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
 
+// exports.getAllUsers = catchAsync(async (req, res) => {
+//   try {
+//     const users = await prisma.user.findMany({
+//       where: {
+//         role: {
+//           not: "admin",
+//         },
+//         deletedAt: null,
+//       },
+//       include: {
+//         tickets: true,
+//       },
+//       orderBy: {
+//         createdAt: "desc",
+//       },
+//     });
+
+//     if (!users || users.length === 0) {
+//       return successResponse(res, "No users found", 200, []);
+//     }
+
+//     const formattedUsers = users.map((user) => ({
+//       id: user.id,
+//       name: user.name,
+//       email: user.email,
+//       tickets: user.tickets?.length || 0,
+//       status: user.deletedAt ? "inactive" : "active",
+//       createdAt: user.createdAt,
+//     }));
+
+//     return successResponse(
+//       res,
+//       "Users fetched successfully",
+//       200,
+//       formattedUsers
+//     );
+//   } catch (error) {
+//     console.log("Get Users Error:", error);
+//     return errorResponse(
+//       res,
+//       error.message || "Internal Server Error",
+//       500
+//     );
+//   }
+// });
 exports.getAllUsers = catchAsync(async (req, res) => {
   try {
-    const users = await prisma.user.findMany({
-      where: {
-        role: {
-          not: "admin",
-        },
-        deletedAt: null,
+    const {
+      search,
+      status,
+      sort
+    } = req.query;
+
+    let where = {
+      role: {
+        not: "admin",
       },
+    };
+    // SEARCH
+    if (search) {
+      where.OR = [
+        {
+          name: {
+            contains: search,
+            mode: "insensitive"
+          }
+        },
+        {
+          email: {
+            contains: search,
+            mode: "insensitive"
+          }
+        }
+      ];
+    }
+
+    // STATUS
+    if (status === "active") {
+      where.deletedAt = null;
+    } else if (status === "inactive") {
+      where.deletedAt = {
+        not: null
+      };
+    }
+    // SORT
+    let orderBy = {
+      createdAt: "desc"
+    };
+    if (sort === "oldest") {
+      orderBy = {
+        createdAt: "asc"
+      };
+    } else if (sort === "tickets") {
+      orderBy = {
+        tickets: {
+          _count: "desc"
+        }
+      };
+    }
+    const users = await prisma.user.findMany({
+      where,
       include: {
         tickets: true,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy,
     });
 
     if (!users || users.length === 0) {
-      return successResponse(res, "No users found", 200, []);
+      return successResponse(
+        res,
+        "No users found",
+        200,
+        []
+      );
     }
-
     const formattedUsers = users.map((user) => ({
       id: user.id,
       name: user.name,
