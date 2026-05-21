@@ -812,20 +812,86 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
       });
     }
     if (isWalletPayment) {
-      const wallet = await prisma.wallet.find({
-        where: { userid: req?.user?.id },
+      const wallet = await prisma.wallet.findUnique({
+        where: { userId: req.user.id },
       });
 
-      if (wallet && Number(wallet?.balance) < Number(totalAmount)) {
-        return errorResponse(res, "Insufficient Balance.", 200);
+      if (!wallet || Number(wallet.balance) < Number(totalAmount)) {
+        return errorResponse(res, "Insufficient Wallet Balance.", 200);
       }
-      const remainingBalance = Number(wallet?.balance) - Number(totalAmount)
-      const updatedWallet = await prisma.wallet.update({
-        data: {
-          balance: Number(remainingBalance)
+      
+      const remainingBalance = Number(wallet.balance) - Number(totalAmount);
+      
+      const mockSessionId = "wallet_sess_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+      const mockPaymentIntent = "wallet_pi_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+      
+      const sessionObj = {
+        id: mockSessionId,
+        payment_intent: mockPaymentIntent,
+        currency: "usd",
+        metadata: {
+          userId: userId.toString(),
+          type: "competition_ticket",
+          items: JSON.stringify(items)
         }
-      });
-      return successResponse(res, "Payment sucessfull.", 200);
+      };
+
+      try {
+        // Deduct balance
+        const updatedWallet = await prisma.wallet.update({
+          where: { userId: req.user.id },
+          data: { balance: remainingBalance }
+        });
+
+        // Create transaction record
+        const transaction = await prisma.walletTransaction.create({
+          data: {
+            walletId: wallet.id,
+            userId: userId,
+            type: "debit",
+            amount: totalAmount,
+            balance: updatedWallet.balance,
+            reason: "Purchased items from cart"
+          }
+        });
+
+        try {
+          const { processSuccessfulPayment } = require("../utils/paymentProcessor");
+          await processSuccessfulPayment(sessionObj);
+        } catch (processErr) {
+          console.error("Ticket processing failed after wallet deduction. Refunding wallet...", processErr);
+          
+          // Refund wallet
+          const refundedWallet = await prisma.wallet.update({
+            where: { userId: req.user.id },
+            data: { balance: { increment: totalAmount } }
+          });
+          
+          // Log refund transaction
+          await prisma.walletTransaction.create({
+            data: {
+              walletId: wallet.id,
+              userId: userId,
+              type: "credit",
+              amount: totalAmount,
+              balance: refundedWallet.balance,
+              reason: "Refund due to failed cart processing"
+            }
+          });
+          
+          throw processErr; // Re-throw to be caught by outer catch
+        }
+
+        return successResponse(res, "Payment successful", 200, {
+          url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id=${mockSessionId}`
+        });
+
+      } catch (err) {
+        console.error("Wallet payment processing failed:", err);
+        // We could implement rollback here if needed
+        return errorResponse(res, "Payment processing failed. Please contact support.", 500);
+      }
+
     } else {
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],

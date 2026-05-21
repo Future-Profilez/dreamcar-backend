@@ -354,24 +354,55 @@ exports.resetPassword = catchAsync(async (req, res) => {
     );
   }
 
-  // OTP CHECK
-  if (user.otp !== otp) {
+  // CHECK ATTEMPTS
+  if (user.otpAttempts >= 5) {
     return errorResponse(
       res,
-      "Invalid OTP",
+      "Too many attempts. Request new OTP.",
       200
     );
   }
 
-  // EXPIRED
+  // CHECK EXPIRY
   if (
     !user.otpExpiresAt ||
     new Date() > user.otpExpiresAt
   ) {
 
+    // CLEAR EXPIRED OTP
+    await prisma.user.update({
+      where: {
+        id: user.id
+      },
+      data: {
+        otp: null,
+        otpExpiresAt: null
+      }
+    });
+
     return errorResponse(
       res,
       "OTP expired",
+      200
+    );
+  }
+
+  // OTP CHECK
+  if (user.otp !== otp) {
+    await prisma.user.update({
+      where: {
+        id: user.id
+      },
+      data: {
+        otpAttempts: {
+          increment: 1
+        }
+      }
+    });
+
+    return errorResponse(
+      res,
+      "Invalid OTP",
       200
     );
   }
@@ -421,13 +452,6 @@ exports.login = catchAsync(async (req, res) => {
     return errorResponse(res, "Account deleted", 200);
   }
 
-  if (!user.otpVerifiedAt) {
-    return errorResponse(
-      res,
-      "Please verify your email first",
-      200
-    );
-  }
   if (user.isBlocked === 1) {
     return errorResponse(
       res,
@@ -456,6 +480,7 @@ exports.login = catchAsync(async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      otpVerifiedAt: user.otpVerifiedAt,
     },
     token,
   });
@@ -477,6 +502,7 @@ exports.GetUser = catchAsync(async (req, res) => {
         name: true,
         email: true,
         role: true,
+        otpVerifiedAt: true,
       }
     });
     if (!user) {

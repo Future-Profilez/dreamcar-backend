@@ -26,20 +26,31 @@ exports.verifyPayment = catchAsync(async (req, res) => {
 
         if (!payment || payment.length === 0) {
             // If payment not in DB, fallback to querying Stripe directly (handles webhook delays or local testing)
-            const session = await stripe.checkout.sessions.retrieve(session_id);
-            if (session.payment_status === 'paid') {
-                await processSuccessfulPayment(session);
+            if (!session_id.startsWith('wallet_sess_')) {
+                try {
+                    const session = await stripe.checkout.sessions.retrieve(session_id);
+                    if (session.payment_status === 'paid') {
+                        if (session.metadata?.type === "wallet_recharge") {
+                            const { processWalletRecharge } = require("../utils/paymentProcessor");
+                            await processWalletRecharge(session);
+                        } else {
+                            await processSuccessfulPayment(session);
+                        }
 
-                // Fetch the newly created payment
-                payment = await prisma.stripePayment.findMany({
-                    where: {
-                        sessionId: session_id,
-                        userId: userId
-                    },
-                    include: {
-                        tickets: true
+                        // Fetch the newly created payment
+                        payment = await prisma.stripePayment.findMany({
+                            where: {
+                                sessionId: session_id,
+                                userId: userId
+                            },
+                            include: {
+                                tickets: true
+                            }
+                        });
                     }
-                });
+                } catch (stripeErr) {
+                    console.error("Stripe session retrieve error:", stripeErr.message);
+                }
             }
         }
 
@@ -124,6 +135,7 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
                 amount: p.amount,
                 date: p.createdAt,
                 competitionId: p.competitionId,
+                sessionId: p.sessionId,
                 ticketNumbers: p.tickets.map(t => t.ticketCode || `#${t.ticketNumber}`),
                 status: p.status
             };

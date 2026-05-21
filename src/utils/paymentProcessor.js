@@ -19,9 +19,10 @@ const processWalletRecharge = async (session) => {
     }
 
     await prisma.$transaction(async (tx) => {
-        const existingTransaction = await tx.walletTransaction.findFirst({
+        const existingTransaction = await tx.stripePayment.findFirst({
             where: {
-                stripePaymentId: session.payment_intent
+                sessionId: session.id,
+                type: "wallet_recharge"
             }
         });
 
