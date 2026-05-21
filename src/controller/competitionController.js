@@ -343,7 +343,28 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
     const competitions =
       await prisma.competition.findMany({
         where,
-        orderBy
+        orderBy,
+        include: {
+
+          results: {
+
+            where: {
+              position: 1
+            },
+
+            select: {
+              id: true,
+              position: true
+            }
+          },
+
+          winnerDetail: {
+
+            select: {
+              id: true
+            }
+          }
+        }
       });
 
     return successResponse(
@@ -686,15 +707,14 @@ exports.updateCompetition = catchAsync(async (req, res) => {
 
 exports.createCompetitionPayment = catchAsync(async (req, res) => {
   try {
+    const isWalletPayment = req.body.isWalletPayment;
     const userId = req.user.id;
     const { items } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) {
       return errorResponse(res, "Items are required", 200);
     }
-
     let totalAmount = 0;
     let lineItems = [];
-
     for (const item of items) {
 
       const { competitionId, quantity, answer, itemType, itemId } = item;
@@ -791,27 +811,107 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
         quantity: 1
       });
     }
+    if (isWalletPayment) {
+      const wallet = await prisma.wallet.findUnique({
+        where: { userId: req.user.id },
+      });
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      customer_email: req.user.email,
-
-      line_items: lineItems,
-      success_url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/ticket/payment/cancel`,
-
-      metadata: {
-        userId: userId.toString(),
-        type: "competition_ticket",
-        items: JSON.stringify(items)
+      if (!wallet || Number(wallet.balance) < Number(totalAmount)) {
+        return errorResponse(res, "Insufficient Wallet Balance.", 200);
       }
-    });
+      
+      const remainingBalance = Number(wallet.balance) - Number(totalAmount);
+      
+      const mockSessionId = "wallet_sess_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+      const mockPaymentIntent = "wallet_pi_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+      
+      const sessionObj = {
+        id: mockSessionId,
+        payment_intent: mockPaymentIntent,
+        currency: "usd",
+        metadata: {
+          userId: userId.toString(),
+          type: "competition_ticket",
+          items: JSON.stringify(items)
+        }
+      };
 
-    return successResponse(res, "Session created", 200, {
-      url: session.url
-    });
+      try {
+        // Deduct balance
+        const updatedWallet = await prisma.wallet.update({
+          where: { userId: req.user.id },
+          data: { balance: remainingBalance }
+        });
 
+        // Create transaction record
+        const transaction = await prisma.walletTransaction.create({
+          data: {
+            walletId: wallet.id,
+            userId: userId,
+            type: "debit",
+            amount: totalAmount,
+            balance: updatedWallet.balance,
+            reason: "Purchased items from cart"
+          }
+        });
+
+        try {
+          const { processSuccessfulPayment } = require("../utils/paymentProcessor");
+          await processSuccessfulPayment(sessionObj);
+        } catch (processErr) {
+          console.error("Ticket processing failed after wallet deduction. Refunding wallet...", processErr);
+          
+          // Refund wallet
+          const refundedWallet = await prisma.wallet.update({
+            where: { userId: req.user.id },
+            data: { balance: { increment: totalAmount } }
+          });
+          
+          // Log refund transaction
+          await prisma.walletTransaction.create({
+            data: {
+              walletId: wallet.id,
+              userId: userId,
+              type: "credit",
+              amount: totalAmount,
+              balance: refundedWallet.balance,
+              reason: "Refund due to failed cart processing"
+            }
+          });
+          
+          throw processErr; // Re-throw to be caught by outer catch
+        }
+
+        return successResponse(res, "Payment successful", 200, {
+          url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id=${mockSessionId}`
+        });
+
+      } catch (err) {
+        console.error("Wallet payment processing failed:", err);
+        // We could implement rollback here if needed
+        return errorResponse(res, "Payment processing failed. Please contact support.", 500);
+      }
+
+    } else {
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        mode: "payment",
+        customer_email: req.user.email,
+
+        line_items: lineItems,
+        success_url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.FRONTEND_URL}/ticket/payment/cancel`,
+
+        metadata: {
+          userId: userId.toString(),
+          type: "competition_ticket",
+          items: JSON.stringify(items)
+        }
+      });
+      return successResponse(res, "Session created", 200, {
+        url: session.url
+      });
+    }
   } catch (error) {
     console.error("Create Payment Error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -1016,3 +1116,120 @@ exports.getDashboardData = catchAsync(async (req, res) => {
     }
   );
 });
+
+exports.toggleFeaturedCompetition = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const competition =
+    await prisma.competition.findUnique({
+      where: {
+        id: parseInt(id)
+      }
+    });
+
+  if (!competition) {
+    return errorResponse(
+      res,
+      "Competition not found",
+      404
+    );
+  }
+
+  const updated =
+    await prisma.competition.update({
+      where: {
+        id: parseInt(id)
+      },
+      data: {
+        isFeatured: competition.isFeatured === 1 ? 0 : 1
+      }
+    });
+
+  return successResponse(
+    res,
+    updated.featured
+      ? "Competition featured"
+      : "Competition unfeatured",
+    200,
+    updated
+  );
+});
+
+exports.getSimilarCompetitions =
+  catchAsync(async (req, res) => {
+
+    const { id } = req.params;
+
+    const currentCompetition =
+      await prisma.competition.findUnique({
+        where: {
+          id: parseInt(id)
+        }
+      });
+
+    if (!currentCompetition) {
+      return errorResponse(
+        res,
+        "Competition not found",
+        404
+      );
+    }
+
+    // SAME CATEGORY
+    let competitions =
+      await prisma.competition.findMany({
+        where: {
+          deletedAt: null,
+          id: {
+            not: currentCompetition.id
+          },
+          productType:
+            currentCompetition.productType
+        },
+
+        orderBy: [
+          {
+            isFeatured: "desc"
+          },
+          {
+            createdAt: "desc"
+          }
+        ],
+
+        take: 6
+      });
+
+    // FALLBACK
+    if (competitions.length < 6) {
+
+      const extra =
+        await prisma.competition.findMany({
+          where: {
+            deletedAt: null,
+            id: {
+              notIn: [
+                currentCompetition.id,
+                ...competitions.map(c => c.id)
+              ]
+            }
+          },
+
+          orderBy: {
+            createdAt: "desc"
+          },
+
+          take: 6 - competitions.length
+        });
+
+      competitions = [
+        ...competitions,
+        ...extra
+      ];
+    }
+
+    return successResponse(
+      res,
+      "Similar competitions fetched",
+      200,
+      competitions
+    );
+  });

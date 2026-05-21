@@ -43,51 +43,6 @@ exports.addEnquiry = catchAsync(async (req, res) => {
     }
 });
 
-// exports.listEnquiries = catchAsync(async (req, res) => {
-//     try {
-//         const enquiries = await prisma.contact.findMany({
-//             where: {
-//                 deletedAt: null,
-//             },
-//             orderBy: {
-//                 createdAt: "desc",
-//             },
-//         });
-//         if (!enquiries || enquiries.length === 0) {
-//             return successResponse(
-//                 res,
-//                 "No enquiries found",
-//                 200,
-//                 []
-//             );
-//         }
-//         const formatted = enquiries.map((item) => ({
-//             id: item.id,
-//             fullName: item.fullName,
-//             phone: item.phone,
-//             email: item.email,
-//             subject: item.subject,
-//             message: item.message,
-//             createdAt: item.createdAt,
-//         }));
-
-//         return successResponse(
-//             res,
-//             "Enquiries fetched successfully",
-//             200,
-//             formatted
-//         );
-
-//     } catch (error) {
-//         console.log("List Enquiries Error:", error);
-//         return errorResponse(
-//             res,
-//             error.message || "Internal Server Error",
-//             500
-//         );
-//     }
-// });
-
 exports.listEnquiries = catchAsync(async (req, res) => {
     try {
         const {
@@ -181,6 +136,52 @@ exports.listEnquiries = catchAsync(async (req, res) => {
         return errorResponse(
             res,
             error.message || "Internal Server Error",
+            500
+        );
+    }
+});
+
+exports.deleteEnquiry = catchAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const enquiry = await prisma.contact.findUnique({
+                where: {
+                    id: parseInt(id)
+                }
+        });
+        if (!enquiry) {
+            return errorResponse(
+                res,
+                "Enquiry not found",
+                200
+            );
+        }
+        if (enquiry.deletedAt) {
+            return errorResponse(
+                res,
+                "Enquiry already deleted",
+                200
+            );
+        }
+        await prisma.contact.update({
+            where: {
+                id: parseInt(id)
+            },
+            data: {
+                deletedAt: new Date()
+            }
+        });
+        return successResponse(
+            res,
+            "Enquiry deleted successfully",
+            200
+        );
+    } catch (error) {
+        console.log("Delete Enquiry Error:", error);
+        return errorResponse(
+            res,
+            error.message ||
+            "Internal Server Error",
             500
         );
     }

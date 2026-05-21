@@ -1,5 +1,5 @@
-const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition, getCurrencyRates, getDashboardData } = require("../controller/competitionController");
-const { verifyToken } = require("../utils/tokenVerify");
+const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition, getCurrencyRates, getDashboardData, toggleFeaturedCompetition, getSimilarCompetitions } = require("../controller/competitionController");
+const { verifyToken, checkIsAdminHasCapablity } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
 const router = require("express").Router();
@@ -36,10 +36,16 @@ router.post("/competition/update/:id",
     { name: "prizeImages", maxCount: 10 }
   ]), updateCompetition);
 
-router.post("/competition/ticket-buy", verifyToken, createCompetitionPayment);
+router.post("/competition/ticket-buy", verifyToken, checkIsAdminHasCapablity, createCompetitionPayment);
 router.delete("/competition/:id", verifyToken, deleteCompetition);
 
 //admin dashboard
 router.get("/admin/dashboard", verifyToken, getDashboardData);
+
+//featured competition
+router.post( "/competition/feature/:id", verifyToken, toggleFeaturedCompetition);
+
+//similar competitions
+router.get("/competition/similar/:id", getSimilarCompetitions);
 
 module.exports = router;

@@ -252,3 +252,4 @@ exports.getTicketsByCompetition = catchAsync(async (req, res) => {
 
     return successResponse(res, "Grouped tickets fetched", 200, result);
 });
+
