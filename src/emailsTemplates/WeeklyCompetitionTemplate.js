@@ -1,3 +1,4 @@
+
 module.exports = ({
     competitions = []
 }) => {
@@ -9,103 +10,105 @@ module.exports = ({
         max-width: 650px;
         margin: 0 auto;
         background: #ffffff;
+        border: 1px solid #e5e5e5;
         border-radius: 18px;
         overflow: hidden;
-        border: 1px solid #f0f0f0;
-        box-shadow: 0 4px 30px rgba(0,0,0,0.06);
     ">
 
+        <!-- HEADER -->
         <div style="
-            background: #000;
-            padding: 40px 30px;
-            text-align: center;
+            background:#000000;
+            padding:40px 30px;
+            text-align:center;
         ">
 
             <img 
                 src="${process.env.LIVE_URL}/img/logoDC.png"
                 alt="DreamCar"
                 style="
-                    width: 220px;
-                    max-width: 100%;
-                    margin-bottom: 20px;
+                    width:220px;
+                    max-width:100%;
+                    margin-bottom:24px;
                 "
             />
 
             <h1 style="
-                color: #fff;
-                margin: 0;
-                font-size: 30px;
-                font-weight: 700;
+                color:#ffffff;
+                font-size:34px;
+                margin:0;
+                font-weight:700;
             ">
                 Latest Competitions 🔥
             </h1>
 
             <p style="
-                color: rgba(255,255,255,0.7);
-                margin-top: 12px;
-                font-size: 15px;
+                color:#bdbdbd;
+                margin-top:12px;
+                font-size:15px;
+                line-height:1.6;
             ">
                 New luxury competitions added this week.
             </p>
 
         </div>
 
+        <!-- BODY -->
         <div style="padding:40px 30px;">
 
             ${competitions.map(item => `
 
                 <div style="
-                    background: #fafafa;
-                    border-radius: 16px;
-                    overflow: hidden;
-                    margin-bottom: 24px;
-                    border: 1px solid #eee;
+                    border:1px solid #eeeeee;
+                    border-radius:14px;
+                    padding:24px;
+                    background:#fafafa;
+                    margin-bottom:20px;
                 ">
 
-                    <img
-                        src="${item.images?.[0]}"
-                        alt="${item.title}"
-                        style="
-                            width:100%;
-                            max-height:260px;
-                            display:block;
-                            object-fit:cover;
-                        "
-                    />
+                    <h2 style="
+                        margin:0 0 14px;
+                        color:#111111;
+                        font-size:22px;
+                        line-height:1.4;
+                    ">
+                        ${item.title}
+                    </h2>
 
-                    <div style="padding:24px;">
+                    <p style="
+                        margin:0 0 10px;
+                        color:#555555;
+                        font-size:15px;
+                        line-height:1.7;
+                    ">
+                        Ticket Price:
+                        <strong>£${item.ticketPrice}</strong>
+                    </p>
 
-                        <h2 style="
-                            margin:0 0 12px;
-                            color:#111;
-                            font-size:22px;
-                        ">
-                            ${item.title}
-                        </h2>
+                    <p style="
+                        margin:0;
+                        color:#666666;
+                        font-size:14px;
+                        line-height:1.7;
+                    ">
+                        Enter now for your chance to win this premium competition before tickets sell out.
+                    </p>
 
-                        <p style="
-                            color:#666;
-                            font-size:15px;
-                            line-height:1.7;
-                        ">
-                            Ticket Price:
-                            <strong>£${item.ticketPrice}</strong>
-                        </p>
+                    <div style="margin-top:22px;">
 
                         <a
                             href="${process.env.FRONTEND_URL}/competition/${item.slug}"
                             style="
                                 display:inline-block;
-                                margin-top:16px;
-                                background:#EC6623;
-                                color:#fff;
-                                padding:12px 20px;
-                                border-radius:8px;
+                                background:#42BE38;
+                                color:#ffffff;
                                 text-decoration:none;
-                                font-weight:bold;
+                                padding:13px 24px;
+                                border-radius:10px;
+                                font-size:14px;
+                                font-weight:700;
                             "
                         >
-                            Enter Competition
+                            ENTER COMPETITION
                         </a>
 
                     </div>
@@ -114,25 +117,63 @@ module.exports = ({
 
             `).join("")}
 
+            <div style="
+                margin-top:34px;
+                text-align:center;
+            ">
+
+                <p style="
+                    color:#666666;
+                    font-size:14px;
+                    line-height:1.7;
+                    margin-bottom:22px;
+                ">
+                    More competitions are added every week.<br/>
+                    Stay tuned for exclusive prizes and featured draws.
+                </p>
+
+                <a
+                    href="${process.env.FRONTEND_URL}"
+                    style="
+                        display:inline-block;
+                        background:#EC6623;
+                        color:#ffffff;
+                        text-decoration:none;
+                        padding:14px 32px;
+                        border-radius:10px;
+                        font-size:15px;
+                        font-weight:700;
+                    "
+                >
+                    VIEW ALL COMPETITIONS
+                </a>
+
+            </div>
+
         </div>
 
+        <!-- FOOTER -->
         <div style="
-            border-top: 1px solid #eee;
-            padding: 28px;
-            text-align: center;
-            background: #fafafa;
+            border-top:1px solid #eeeeee;
+            padding:24px;
+            text-align:center;
+            background:#fafafa;
         ">
+
             <p style="
-                margin: 0;
-                color: #888;
-                font-size: 14px;
+                margin:0;
+                color:#888888;
+                font-size:13px;
+                line-height:1.8;
             ">
-                Good luck 🍀<br/>
+                Good luck <br/>
                 <strong>DreamCar Competitions</strong>
             </p>
+
         </div>
 
     </div>
 
     `;
 };
+
