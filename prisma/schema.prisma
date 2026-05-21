@@ -20,11 +20,20 @@ enum itemTypeEnum {
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  name      String
-  email     String    @unique
-  password  String
-  role      String    @default("user")
+  id            Int       @id @default(autoincrement())
+  name          String
+  email         String    @unique
+  password      String
+  role          String    @default("user")
+
+  otpVerifiedAt DateTime?
+  otp           String?
+  otpExpiresAt  DateTime?
+  otpAttempts   Int?      @default(0)
+
+  isBlocked     Int   @default(0)     //0->unblocked   1->blocked
+  blockedAt     DateTime? @db.Timestamp(0)
+
   createdAt DateTime? @default(now()) @db.Timestamp(0)
   updatedAt DateTime? @db.Timestamp(0)
   deletedAt DateTime? @db.Timestamp(0)
@@ -50,6 +59,7 @@ model Competition {
   ticketPrice      Int
   totalTickets     Int
   soldTickets      Int             @default(0)
+  isFeatured       Int             @default(0)  //0->not featured 1->featured
   startTime        DateTime
   endTime          DateTime
 
@@ -63,6 +73,8 @@ model Competition {
   payments                 StripePayment[]
   results                  Result[]
   prizes                   Prize[]
+  winnerDetail             WinnerDetail?
+  
 
   status    Int       @default(1)
   createdAt DateTime? @default(now()) @db.Timestamp(0)
@@ -185,6 +197,7 @@ model Ticket {
 
   createdAt     DateTime? @default(now()) @db.Timestamp(0)
   updatedAt     DateTime? @db.Timestamp(0)
+  deletedAt DateTime? @db.Timestamp(0)
 
   competition Competition @relation(fields: [competitionId], references: [id])
   user        User        @relation(fields: [userId], references: [id])
@@ -208,6 +221,7 @@ model Result {
   winnerImage   String? 
 
   createdAt     DateTime @default(now())
+  winnerDetail  WinnerDetail?
 
   competition   Competition @relation(fields: [competitionId], references: [id])
   user          User        @relation(fields: [userId], references: [id])
@@ -293,4 +307,30 @@ model CurrencyRate {
   rate      Float     // rate relative to GBP (GBP will be 1)
   createdAt DateTime? @default(now()) @db.Timestamp(0)
   updatedAt DateTime? @updatedAt @db.Timestamp(0)
+}
+
+model WinnerDetail {
+  id               Int      @id @default(autoincrement())
+  competitionId    Int      @unique
+  resultId         String   @unique
+  winnerName       String
+  winnerLocation   String?
+  storyDescription String?
+  winnerImage      String?
+  galleryImages    String[]
+
+  createdAt        DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt        DateTime? @db.Timestamp(0)
+  deletedAt        DateTime? @db.Timestamp(0)
+
+  competition      Competition @relation(fields: [competitionId], references: [id])
+  result           Result      @relation(fields: [resultId], references: [id])
+}
+
+model Newsletter {
+  id               Int       @id @default(autoincrement())
+  email            String    @unique
+
+  createdAt        DateTime? @default(now()) @db.Timestamp(0)
+  deletedAt        DateTime? @db.Timestamp(0)
 }

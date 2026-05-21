@@ -2,6 +2,7 @@ const prisma = require("../prismaconfig");
 const { generateTicketCode } = require("./ticketCode");
 const crypto = require("crypto");
 const sendEmail = require("./EmailMailler");
+const TicketPurchaseTemplate = require("../emailsTemplates/TicketPurchaseTemplate");
 
 const processWalletRecharge = async (session) => {
     const { userId, amount, type } = session.metadata;
@@ -18,8 +19,6 @@ const processWalletRecharge = async (session) => {
     }
 
     await prisma.$transaction(async (tx) => {
-
-        // Prevent duplicate processing
         const existingTransaction = await tx.walletTransaction.findFirst({
             where: {
                 stripePaymentId: session.payment_intent
@@ -145,7 +144,7 @@ const processSuccessfulPayment = async (session) => {
             // Send Email
             try {
                 const user = await prisma.user.findUnique({ where: { id: parsedUserId } });
-                
+
                 const targetEmail = recipientEmail || (user && user.email);
                 const amount = item.itemId;
 
@@ -160,7 +159,8 @@ const processSuccessfulPayment = async (session) => {
                         emailHtml = `
                             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #f0f0f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
                                 <div style="text-align: center; margin-bottom: 32px;">
-                                    <h1 style="color: #1a1a1a; margin: 0; display: inline-block; background-color: #cbe3ff; padding: 6px 12px; border-radius: 4px; font-size: 28px;">You've Got a Gift! 🎁</h1>
+                                <img src="${process.env.LIVE_URL}/img/logoDC.png" alt="DreamCar Logo" style=" width: 220px; max-width: 100%; margin-bottom: 24px; object-fit: contain; " />    
+                                <h1 style="color: #1a1a1a; margin: 0; display: inline-block; background-color: #cbe3ff; padding: 6px 12px; border-radius: 4px; font-size: 28px;">You've Got a Gift! 🎁</h1>
                                 </div>
                                 
                                 <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6; margin-bottom: 16px;">
@@ -197,7 +197,8 @@ const processSuccessfulPayment = async (session) => {
                         emailHtml = `
                             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #f0f0f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
                                 <div style="text-align: center; margin-bottom: 32px;">
-                                    <h1 style="color: #1a1a1a; margin: 0; display: inline-block; background-color: #cbe3ff; padding: 6px 12px; border-radius: 4px; font-size: 28px;">DreamCar Gift Card 💳</h1>
+                                <img src="${process.env.LIVE_URL}/img/logoDC.png" alt="DreamCar Logo" style=" width: 220px; max-width: 100%; margin-bottom: 24px; object-fit: contain; " />    
+                                <h1 style="color: #1a1a1a; margin: 0; display: inline-block; background-color: #cbe3ff; padding: 6px 12px; border-radius: 4px; font-size: 28px;">DreamCar Gift Card 💳</h1>
                                 </div>
                                 
                                 <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6; margin-bottom: 16px;">
@@ -263,7 +264,8 @@ const processSuccessfulPayment = async (session) => {
                     id: true,
                     title: true,
                     soldTickets: true,
-                    ticketPrice: true
+                    ticketPrice: true,
+                    images:true
                 }
             });
             // 1. Create Payment Record
@@ -371,14 +373,32 @@ const processSuccessfulPayment = async (session) => {
                     },
                 });
             }
-            
-            return { wonInstantWinsList, competition };
+
+            return { wonInstantWinsList, competition, payment };
         },
             {
                 timeout: 20000
             }
         );
-
+        //sending mail for ticket purchase
+        if (txResult) {
+            try {
+                const user = await prisma.user.findUnique({ where: { id: parsedUserId } });
+                const paymentTickets = await prisma.ticket.findMany({ where: { paymentId: txResult.payment.id } });
+                sendEmail({
+                    email: user.email, subject: `Your Tickets for ${txResult.competition.title} 🎟️`, emailHtml:
+                        TicketPurchaseTemplate({
+                            user,
+                            competition: txResult.competition,
+                            tickets: paymentTickets,
+                            amount: paymentTickets.length * Number(txResult.competition.ticketPrice),
+                            instantWins: txResult.wonInstantWinsList || []
+                        })
+                });
+            } catch (emailErr) {
+                console.error("Ticket email failed:", emailErr);
+            }
+        }
         // Send Instant Win Emails
         if (txResult && txResult.wonInstantWinsList && txResult.wonInstantWinsList.length > 0) {
             try {

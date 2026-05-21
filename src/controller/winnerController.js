@@ -244,6 +244,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                 include: {
                     competition: {
                         select: {
+                            id: true,
                             title: true,
                             endTime: true,
                             prizes: true
@@ -268,7 +269,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
             }),
             prisma.result.count()
         ]);
-        
+
         if (!winners || winners.length === 0) {
             return successResponse(res, "No winners found", 200, {
                 winners: [],
@@ -285,6 +286,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
             const wonPrize = w.competition.prizes?.find(p => p.position === w.position);
             return {
                 title: wonPrize ? wonPrize.title : w.competition.title,
+                competitionId: w.competition.id,
                 competitionTitle: w.competition.title,
                 prizeImage: wonPrize?.prizeDetailImage || '/img/car3d1.png',
                 date: w.competition.endTime,
@@ -386,6 +388,345 @@ exports.getUserInstantWins = catchAsync(async (req, res) => {
         return errorResponse(
             res,
             error.message || "Internal Server Error",
+            500
+        );
+    }
+});
+
+exports.addWinnerDetail = catchAsync(async (req, res) => {
+    try {
+        // ADMIN CHECK
+        if (req.user.role !== "admin") {
+            return errorResponse(
+                res,
+                "Unauthorized",
+                200
+            );
+        }
+
+        const {
+            competitionId, resultId, winnerName, winnerLocation, storyDescription } = req.body;
+
+        // VALIDATION
+        if (!competitionId || !resultId || !winnerName) {
+            return errorResponse(
+                res,
+                "Required fields missing",
+                200
+            );
+        }
+
+        // CHECK COMPETITION
+        const competition = await prisma.competition.findUnique({
+            where: {
+                id: parseInt(competitionId)
+            },
+            include: {
+                results: true
+            }
+        });
+
+        if (!competition) {
+            return errorResponse(
+                res,
+                "Competition not found",
+                200
+            );
+        }
+
+        // CHECK RESULT
+        const result = await prisma.result.findUnique({
+            where: {
+                id: resultId
+            },
+            include: {
+                user: true,
+                ticket: true
+            }
+        });
+
+        if (!result) {
+            return errorResponse(
+                res,
+                "Winner result not found",
+                200
+            );
+        }
+
+        // ONLY MAIN WINNER
+        if (result.position !== 1) {
+            return errorResponse(
+                res,
+                "Winner detail only allowed for main winner",
+                200
+            );
+        }
+
+        // CHECK EXISTING
+        const existing = await prisma.winnerDetail.findUnique({
+            where: {
+                competitionId:
+                    parseInt(competitionId)
+            }
+        });
+
+        if (existing) {
+            return errorResponse(
+                res,
+                "Winner detail already exists",
+                200
+            );
+        }
+
+        const baseUrl = process.env.DOMAIN || "http://localhost:5003";
+
+        // WINNER IMAGE
+        let winnerImage = null;
+        if (req.files?.winnerImage?.[0]) {
+            winnerImage =
+                `${baseUrl}/uploads/${req.files.winnerImage[0].filename}`;
+        }
+
+        // GALLERY
+        let galleryImages = [];
+
+        if (req.files?.galleryImages?.length) {
+            galleryImages = req.files.galleryImages.map(
+                file => `${baseUrl}/uploads/${file.filename}`
+            );
+        }
+
+        // CREATE DETAIL
+        const detail = await prisma.winnerDetail.create({
+            data: {
+                competitionId: parseInt(competitionId),
+                resultId,
+                winnerName,
+                winnerLocation,
+                storyDescription,
+                winnerImage,
+                galleryImages
+            }
+        });
+
+        return successResponse(
+            res,
+            "Winner detail added successfully",
+            200,
+            detail
+        );
+
+    } catch (error) {
+        console.log("Add Winner Detail Error:", error);
+
+        return errorResponse(
+            res,
+            error.message || "Internal Server Error",
+            500
+        );
+    }
+});
+
+exports.getWinnerDetailPrefill = catchAsync(async (req, res) => {
+    try {
+        const { competitionId, resultId } = req.query;
+
+        if (!competitionId || !resultId) {
+            return errorResponse(
+                res,
+                "Missing ids",
+                200
+            );
+        }
+
+        const result = await prisma.result.findUnique({
+            where: {
+                id: resultId
+            },
+            include: {
+                user: true,
+                ticket: true,
+                competition: {
+                    include: {
+                        prizes: true,
+                        questions: true
+                    }
+                }
+            }
+        });
+
+        if (!result) {
+            return errorResponse(
+                res,
+                "Result not found",
+                200
+            );
+        }
+
+        const wonPrize = result.competition.prizes.find(
+            p =>
+                p.position === result.position
+        );
+
+        return successResponse(
+            res,
+            "Winner prefill fetched",
+            200,
+            {
+                winnerName: result.user.name,
+                competitionTitle: result.competition.title,
+                winnerTicket: result.ticket.ticketCode,
+                prizeTitle: wonPrize?.title,
+                winnerImage: result.winnerImage,
+                storyDescription: `${result.user.name} became the lucky winner of ${wonPrize?.title || result.competition.title} on DreamCar Competitions.`,
+                questions: result.competition.questions,
+                winnerImage: result.winnerImage
+            }
+        );
+
+    } catch (error) {
+        return errorResponse(
+            res,
+            error.message,
+            500
+        );
+    }
+});
+
+exports.getWinnerDetail = catchAsync(async (req, res) => {
+    try {
+        const {
+            competitionId
+        } = req.params;
+        if (!competitionId) {
+            return errorResponse(
+                res,
+                "Competition id required",
+                200
+            );
+        }
+
+        const winnerDetail = await prisma.winnerDetail.findUnique({
+            where: {
+                competitionId: Number(competitionId)
+            },
+            include: {
+                competition: {
+                    include: {
+                        prizes: true,
+                        questions: true
+                    }
+                },
+                result: {
+                    include: {
+                        user: true,
+                        ticket: true
+                    }
+                }
+            }
+        });
+
+        if (!winnerDetail) {
+            return errorResponse(
+                res,
+                "Winner detail not found",
+                200
+            );
+        }
+
+        const mainPrize = winnerDetail.competition.prizes.find(
+            p => p.position === 1
+        );
+
+        const data = {
+            id: winnerDetail.id,
+            competitionId: winnerDetail.competitionId,
+            competitionTitle: winnerDetail.competition.title,
+            competitionDetail: winnerDetail.competition.detail,
+            competitionImages: winnerDetail.competition.images,
+            winnerName: winnerDetail.winnerName,
+            winnerLocation: winnerDetail.winnerLocation,
+            storyDescription: winnerDetail.storyDescription,
+            winnerImage: winnerDetail.winnerImage,
+            galleryImages: winnerDetail.galleryImages,
+            createdAt: winnerDetail.createdAt,
+            ticketCode: winnerDetail.result.ticket
+                ?.ticketCode,
+            winnerJoinedAt: winnerDetail.result.user
+                ?.createdAt,
+            prize: mainPrize,
+            complianceQuestions: winnerDetail.competition.questions
+        };
+
+        return successResponse(
+            res,
+            "Winner detail fetched",
+            200,
+            data
+        );
+
+    } catch (error) {
+        console.log("Get Winner Detail Error:", error);
+
+        return errorResponse(
+            res,
+            error.message ||
+            "Internal Server Error",
+            500
+        );
+    }
+});
+
+exports.getWinnerHighlights = catchAsync(async (req, res) => {
+    try {
+        const winners = await prisma.winnerDetail.findMany({
+                where: {
+                    deletedAt: null
+                },
+                include: {
+                    competition: {
+                        include: {
+                            prizes: true
+                        }
+                    }
+                },
+                orderBy: {
+                    createdAt: "desc"
+                },
+                take: 10
+            });
+
+        const formatted =
+            winners.map((item) => {
+                const mainPrize =
+                    item.competition.prizes.find(
+                        p => p.position === 1
+                    );
+                return {
+                    competitionId: item.competitionId,
+                    winnerName: item.winnerName,
+                    winnerLocation: item.winnerLocation,
+                    storyDescription: item.storyDescription,
+                    winnerImage: item.winnerImage,
+                    createdAt: item.createdAt,
+                    prizeTitle: mainPrize?.title || item.competition.title
+                };
+            });
+        return successResponse(
+            res,
+            "Winner highlights fetched",
+            200,
+            formatted
+        );
+    } catch (error) {
+        console.log(
+            "Get Winner Highlights Error:",
+            error
+        );
+        return errorResponse(
+            res,
+            error.message ||
+            "Internal Server Error",
             500
         );
     }

@@ -12,6 +12,7 @@ const Loggers = require("./utils/Logger");
 // Initialize Cron Jobs
 require('./cron/instantWinCron');
 require('./cron/currencyCron');
+require("./cron/newsletterCron");
 
 const serializeError = (err) => {
   if (!err) return "Unknown error";
@@ -50,6 +51,7 @@ app.use("/api", require("./routes/ticketRoutes"));
 app.use("/api", require("./routes/winnerRoutes"));
 app.use("/api", require("./routes/contactRoutes"));
 app.use("/api", require("./routes/giftCreditRoutes"));
+app.use("/api", require("./routes/newsletterRoutes"));
 
 // Global Error Handler
 app.use((err, req, res, next) => {
