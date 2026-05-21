@@ -1,34 +1,157 @@
+
 module.exports = (user, otp) => {
-    const title = "Verify Your DreamCar Account 🔐"; return ` 
-    <div
-    style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #f0f0f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-    <div style="text-align: center; margin-bottom: 32px;">
-    <img src="${process.env.LIVE_URL}/img/logoDC.png" alt="DreamCar Logo" style=" width: 220px; max-width: 100%; margin-bottom: 24px; object-fit: contain; " />    
-    <h1
-            style="color: #1a1a1a; margin: 0; display: inline-block; background-color: #cbe3ff; padding: 6px 12px; border-radius: 4px; font-size: 28px;">
-            DreamCar Verification 🔐 </h1>
+
+    return `
+
+    <div style="
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 0 auto;
+        background: #ffffff;
+        border: 1px solid #e5e5e5;
+        border-radius: 18px;
+        overflow: hidden;
+    ">
+
+        <!-- HEADER -->
+        <div style="
+            background:#000000;
+            padding:40px 30px;
+            text-align:center;
+        ">
+
+            <img 
+                src="${process.env.LIVE_URL}/img/logoDC.png"
+                alt="DreamCar Logo"
+                style="
+                    width:220px;
+                    max-width:100%;
+                    margin-bottom:24px;
+                "
+            />
+
+            <h1 style="
+                color:#ffffff;
+                font-size:32px;
+                margin:0;
+                font-weight:700;
+            ">
+                Verify Your Account 🔐
+            </h1>
+
+            <p style="
+                color:#bdbdbd;
+                margin-top:12px;
+                font-size:15px;
+                line-height:1.6;
+            ">
+                Complete your DreamCar account verification.
+            </p>
+
+        </div>
+
+        <!-- BODY -->
+        <div style="padding:40px 30px;">
+
+            <p style="
+                color:#444444;
+                font-size:16px;
+                line-height:1.8;
+                margin-top:0;
+                margin-bottom:18px;
+            ">
+                Hi ${user || "there"},
+            </p>
+
+            <p style="
+                color:#555555;
+                font-size:15px;
+                line-height:1.8;
+                margin-bottom:30px;
+            ">
+                Welcome to DreamCar Competitions! Please use the verification code below to activate your account.
+            </p>
+
+            <!-- OTP BOX -->
+            <div style="
+                background:#fafafa;
+                border:1px solid #eeeeee;
+                border-radius:16px;
+                padding:34px 24px;
+                text-align:center;
+                margin-bottom:30px;
+            ">
+
+                <p style="
+                    margin-top:0;
+                    margin-bottom:18px;
+                    color:#666666;
+                    font-size:13px;
+                    font-weight:700;
+                    letter-spacing:1px;
+                    text-transform:uppercase;
+                ">
+                    Your Verification Code
+                </p>
+
+                <div style="
+                    display:inline-block;
+                    background:#ffffff;
+                    border:2px dashed #EC6623;
+                    border-radius:14px;
+                    padding:18px 30px;
+                    font-size:36px;
+                    font-weight:700;
+                    letter-spacing:8px;
+                    color:#111111;
+                ">
+                    ${otp}
+                </div>
+
+                <p style="
+                    margin-bottom:0;
+                    margin-top:20px;
+                    color:#888888;
+                    font-size:14px;
+                ">
+                    This code expires in 10 minutes.
+                </p>
+
+            </div>
+
+            <p style="
+                color:#666666;
+                font-size:14px;
+                line-height:1.8;
+                margin-bottom:0;
+            ">
+                If you did not create an account, you can safely ignore this email.
+            </p>
+
+        </div>
+
+        <!-- FOOTER -->
+        <div style="
+            border-top:1px solid #eeeeee;
+            padding:24px;
+            text-align:center;
+            background:#fafafa;
+        ">
+
+            <p style="
+                margin:0;
+                color:#888888;
+                font-size:13px;
+                line-height:1.8;
+            ">
+                Thank you for choosing us 🚗<br/>
+                <strong>DreamCar Competitions</strong>
+            </p>
+
+        </div>
+
     </div>
-    <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6; margin-bottom: 16px;"> Hi ${user || "there"}, </p>
-    <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6; margin-bottom: 32px;"> Welcome to DreamCar
-        Competitions! Please use the verification code below to verify your email address and activate your account.
-    </p>
-    <div style="background: #fafafa; padding: 32px 24px; border-radius: 12px; text-align: center; margin: 32px 0;">
-        <p
-            style="color: #666; margin-top: 0; font-size: 13px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">
-            Your Verification Code </p>
-        <div
-            style=" display: inline-block; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #111; background: white; padding: 16px 28px; border-radius: 12px; border: 2px dashed #EC6623; margin-top: 10px; ">
-            ${otp} </div>
-        <p style="color: #888; font-size: 14px; margin-top: 18px; margin-bottom: 0;"> This code will expire in 10
-            minutes. </p>
-    </div>
-    <p style="color: #4a4a4a; font-size: 15px; line-height: 1.8; margin-bottom: 32px;"> If you did not create an
-        account, you can safely ignore this email. </p>
-    <hr style="border: none; border-top: 1px solid #f0f0f0; margin: 32px 0;" />
-    <p style="color: #888; font-size: 14px; text-align: center; margin: 0;"> Thank you for choosing us!<br />
-        <strong>The DreamCar Competitions Team</strong> </p>
-    </div>
+
     `;
 };
-
 
