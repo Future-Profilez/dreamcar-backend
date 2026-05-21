@@ -518,6 +518,48 @@ exports.GetUser = catchAsync(async (req, res) => {
   }
 });
 
+exports.updateProfile = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, password } = req.body;
+
+    if (!userId) {
+      return errorResponse(res, "Unauthorized", 401);
+    }
+
+    const dataToUpdate = {};
+    if (name) dataToUpdate.name = name;
+
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 12);
+      dataToUpdate.password = hashedPassword;
+    }
+
+    if (Object.keys(dataToUpdate).length === 0) {
+      return errorResponse(res, "No fields to update", 400);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: dataToUpdate,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        otpVerifiedAt: true,
+      }
+    });
+
+    return successResponse(res, "Profile updated successfully!", 200, {
+      user: updatedUser,
+    });
+  } catch (error) {
+    Loggers.error(`UpdateProfile error: ${error?.stack || error?.message || String(error)}`);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
 exports.getUserProfileDashboard = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;

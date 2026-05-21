@@ -26,7 +26,7 @@ exports.verifyPayment = catchAsync(async (req, res) => {
 
         if (!payment || payment.length === 0) {
             // If payment not in DB, fallback to querying Stripe directly (handles webhook delays or local testing)
-            if (!session_id.startsWith('wallet_sess_')) {
+            if (session_id && session_id.startsWith('cs_')) {
                 try {
                     const session = await stripe.checkout.sessions.retrieve(session_id);
                     if (session.payment_status === 'paid') {

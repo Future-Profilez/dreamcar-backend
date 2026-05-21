@@ -241,6 +241,9 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
 
         const [winners, totalCount] = await Promise.all([
             prisma.result.findMany({
+                where: {
+                    position: 1
+                },
                 include: {
                     competition: {
                         select: {
@@ -267,7 +270,11 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                 skip: skip,
                 take: limit,
             }),
-            prisma.result.count()
+            prisma.result.count({
+                where: {
+                    position: 1
+                }
+            })
         ]);
 
         if (!winners || winners.length === 0) {
@@ -465,49 +472,70 @@ exports.addWinnerDetail = catchAsync(async (req, res) => {
         // CHECK EXISTING
         const existing = await prisma.winnerDetail.findUnique({
             where: {
-                competitionId:
-                    parseInt(competitionId)
+                competitionId: parseInt(competitionId)
             }
         });
-
-        if (existing) {
-            return errorResponse(
-                res,
-                "Winner detail already exists",
-                200
-            );
-        }
 
         const baseUrl = process.env.DOMAIN || "http://localhost:5003";
 
         // WINNER IMAGE
-        let winnerImage = null;
+        let winnerImage = existing ? existing.winnerImage : null;
         if (req.files?.winnerImage?.[0]) {
-            winnerImage =
-                `${baseUrl}/uploads/${req.files.winnerImage[0].filename}`;
+            winnerImage = `${baseUrl}/uploads/${req.files.winnerImage[0].filename}`;
+        } else if (req.body.existingWinnerImage === "") {
+            winnerImage = null; // Removed existing image
         }
 
         // GALLERY
         let galleryImages = [];
-
-        if (req.files?.galleryImages?.length) {
-            galleryImages = req.files.galleryImages.map(
-                file => `${baseUrl}/uploads/${file.filename}`
-            );
+        
+        // Retain existing gallery images if provided
+        if (req.body.existingGalleryImages) {
+            let parsedExisting = [];
+            try {
+                parsedExisting = JSON.parse(req.body.existingGalleryImages);
+            } catch(e) {
+                if (typeof req.body.existingGalleryImages === 'string') {
+                    parsedExisting = [req.body.existingGalleryImages];
+                }
+            }
+            galleryImages = [...parsedExisting];
         }
 
-        // CREATE DETAIL
-        const detail = await prisma.winnerDetail.create({
-            data: {
-                competitionId: parseInt(competitionId),
-                resultId,
-                winnerName,
-                winnerLocation,
-                storyDescription,
-                winnerImage,
-                galleryImages
-            }
-        });
+        if (req.files?.galleryImages?.length) {
+            const newGalleryImages = req.files.galleryImages.map(
+                file => `${baseUrl}/uploads/${file.filename}`
+            );
+            galleryImages = [...galleryImages, ...newGalleryImages];
+        }
+
+        let detail;
+        if (existing) {
+            // UPDATE DETAIL
+            detail = await prisma.winnerDetail.update({
+                where: { competitionId: parseInt(competitionId) },
+                data: {
+                    winnerName,
+                    winnerLocation,
+                    storyDescription,
+                    winnerImage,
+                    galleryImages
+                }
+            });
+        } else {
+            // CREATE DETAIL
+            detail = await prisma.winnerDetail.create({
+                data: {
+                    competitionId: parseInt(competitionId),
+                    resultId,
+                    winnerName,
+                    winnerLocation,
+                    storyDescription,
+                    winnerImage,
+                    galleryImages
+                }
+            });
+        }
 
         return successResponse(
             res,
@@ -563,10 +591,37 @@ exports.getWinnerDetailPrefill = catchAsync(async (req, res) => {
             );
         }
 
+        // Check if winner detail already exists
+        const existingDetail = await prisma.winnerDetail.findUnique({
+            where: {
+                competitionId: parseInt(competitionId)
+            }
+        });
+
         const wonPrize = result.competition.prizes.find(
-            p =>
-                p.position === result.position
+            p => p.position === result.position
         );
+
+        if (existingDetail) {
+            return successResponse(
+                res,
+                "Winner detail fetched for editing",
+                200,
+                {
+                    winnerName: existingDetail.winnerName,
+                    winnerLocation: existingDetail.winnerLocation,
+                    storyDescription: existingDetail.storyDescription,
+                    winnerImage: existingDetail.winnerImage,
+                    galleryImages: existingDetail.galleryImages || [],
+                    
+                    competitionTitle: result.competition.title,
+                    winnerTicket: result.ticket.ticketCode,
+                    prizeTitle: wonPrize?.title,
+                    questions: result.competition.questions,
+                    isEditing: true
+                }
+            );
+        }
 
         return successResponse(
             res,
@@ -574,13 +629,15 @@ exports.getWinnerDetailPrefill = catchAsync(async (req, res) => {
             200,
             {
                 winnerName: result.user.name,
+                winnerLocation: "",
                 competitionTitle: result.competition.title,
                 winnerTicket: result.ticket.ticketCode,
                 prizeTitle: wonPrize?.title,
                 winnerImage: result.winnerImage,
+                galleryImages: [],
                 storyDescription: `${result.user.name} became the lucky winner of ${wonPrize?.title || result.competition.title} on DreamCar Competitions.`,
                 questions: result.competition.questions,
-                winnerImage: result.winnerImage
+                isEditing: false
             }
         );
 

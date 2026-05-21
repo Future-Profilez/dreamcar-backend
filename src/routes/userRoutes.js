@@ -1,4 +1,4 @@
-const { signup, login, GetUser, getUserProfileDashboard, getAllUsers, createWalletPayment, getWallet, deleteAccount, verifyOTP, resendOTP, forgotPassword, resetPassword, toggleBlockUser, deleteUserByAdmin } = require("../controller/userController");
+const { signup, login, GetUser, updateProfile, getUserProfileDashboard, getAllUsers, createWalletPayment, getWallet, deleteAccount, verifyOTP, resendOTP, forgotPassword, resetPassword, toggleBlockUser, deleteUserByAdmin } = require("../controller/userController");
 const { verifyToken } = require("../utils/tokenVerify");
 
 const router = require("express").Router();
@@ -10,6 +10,7 @@ router.post("/user/login", login);
 router.post("/user/forgot-password", forgotPassword);
 router.post("/user/reset-password", resetPassword);
 router.get("/user/profile", verifyToken, GetUser);
+router.put("/user/profile", verifyToken, updateProfile);
 router.delete("/user/delete", verifyToken, deleteAccount);
 router.post("/admin/user/block/:id", verifyToken, toggleBlockUser);
 // router.delete("/admin/user/delete/:id", verifyToken, deleteUserByAdmin);
