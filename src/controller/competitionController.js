@@ -883,7 +883,7 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
         }
 
         return successResponse(res, "Payment successful", 200, {
-          url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id=${mockSessionId}`
+          url: `${process.env.LIVE_URL}/ticket/payment/success?session_id=${mockSessionId}`
         });
 
       } catch (err) {
@@ -899,8 +899,8 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
         customer_email: req.user.email,
 
         line_items: lineItems,
-        success_url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/ticket/payment/cancel`,
+        success_url: `${process.env.LIVE_URL}/ticket/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.LIVE_URL}/ticket/payment/cancel`,
 
         metadata: {
           userId: userId.toString(),
