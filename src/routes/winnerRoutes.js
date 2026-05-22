@@ -16,7 +16,7 @@ router.post("/winner-detail", verifyToken, upload.fields([
     addWinnerDetail
 );
 router.get("/winner-detail/prefill", getWinnerDetailPrefill);
-router.get("/winner-detail/:competitionId", getWinnerDetail);
+router.get("/winner-detail/:slug", getWinnerDetail);
 router.get("/winner-highlights", getWinnerHighlights);
 
 module.exports = router;
