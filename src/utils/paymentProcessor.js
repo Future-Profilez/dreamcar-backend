@@ -160,7 +160,7 @@ const processSuccessfulPayment = async (session) => {
                         emailHtml = `
                             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #f0f0f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
                                 <div style="text-align: center; margin-bottom: 32px;">
-                                <img src="${process.env.LIVE_URL}/img/logoDC.png" alt="DreamCar Logo" style=" width: 220px; max-width: 100%; margin-bottom: 24px; object-fit: contain; " />    
+                                <img src="${process.env.FRONTEND_URL}/img/logoDC.png" alt="DreamCar Logo" style=" width: 220px; max-width: 100%; margin-bottom: 24px; object-fit: contain; " />    
                                 <h1 style="color: #1a1a1a; margin: 0; display: inline-block; background-color: #cbe3ff; padding: 6px 12px; border-radius: 4px; font-size: 28px;">You've Got a Gift! 🎁</h1>
                                 </div>
                                 
@@ -198,7 +198,7 @@ const processSuccessfulPayment = async (session) => {
                         emailHtml = `
                             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #f0f0f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
                                 <div style="text-align: center; margin-bottom: 32px;">
-                                <img src="${process.env.LIVE_URL}/img/logoDC.png" alt="DreamCar Logo" style=" width: 220px; max-width: 100%; margin-bottom: 24px; object-fit: contain; " />    
+                                <img src="${process.env.FRONTEND_URL}/img/logoDC.png" alt="DreamCar Logo" style=" width: 220px; max-width: 100%; margin-bottom: 24px; object-fit: contain; " />    
                                 <h1 style="color: #1a1a1a; margin: 0; display: inline-block; background-color: #cbe3ff; padding: 6px 12px; border-radius: 4px; font-size: 28px;">DreamCar Gift Card 💳</h1>
                                 </div>
                                 

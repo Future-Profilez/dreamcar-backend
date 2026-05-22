@@ -259,7 +259,6 @@ exports.addCompetition = catchAsync(async (req, res) => {
 // });
 
 exports.getAllCompetitions = catchAsync(async (req, res) => {
-
   try {
 
     const {
@@ -572,9 +571,9 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       ...(totalTickets && { totalTickets: parseInt(totalTickets) }),
       ...(startTime && { startTime: new Date(startTime) }),
       ...(endTime && { endTime: new Date(endTime) }),
-      prizeDetail: mainPrizeDetail,
-      prizeFeatures: mainPrizeFeatures,
-      prizeDetailImage: mainPrizeImage,
+      // prizeDetail: mainPrizeDetail,
+      // prizeFeatures: mainPrizeFeatures,
+      // prizeDetailImage: mainPrizeImage,
       images: finalImages,
       ...(instantWinData && {
         instantWinEnabled: instantWinData.enabled,
@@ -883,7 +882,7 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
         }
 
         return successResponse(res, "Payment successful", 200, {
-          url: `${process.env.LIVE_URL}/ticket/payment/success?session_id=${mockSessionId}`
+          url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id=${mockSessionId}`
         });
 
       } catch (err) {
@@ -899,8 +898,8 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
         customer_email: req.user.email,
 
         line_items: lineItems,
-        success_url: `${process.env.LIVE_URL}/ticket/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.LIVE_URL}/ticket/payment/cancel`,
+        success_url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.FRONTEND_URL}/ticket/payment/cancel`,
 
         metadata: {
           userId: userId.toString(),
