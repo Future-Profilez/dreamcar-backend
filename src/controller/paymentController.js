@@ -23,7 +23,7 @@ exports.verifyPayment = catchAsync(async (req, res) => {
                 tickets: true
             }
         });
-
+        
         if (!payment || payment.length === 0) {
             // If payment not in DB, fallback to querying Stripe directly (handles webhook delays or local testing)
             if (session_id && session_id.startsWith('cs_')) {

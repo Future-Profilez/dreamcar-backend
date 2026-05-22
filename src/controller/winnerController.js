@@ -248,6 +248,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                     competition: {
                         select: {
                             id: true,
+                            slug: true,
                             title: true,
                             endTime: true,
                             prizes: true
@@ -295,6 +296,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                 title: wonPrize ? wonPrize.title : w.competition.title,
                 competitionId: w.competition.id,
                 competitionTitle: w.competition.title,
+                competitionSlug: w.competition.slug,
                 prizeImage: wonPrize?.prizeDetailImage || '/img/car3d1.png',
                 date: w.competition.endTime,
                 winnerName: w.user.name,
@@ -652,20 +654,18 @@ exports.getWinnerDetailPrefill = catchAsync(async (req, res) => {
 
 exports.getWinnerDetail = catchAsync(async (req, res) => {
     try {
-        const {
-            competitionId
-        } = req.params;
-        if (!competitionId) {
-            return errorResponse(
-                res,
-                "Competition id required",
-                200
-            );
+        const {slug} = req.params;
+        if (!slug) {
+            return errorResponse(res,"Competition id required",200);
         }
+
+        const competition = await prisma.competition.findUnique({
+            where: { slug: slug },
+        });
 
         const winnerDetail = await prisma.winnerDetail.findUnique({
             where: {
-                competitionId: Number(competitionId)
+                competitionId: Number(competition?.id)
             },
             include: {
                 competition: {
@@ -698,6 +698,7 @@ exports.getWinnerDetail = catchAsync(async (req, res) => {
         const data = {
             id: winnerDetail.id,
             competitionId: winnerDetail.competitionId,
+            competitionSlug: winnerDetail.competition.slug,
             competitionTitle: winnerDetail.competition.title,
             competitionDetail: winnerDetail.competition.detail,
             competitionImages: winnerDetail.competition.images,
