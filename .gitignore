@@ -4,3 +4,5 @@
 /generated/prisma
 *.log
 *.txt
+/public/uploads
+public/uploads
