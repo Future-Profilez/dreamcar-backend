@@ -21,7 +21,7 @@ module.exports = (user, otp) => {
         ">
 
             <img 
-                src="${process.env.LIVE_URL}/img/logoDC.png"
+                src="${process.env.FRONTEND_URL}/img/logoDC.png"
                 alt="DreamCar Logo"
                 style="
                     width:220px;

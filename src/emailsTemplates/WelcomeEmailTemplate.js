@@ -21,7 +21,7 @@ module.exports = (user) => {
         ">
 
             <img 
-                src="${process.env.LIVE_URL}/img/logoDC.png" 
+                src="${process.env.FRONTEND_URL}/img/logoDC.png" 
                 alt="DreamCar Logo" 
                 style="
                     width:220px;
@@ -109,7 +109,7 @@ module.exports = (user) => {
             <div style="text-align:center; margin:40px 0 10px;">
 
                 <a
-                    href="${process.env.LIVE_URL}"
+                    href="${process.env.FRONTEND_URL}"
                     style="
                         display:inline-block;
                         background:#42BE38;
