@@ -24,5 +24,6 @@ jobs:
             git clean -fd
             npm install --production
             npx prisma generate
-            pm2 restart dreamcar-backend 
+            pm2 restart dreamcar-backend
+            npx prisma generate 
  
