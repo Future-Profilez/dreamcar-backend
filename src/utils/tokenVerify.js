@@ -60,7 +60,7 @@ exports.checkIsAdminHasCapablity = async (req, res, next) => {
     if (user?.role == 'admin') {
       return res.status(200).json({
         status: false,
-        message: "You can't buy ticket or giftcards from admin account. Please login with a user accoount."
+        message: "You can't buy ticket or giftcards from admin account. Please login with a user account."
       });
     }
     next();
@@ -68,6 +68,24 @@ exports.checkIsAdminHasCapablity = async (req, res, next) => {
     return res.status(401).json({
       status: false,
       message: 'Invalid or expired token'
+    });
+  }
+};
+
+exports.requireAdmin = async (req, res, next) => {
+  try {
+    const user = req?.user || null;
+    if (user?.role !== "admin") {
+      return res.status(403).json({
+        status: false,
+        message: "Unauthorized"
+      });
+    }
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      status: false,
+      message: "Invalid or expired token"
     });
   }
 };

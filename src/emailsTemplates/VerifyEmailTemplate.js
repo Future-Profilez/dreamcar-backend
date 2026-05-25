@@ -21,7 +21,7 @@ module.exports = (user, otp) => {
         ">
 
             <img 
-                src="${process.env.FRONTEND_URL}/img/logoDC.png"
+                src="${(process.env.ASSET_BASE_URL || process.env.FRONTEND_URL || process.env.DOMAIN || "").replace(/\/$/, "")}/img/logoDC.png"
                 alt="DreamCar Logo"
                 style="
                     width:220px;
@@ -154,4 +154,3 @@ module.exports = (user, otp) => {
 
     `;
 };
-

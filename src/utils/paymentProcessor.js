@@ -3,6 +3,7 @@ const { generateTicketCode } = require("./ticketCode");
 const crypto = require("crypto");
 const sendEmail = require("./EmailMailler");
 const TicketPurchaseTemplate = require("../emailsTemplates/TicketPurchaseTemplate");
+const { createAdminNotification } = require("./createAdminNotification");
 
 const processWalletRecharge = async (session) => {
     const { userId, amount, type } = session.metadata;
@@ -160,7 +161,7 @@ const processSuccessfulPayment = async (session) => {
                         emailHtml = `
                             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #f0f0f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
                                 <div style="text-align: center; margin-bottom: 32px;">
-                                <img src="${process.env.FRONTEND_URL}/img/logoDC.png" alt="DreamCar Logo" style=" width: 220px; max-width: 100%; margin-bottom: 24px; object-fit: contain; " />    
+                                <img src="${(process.env.ASSET_BASE_URL || process.env.FRONTEND_URL || process.env.DOMAIN || "").replace(/\/$/, "")}/img/logoDC.png" alt="DreamCar Logo" style=" width: 220px; max-width: 100%; margin-bottom: 24px; object-fit: contain; " />    
                                 <h1 style="color: #1a1a1a; margin: 0; display: inline-block; background-color: #cbe3ff; padding: 6px 12px; border-radius: 4px; font-size: 28px;">You've Got a Gift! 🎁</h1>
                                 </div>
                                 
@@ -198,7 +199,7 @@ const processSuccessfulPayment = async (session) => {
                         emailHtml = `
                             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #f0f0f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
                                 <div style="text-align: center; margin-bottom: 32px;">
-                                <img src="${process.env.FRONTEND_URL}/img/logoDC.png" alt="DreamCar Logo" style=" width: 220px; max-width: 100%; margin-bottom: 24px; object-fit: contain; " />    
+                                <img src="${(process.env.ASSET_BASE_URL || process.env.FRONTEND_URL || process.env.DOMAIN || "").replace(/\/$/, "")}/img/logoDC.png" alt="DreamCar Logo" style=" width: 220px; max-width: 100%; margin-bottom: 24px; object-fit: contain; " />    
                                 <h1 style="color: #1a1a1a; margin: 0; display: inline-block; background-color: #cbe3ff; padding: 6px 12px; border-radius: 4px; font-size: 28px;">DreamCar Gift Card 💳</h1>
                                 </div>
                                 
@@ -406,6 +407,43 @@ const processSuccessfulPayment = async (session) => {
                 const user = await prisma.user.findUnique({ where: { id: parsedUserId } });
                 if (user && user.email) {
                     for (const win of txResult.wonInstantWinsList) {
+                        const prizeTitle = win.prize ? win.prize.title : "an Instant Prize";
+                        const ticketCode = win.ticketCode;
+                        const competitionName = txResult.competition.title;
+
+                        await createAdminNotification({
+                            key: `instant-win-awarded-${win.id}`,
+                            type: "instant_win_awarded",
+                            title: "Instant Win Awarded",
+                            message: `${user.name} won ${prizeTitle} in ${competitionName} (Ticket ${ticketCode}).`,
+                            meta: {
+                                competitionId: txResult.competition.id,
+                                userId: user.id,
+                                instantWinId: win.id,
+                                prizeTitle,
+                                ticketCode
+                            }
+                        });
+                    }
+
+                    const remaining = await prisma.instantWin.count({
+                        where: {
+                            competitionId: txResult.competition.id,
+                            isClaimed: false
+                        }
+                    });
+
+                    if (remaining === 0) {
+                        await createAdminNotification({
+                            key: `instant-win-all-claimed-${txResult.competition.id}`,
+                            type: "instant_win_ended",
+                            title: "Instant Win Ended",
+                            message: `All instant win prizes have been claimed for ${txResult.competition.title}.`,
+                            meta: { competitionId: txResult.competition.id }
+                        });
+                    }
+
+                    for (const win of txResult.wonInstantWinsList) {
                         const prizeTitle = win.prize ? win.prize.title : 'an Instant Prize';
                         const ticketCode = win.ticketCode;
                         const competitionName = txResult.competition.title;
@@ -452,6 +490,26 @@ const processSuccessfulPayment = async (session) => {
             } catch (emailErr) {
                 console.error("Failed to send instant win email:", emailErr);
             }
+        }
+    }
+
+    if (txResult && txResult.competition && txResult.competition.id) {
+        try {
+            const comp = await prisma.competition.findUnique({
+                where: { id: txResult.competition.id },
+                select: { id: true, title: true, soldTickets: true, totalTickets: true }
+            });
+
+            if (comp && comp.soldTickets >= comp.totalTickets) {
+                await createAdminNotification({
+                    key: `competition-sold-out-${comp.id}`,
+                    type: "competition_sold_out",
+                    title: "Tickets Sold Out",
+                    message: `${comp.title} is now sold out.`,
+                    meta: { competitionId: comp.id }
+                });
+            }
+        } catch (notifyErr) {
         }
     }
 

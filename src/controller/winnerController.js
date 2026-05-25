@@ -2,6 +2,7 @@ const catchAsync = require("../utils/catchAsync");
 const { validationErrorResponse, errorResponse, successResponse } = require("../utils/ErrorHandling");
 const prisma = require("../prismaconfig");
 const sendEmail = require("../utils/EmailMailler");
+const { createAdminNotification } = require("../utils/createAdminNotification");
 
 exports.drawWinner = catchAsync(async (req, res) => {
     try {
@@ -69,6 +70,22 @@ exports.drawWinner = catchAsync(async (req, res) => {
             );
         }
 
+        // ✅ duplicate winner prevention (check if user already won in this competition)
+        const userAlreadyWon = await prisma.result.findFirst({
+            where: {
+                competitionId: Number(competitionId),
+                userId: ticket.userId
+            }
+        });
+
+        if (userAlreadyWon) {
+            return errorResponse(
+                res,
+                "This user has already won a prize in this competition",
+                200
+            );
+        }
+
         // ✅ create result
         const result = await prisma.result.create({
             data: {
@@ -79,6 +96,29 @@ exports.drawWinner = catchAsync(async (req, res) => {
                 isManual: true,
             },
         });
+
+        try {
+            const wonPrize = competition.prizes?.find(p => p.position === Number(position));
+            const prizeTitle = wonPrize ? wonPrize.title : competition.title;
+            const positionText = Number(position) === 1 ? "Main Winner" : `Runner-up (Position ${position})`;
+            const ticketCode = ticket.ticketCode || `#${ticket.ticketNumber}`;
+
+            await createAdminNotification({
+                key: `winner-decided-${result.id}`,
+                type: "winner_decided",
+                title: "Winner Decided",
+                message: `${ticket.user.name} selected as ${positionText} for ${competition.title} (Prize: ${prizeTitle}, Ticket: ${ticketCode}).`,
+                meta: {
+                    competitionId: Number(competitionId),
+                    resultId: result.id,
+                    userId: ticket.userId,
+                    position: Number(position),
+                    prizeTitle,
+                    ticketCode
+                }
+            });
+        } catch (notifyErr) {
+        }
 
         // ✅ send winner email
         try {
@@ -233,6 +273,69 @@ exports.getUserWins = catchAsync(async (req, res) => {
     }
 });
 
+exports.getAllAdminWinners = catchAsync(async (req, res) => {
+    try {
+        if (req.user.role !== "admin") {
+            return errorResponse(res, "Unauthorized", 403);
+        }
+
+        const winners = await prisma.result.findMany({
+            include: {
+                competition: {
+                    select: {
+                        id: true,
+                        title: true,
+                        endTime: true,
+                        prizes: true
+                    }
+                },
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                },
+                ticket: {
+                    select: {
+                        ticketCode: true,
+                        ticketNumber: true
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: "desc"
+            }
+        });
+
+        if (!winners || winners.length === 0) {
+            return successResponse(res, "No winners found", 200, []);
+        }
+
+        const data = winners.map(w => {
+            const wonPrize = w.competition.prizes?.find(p => p.position === w.position);
+            return {
+                id: w.id,
+                competitionId: w.competition.id,
+                competitionTitle: w.competition.title,
+                prizeTitle: wonPrize ? wonPrize.title : w.competition.title,
+                winnerName: w.user.name,
+                winnerEmail: w.user.email,
+                ticketCode: w.ticket?.ticketCode || `#${w.ticket?.ticketNumber}`,
+                position: w.position,
+                date: w.createdAt,
+                isManual: w.isManual
+            };
+        });
+
+        return successResponse(res, "Winners fetched successfully", 200, data);
+
+    } catch (error) {
+        console.error("Get All Admin Winners Error:", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
 exports.getPublicWinners = catchAsync(async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -250,8 +353,14 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                             id: true,
                             slug: true,
                             title: true,
+                            images: true,
                             endTime: true,
-                            prizes: true
+                            prizes: true,
+                            winnerDetail: {
+                                select: {
+                                    galleryImages: true
+                                }
+                            }
                         },
                     },
                     user: {
@@ -298,6 +407,8 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                 competitionTitle: w.competition.title,
                 competitionSlug: w.competition.slug,
                 prizeImage: wonPrize?.prizeDetailImage || '/img/car3d1.png',
+                    competitionImages: w.competition.images || [],
+                    galleryImages: w.competition.winnerDetail?.galleryImages || [],
                 date: w.competition.endTime,
                 winnerName: w.user.name,
                 image: w.winnerImage || "/img/trophy.png",
@@ -478,7 +589,7 @@ exports.addWinnerDetail = catchAsync(async (req, res) => {
             }
         });
 
-        const baseUrl = process.env.DOMAIN || "http://localhost:5003";
+        const baseUrl = (process.env.BACKEND_PUBLIC_URL || process.env.DOMAIN || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
 
         // WINNER IMAGE
         let winnerImage = existing ? existing.winnerImage : null;
@@ -486,6 +597,8 @@ exports.addWinnerDetail = catchAsync(async (req, res) => {
             winnerImage = `${baseUrl}/uploads/${req.files.winnerImage[0].filename}`;
         } else if (req.body.existingWinnerImage === "") {
             winnerImage = null; // Removed existing image
+        } else if (req.body.existingWinnerImage) {
+            winnerImage = req.body.existingWinnerImage;
         }
 
         // GALLERY
@@ -494,11 +607,15 @@ exports.addWinnerDetail = catchAsync(async (req, res) => {
         // Retain existing gallery images if provided
         if (req.body.existingGalleryImages) {
             let parsedExisting = [];
-            try {
-                parsedExisting = JSON.parse(req.body.existingGalleryImages);
-            } catch(e) {
-                if (typeof req.body.existingGalleryImages === 'string') {
-                    parsedExisting = [req.body.existingGalleryImages];
+            if (Array.isArray(req.body.existingGalleryImages)) {
+                parsedExisting = req.body.existingGalleryImages;
+            } else {
+                try {
+                    parsedExisting = JSON.parse(req.body.existingGalleryImages);
+                } catch(e) {
+                    if (typeof req.body.existingGalleryImages === 'string') {
+                        parsedExisting = [req.body.existingGalleryImages];
+                    }
                 }
             }
             galleryImages = [...parsedExisting];
@@ -684,10 +801,61 @@ exports.getWinnerDetail = catchAsync(async (req, res) => {
         });
 
         if (!winnerDetail) {
-            return errorResponse(
+            const result = await prisma.result.findFirst({
+                where: {
+                    competitionId: Number(competition?.id),
+                    position: 1
+                },
+                include: {
+                    competition: {
+                        include: {
+                            prizes: true,
+                            questions: true
+                        }
+                    },
+                    user: true,
+                    ticket: true
+                }
+            });
+
+            if (!competition || !result) {
+                return errorResponse(
+                    res,
+                    "Winner detail not found",
+                    200
+                );
+            }
+
+            const mainPrize = result.competition.prizes.find(
+                p => p.position === 1
+            );
+
+            const data = {
+                competitionId: result.competitionId,
+                competitionSlug: result.competition.slug,
+                competitionTitle: result.competition.title,
+                competitionDetail: result.competition.detail,
+                competitionImages: result.competition.images,
+                totalEntries: result.competition.soldTickets,
+                totalTickets: result.competition.totalTickets,
+                winnerName: result.user?.name,
+                winnerLocation: "",
+                storyDescription: "",
+                winnerImage: result.winnerImage,
+                galleryImages: [],
+                createdAt: result.createdAt,
+                ticketCode: result.ticket?.ticketCode,
+                winnerJoinedAt: result.user?.createdAt,
+                prize: mainPrize,
+                complianceQuestions: result.competition.questions,
+                isPrefill: true
+            };
+
+            return successResponse(
                 res,
-                "Winner detail not found",
-                200
+                "Winner detail fetched",
+                200,
+                data
             );
         }
 
@@ -702,6 +870,8 @@ exports.getWinnerDetail = catchAsync(async (req, res) => {
             competitionTitle: winnerDetail.competition.title,
             competitionDetail: winnerDetail.competition.detail,
             competitionImages: winnerDetail.competition.images,
+            totalEntries: winnerDetail.competition.soldTickets,
+            totalTickets: winnerDetail.competition.totalTickets,
             winnerName: winnerDetail.winnerName,
             winnerLocation: winnerDetail.winnerLocation,
             storyDescription: winnerDetail.storyDescription,

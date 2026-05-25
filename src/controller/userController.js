@@ -503,6 +503,7 @@ exports.GetUser = catchAsync(async (req, res) => {
         email: true,
         role: true,
         otpVerifiedAt: true,
+        marketingEmails: true
       }
     });
     if (!user) {
@@ -521,7 +522,7 @@ exports.GetUser = catchAsync(async (req, res) => {
 exports.updateProfile = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, password } = req.body;
+    const { name, password, marketingEmails } = req.body;
 
     if (!userId) {
       return errorResponse(res, "Unauthorized", 401);
@@ -529,6 +530,10 @@ exports.updateProfile = catchAsync(async (req, res) => {
 
     const dataToUpdate = {};
     if (name) dataToUpdate.name = name;
+    
+    if (marketingEmails !== undefined) {
+      dataToUpdate.marketingEmails = parseInt(marketingEmails);
+    }
 
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 12);
@@ -548,6 +553,7 @@ exports.updateProfile = catchAsync(async (req, res) => {
         email: true,
         role: true,
         otpVerifiedAt: true,
+        marketingEmails: true,
       }
     });
 
