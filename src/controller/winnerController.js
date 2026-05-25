@@ -372,7 +372,13 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                         select: {
                             ticketCode: true
                         }
+                    },
+                    winnerDetail: {
+                        select : {
+                            winnerImage : true
+                        }
                     }
+
                 },
                 orderBy: {
                     createdAt: "desc",
@@ -398,7 +404,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                 }
             });
         }
-
+        console.log("winnerrrrrrrrr",winners);
         const data = winners.map((w) => {
             const wonPrize = w.competition.prizes?.find(p => p.position === w.position);
             return {
@@ -413,7 +419,8 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                 winnerName: w.user.name,
                 image: w.winnerImage || "/img/trophy.png",
                 ticketCode: w.ticket?.ticketCode,
-                position: w.position
+                position: w.position,
+                winnerImage: w.winnerDetail.winnerImage
             };
         });
 
