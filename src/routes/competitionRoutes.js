@@ -1,4 +1,4 @@
-const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition, getCurrencyRates, syncCurrencyRates, getDashboardData, toggleFeaturedCompetition, getSimilarCompetitions, getAllInstantWinsAdmin, triggerCompetitionUpdates } = require("../controller/competitionController");
+const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition, getCurrencyRates, syncCurrencyRates, getDashboardData, toggleFeaturedCompetition, getSimilarCompetitions, getAllInstantWinsAdmin, triggerCompetitionUpdates, getLiveDraws } = require("../controller/competitionController");
 const { verifyToken, checkIsAdminHasCapablity, requireAdmin } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
@@ -51,7 +51,12 @@ router.get("/admin/dashboard", verifyToken, requireAdmin, getDashboardData);
 //featured competition
 router.post( "/competition/feature/:id", verifyToken, requireAdmin, toggleFeaturedCompetition);
 
+
+function test (){ 
+  console.log("hdsghf")
+}
 //similar competitions
 router.get("/competition/similar/:id", getSimilarCompetitions);
+router.get("/live-draws/competition",    getLiveDraws);
 
 module.exports = router;

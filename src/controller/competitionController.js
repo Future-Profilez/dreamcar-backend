@@ -868,12 +868,12 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
       if (!wallet || Number(wallet.balance) < Number(totalAmount)) {
         return errorResponse(res, "Insufficient Wallet Balance.", 200);
       }
-      
+
       const remainingBalance = Number(wallet.balance) - Number(totalAmount);
-      
+
       const mockSessionId = "wallet_sess_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
       const mockPaymentIntent = "wallet_pi_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
-      
+
       const sessionObj = {
         id: mockSessionId,
         payment_intent: mockPaymentIntent,
@@ -909,13 +909,13 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
           await processSuccessfulPayment(sessionObj);
         } catch (processErr) {
           console.error("Ticket processing failed after wallet deduction. Refunding wallet...", processErr);
-          
+
           // Refund wallet
           const refundedWallet = await prisma.wallet.update({
             where: { userId: req.user.id },
             data: { balance: { increment: totalAmount } }
           });
-          
+
           // Log refund transaction
           await prisma.walletTransaction.create({
             data: {
@@ -927,7 +927,7 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
               reason: "Refund due to failed cart processing"
             }
           });
-          
+
           throw processErr; // Re-throw to be caught by outer catch
         }
 
@@ -1021,60 +1021,60 @@ exports.getCurrencyRates = catchAsync(async (req, res) => {
 });
 
 exports.triggerCompetitionUpdates = catchAsync(async (req, res) => {
-    try {
-        if (req.user.role !== "admin") {
-            return errorResponse(res, "Unauthorized", 403);
-        }
-
-        const { processCompetitionUpdates } = require("../cron/competitionUpdatesCron");
-        const result = await processCompetitionUpdates();
-
-        return successResponse(res, result.message || "Manual trigger executed successfully", 200, result);
-    } catch (error) {
-        console.error("Manual Trigger Error:", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    if (req.user.role !== "admin") {
+      return errorResponse(res, "Unauthorized", 403);
     }
+
+    const { processCompetitionUpdates } = require("../cron/competitionUpdatesCron");
+    const result = await processCompetitionUpdates();
+
+    return successResponse(res, result.message || "Manual trigger executed successfully", 200, result);
+  } catch (error) {
+    console.error("Manual Trigger Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.syncCurrencyRates = catchAsync(async (req, res) => {
-    try {
-        if (req.user.role !== "admin") {
-            return errorResponse(res, "Unauthorized", 403);
-        }
-
-        const response = await fetch('https://open.er-api.com/v6/latest/GBP');
-        if (!response.ok) {
-            throw new Error(`API responded with status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (!data || !data.rates) {
-            throw new Error('Rates payload missing');
-        }
-
-        const currencies = ['GBP', 'EUR', 'USD'];
-        for (const currency of currencies) {
-            const rate = data.rates[currency];
-            if (typeof rate === 'number' && Number.isFinite(rate)) {
-                await prisma.currencyRate.upsert({
-                    where: { currency },
-                    update: { rate },
-                    create: { currency, rate }
-                });
-            }
-        }
-
-        const updatedRates = await prisma.currencyRate.findMany();
-        const formattedRates = {};
-        updatedRates.forEach(r => {
-            formattedRates[r.currency] = r.rate;
-        });
-
-        return successResponse(res, "Currency rates synchronized successfully", 200, formattedRates);
-    } catch (error) {
-        console.error("Sync Currency Error:", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    if (req.user.role !== "admin") {
+      return errorResponse(res, "Unauthorized", 403);
     }
+
+    const response = await fetch('https://open.er-api.com/v6/latest/GBP');
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!data || !data.rates) {
+      throw new Error('Rates payload missing');
+    }
+
+    const currencies = ['GBP', 'EUR', 'USD'];
+    for (const currency of currencies) {
+      const rate = data.rates[currency];
+      if (typeof rate === 'number' && Number.isFinite(rate)) {
+        await prisma.currencyRate.upsert({
+          where: { currency },
+          update: { rate },
+          create: { currency, rate }
+        });
+      }
+    }
+
+    const updatedRates = await prisma.currencyRate.findMany();
+    const formattedRates = {};
+    updatedRates.forEach(r => {
+      formattedRates[r.currency] = r.rate;
+    });
+
+    return successResponse(res, "Currency rates synchronized successfully", 200, formattedRates);
+  } catch (error) {
+    console.error("Sync Currency Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.getDashboardData = catchAsync(async (req, res) => {
@@ -1341,61 +1341,198 @@ exports.getSimilarCompetitions =
   });
 
 exports.getAllInstantWinsAdmin = catchAsync(async (req, res) => {
-    try {
-        if (req.user.role !== "admin") {
-            return errorResponse(res, "Unauthorized", 403);
-        }
-
-        const instantWins = await prisma.instantWin.findMany({
-            include: {
-                competition: {
-                    select: {
-                        id: true,
-                        title: true,
-                        endTime: true
-                    }
-                },
-                prize: {
-                    select: {
-                        title: true,
-                        image: true
-                    }
-                },
-                claimedBy: {
-                    select: {
-                        name: true,
-                        email: true
-                    }
-                },
-                ticket: {
-                    select: {
-                        ticketCode: true
-                    }
-                }
-            },
-            orderBy: {
-                claimedAt: "desc" // Unclaimed will be null, they will go to the end or we can sort by id
-            }
-        });
-
-        // Map to flat structure for easier table rendering
-        const formatted = instantWins.map(iw => ({
-            id: iw.id,
-            competitionTitle: iw.competition.title,
-            competitionId: iw.competition.id,
-            prizeTitle: iw.prize.title,
-            prizeImage: iw.prize.image,
-            ticketNumber: iw.ticketNumber,
-            ticketCode: iw.ticket?.ticketCode || null,
-            isClaimed: iw.isClaimed,
-            claimedBy: iw.claimedBy?.name || null,
-            claimedByEmail: iw.claimedBy?.email || null,
-            claimedAt: iw.claimedAt
-        }));
-
-        return successResponse(res, "Instant wins fetched successfully", 200, formatted);
-    } catch (error) {
-        console.error("Get Admin Instant Wins Error:", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    if (req.user.role !== "admin") {
+      return errorResponse(res, "Unauthorized", 403);
     }
+
+    const instantWins = await prisma.instantWin.findMany({
+      include: {
+        competition: {
+          select: {
+            id: true,
+            title: true,
+            endTime: true
+          }
+        },
+        prize: {
+          select: {
+            title: true,
+            image: true
+          }
+        },
+        claimedBy: {
+          select: {
+            name: true,
+            email: true
+          }
+        },
+        ticket: {
+          select: {
+            ticketCode: true
+          }
+        }
+      },
+      orderBy: {
+        claimedAt: "desc" // Unclaimed will be null, they will go to the end or we can sort by id
+      }
+    });
+
+    // Map to flat structure for easier table rendering
+    const formatted = instantWins.map(iw => ({
+      id: iw.id,
+      competitionTitle: iw.competition.title,
+      competitionId: iw.competition.id,
+      prizeTitle: iw.prize.title,
+      prizeImage: iw.prize.image,
+      ticketNumber: iw.ticketNumber,
+      ticketCode: iw.ticket?.ticketCode || null,
+      isClaimed: iw.isClaimed,
+      claimedBy: iw.claimedBy?.name || null,
+      claimedByEmail: iw.claimedBy?.email || null,
+      claimedAt: iw.claimedAt
+    }));
+
+    return successResponse(res, "Instant wins fetched successfully", 200, formatted);
+  } catch (error) {
+    console.error("Get Admin Instant Wins Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.getLiveDraws = catchAsync(async (req, res) => {
+
+
+  const now = new Date();
+
+  const competitions =
+    await prisma.competition.findMany({
+      where: {
+        deletedAt: null,
+        endTime: {
+          gte: now
+        }
+      },
+
+      orderBy: {
+        endTime: "asc"
+      },
+
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        images: true,
+        soldTickets: true,
+        totalTickets: true,
+        endTime: true,
+
+        prizes: {
+          orderBy: {
+            position: "asc"
+          },
+          select: {
+            id: true,
+            title: true,
+            position: true
+          }
+        },
+
+        instantWinPrizes: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      }
+    });
+
+  const data = competitions.map((item) => {
+
+    const mainPrize =
+      item.prizes.find(
+        (p) => p.position === 1
+      );
+
+    const runnerUpPrizes =
+      item.prizes
+        .filter((p) => p.position > 1)
+        .map((p) => p.title);
+
+    const instantWinTitles =
+      item.instantWinPrizes.map(
+        (p) => p.title
+      );
+
+    const allPrizes = [];
+
+    // MAIN PRIZE
+    if (mainPrize) {
+
+      allPrizes.push({
+        title: mainPrize.title,
+        type: "main"
+      });
+
+    }
+
+    // RUNNER UPS
+    if (runnerUpPrizes.length > 0) {
+
+      allPrizes.push({
+        title:
+          runnerUpPrizes.join(", "),
+        type: "runner_up"
+      });
+
+    }
+
+    // INSTANT WINS
+    if (instantWinTitles.length > 0) {
+
+      allPrizes.push({
+        title:
+          instantWinTitles.join(", "),
+        type: "instant_win"
+      });
+
+    }
+
+    return {
+      id: item.id,
+      title: item.title,
+      slug: item.slug,
+      image: item.images?.[0],
+
+      drawDate: item.endTime,
+
+      drawTime:
+        item.endTime.toLocaleTimeString(
+          "en-GB",
+          {
+            hour: "2-digit",
+            minute: "2-digit"
+          }
+        ),
+
+      soldPercentage:
+        item.totalTickets > 0
+          ? Math.round(
+            (item.soldTickets / item.totalTickets) * 100
+          )
+          : 0,
+
+      prizes: allPrizes
+    };
+
+  });
+
+  return successResponse(
+    res,
+    "Live draws fetched successfully",
+    200,
+    data
+  );
+
+
 });
