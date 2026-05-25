@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const prisma = require('../prismaconfig');
 const Loggers = require('../utils/Logger');
+const { createAdminNotification } = require('../utils/createAdminNotification');
 
 // Run every minute
 cron.schedule('* * * * *', async () => {
@@ -103,6 +104,13 @@ cron.schedule('* * * * *', async () => {
 
           Loggers.info(`Cron: Instant wins generated successfully for competition ${comp.id}`);
           console.log(`Cron: Instant wins generated successfully for competition ${comp.id}`);
+          await createAdminNotification({
+            key: `instant-win-started-${comp.id}`,
+            type: "instant_win_started",
+            title: "Instant Win Started",
+            message: `Instant wins are now active for ${comp.title}.`,
+            meta: { competitionId: comp.id }
+          });
         } catch (err) {
           Loggers.error(`Cron Error (InstantWin transaction): ${err.message}`);
           console.log(`Cron Error (InstantWin transaction): ${err.message}`);

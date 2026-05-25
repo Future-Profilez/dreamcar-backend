@@ -1,13 +1,16 @@
-const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition, getCurrencyRates, getDashboardData, toggleFeaturedCompetition, getSimilarCompetitions } = require("../controller/competitionController");
-const { verifyToken, checkIsAdminHasCapablity } = require("../utils/tokenVerify");
+const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition, getCurrencyRates, syncCurrencyRates, getDashboardData, toggleFeaturedCompetition, getSimilarCompetitions, getAllInstantWinsAdmin, triggerCompetitionUpdates } = require("../controller/competitionController");
+const { verifyToken, checkIsAdminHasCapablity, requireAdmin } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
 const router = require("express").Router();
 
 router.get("/currency-rates", getCurrencyRates);
+router.post("/admin/sync-currency", verifyToken, requireAdmin, syncCurrencyRates);
+router.post("/admin/trigger-competition-updates", verifyToken, requireAdmin, triggerCompetitionUpdates);
 
 router.post("/competition/create",
   verifyToken,
+  requireAdmin,
   upload.fields([
     // { name: "detailImage", maxCount: 1 },
     { name: "prizeDetailImage", maxCount: 1 },
@@ -21,12 +24,15 @@ router.get("/competition/get",
   // verifyToken, 
   getAllCompetitions);
 
+router.get("/admin/instant-wins", verifyToken, requireAdmin, getAllInstantWinsAdmin);
+
 router.get("/competition/:id",
   // verifyToken,
   competitionDetail
 )
 router.post("/competition/update/:id",
   verifyToken,
+  requireAdmin,
   upload.fields([
     // { name: "detailImage", maxCount: 1 },
     { name: "prizeDetailImage", maxCount: 1 },
@@ -37,13 +43,13 @@ router.post("/competition/update/:id",
   ]), updateCompetition);
 
 router.post("/competition/ticket-buy", verifyToken, checkIsAdminHasCapablity, createCompetitionPayment);
-router.delete("/competition/:id", verifyToken, deleteCompetition);
+router.delete("/competition/:id", verifyToken, requireAdmin, deleteCompetition);
 
 //admin dashboard
-router.get("/admin/dashboard", verifyToken, getDashboardData);
+router.get("/admin/dashboard", verifyToken, requireAdmin, getDashboardData);
 
 //featured competition
-router.post( "/competition/feature/:id", verifyToken, toggleFeaturedCompetition);
+router.post( "/competition/feature/:id", verifyToken, requireAdmin, toggleFeaturedCompetition);
 
 //similar competitions
 router.get("/competition/similar/:id", getSimilarCompetitions);

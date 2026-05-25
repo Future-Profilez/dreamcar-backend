@@ -34,6 +34,8 @@ model User {
   isBlocked     Int   @default(0)     //0->unblocked   1->blocked
   blockedAt     DateTime? @db.Timestamp(0)
 
+  marketingEmails Int   @default(1)     // 1->subscribed 0->unsubscribed
+
   createdAt DateTime? @default(now()) @db.Timestamp(0)
   updatedAt DateTime? @db.Timestamp(0)
   deletedAt DateTime? @db.Timestamp(0)
@@ -75,6 +77,8 @@ model Competition {
   prizes                   Prize[]
   winnerDetail             WinnerDetail?
   
+  newEmailSent      Int       @default(0)
+  endingEmailSent   Int       @default(0)
 
   status    Int       @default(1)
   createdAt DateTime? @default(now()) @db.Timestamp(0)
@@ -333,4 +337,15 @@ model Newsletter {
 
   createdAt        DateTime? @default(now()) @db.Timestamp(0)
   deletedAt        DateTime? @db.Timestamp(0)
+}
+
+model AdminNotification {
+  id        String   @id @default(uuid())
+  key       String?  @unique
+  type      String
+  title     String
+  message   String
+  meta      Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
 }
