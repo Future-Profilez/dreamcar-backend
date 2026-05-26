@@ -6,26 +6,10 @@ const CompetitionUpdatesTemplate = (newCompetitions, endingCompetitions) => {
 
   const renderCompetitions = (competitions, title) => {
     if (!competitions || competitions.length === 0) return '';
-    
+
     const items = competitions.map(comp => `
       <div style="margin-bottom: 24px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
-        <img src="${(() => {
-          const img = comp?.images?.[0];
-          if (!img) return 'https://via.placeholder.com/600x300?text=DreamCar';
-          if (img.startsWith('http')) {
-            if (backendBaseUrl && img.includes('://localhost:')) {
-              try {
-                const u = new URL(img);
-                return `${backendBaseUrl}${u.pathname}`;
-              } catch (e) {
-                return img;
-              }
-            }
-            return img;
-          }
-          if (!backendBaseUrl) return img;
-          return img.startsWith('/') ? `${backendBaseUrl}${img}` : `${backendBaseUrl}/${img}`;
-        })()}" alt="${comp.title}" style="width: 100%; height: 200px; object-fit: cover; display: block;" />
+        <img src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75" alt="${comp.title}" style="width: 100%; height: 200px; object-fit: cover; display: block;" />
         <div style="padding: 20px;">
           <h3 style="margin: 0 0 10px 0; color: #1a1a1a; font-size: 18px;">${comp.title}</h3>
           <p style="margin: 0 0 16px 0; color: #666; font-size: 14px;">Ticket Price: <strong style="color: #EC6623;">£${comp.ticketPrice}</strong></p>

@@ -97,7 +97,7 @@ const processSuccessfulPayment = async (session) => {
 
     const parsedUserId = parseInt(userId);
     let parsedItems = [];
-
+    let txResult = null;
     try {
         parsedItems = items ? JSON.parse(items) : [];
     } catch (e) {
@@ -242,7 +242,7 @@ const processSuccessfulPayment = async (session) => {
 
             continue;
         }
-        let txResult = null;
+        
         txResult = await prisma.$transaction(async (tx) => {
             const parsedCompetitionId = parseInt(item.itemId);  //changed from competitionId
             const parsedQty = parseInt(item.quantity);
