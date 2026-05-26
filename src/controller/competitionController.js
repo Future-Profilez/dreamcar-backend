@@ -547,17 +547,17 @@ exports.updateCompetition = catchAsync(async (req, res) => {
     const parsedStartTime = startTime ? parseLondonDateTime(startTime) : null;
     const parsedEndTime = endTime ? parseLondonDateTime(endTime, { endOfDay: true }) : null;
 
-    if (startTime && !parsedStartTime) {
-      return errorResponse(res, "Invalid start time", 400);
-    }
+    // if (startTime && !parsedStartTime) {
+    //   return errorResponse(res, "Invalid start time", 400);
+    // }
 
-    if (endTime && !parsedEndTime) {
-      return errorResponse(res, "Invalid end time", 400);
-    }
+    // if (endTime && !parsedEndTime) {
+    //   return errorResponse(res, "Invalid end time", 400);
+    // }
 
-    if (parsedStartTime && parsedEndTime && parsedEndTime <= parsedStartTime) {
-      return errorResponse(res, "End time must be after start time", 400);
-    }
+    // if (parsedStartTime && parsedEndTime && parsedEndTime <= parsedStartTime) {
+    //   return errorResponse(res, "End time must be after start time", 400);
+    // }
 
     if (totalTickets && parseInt(totalTickets) !== existingCompetition.totalTickets) {
       if (existingCompetition.instantWinEnabled && existingCompetition.soldTickets > 0) {

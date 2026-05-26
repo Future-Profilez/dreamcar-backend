@@ -152,6 +152,7 @@ model StripePayment {
   currency       String   @default("USD")
   status         String   @default("pending") // pending / success / failed
   type           String?
+  
 
   stripePaymentId String?
   sessionId       String?

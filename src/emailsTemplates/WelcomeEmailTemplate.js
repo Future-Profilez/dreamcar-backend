@@ -21,7 +21,7 @@ module.exports = (user) => {
         ">
 
             <img 
-                src="${(process.env.ASSET_BASE_URL || process.env.FRONTEND_URL || process.env.DOMAIN || "").replace(/\/$/, "")}/img/logoDC.png" 
+                src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75"
                 alt="DreamCar Logo" 
                 style="
                     width:220px;
