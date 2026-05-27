@@ -120,7 +120,7 @@ const processSuccessfulPayment = async (session) => {
             }
 
             // create payment entry first
-            await prisma.stripePayment.create({
+            const giftCreditPayment = await prisma.stripePayment.create({
                 data: {
                     userId: parsedUserId,
                     amount: Number(item.itemId),
@@ -131,6 +131,7 @@ const processSuccessfulPayment = async (session) => {
                     sessionId: session.id,
                 }
             });
+            console.log("AMount in stripe webhookk ",giftCreditPayment);
 
             const generatedCode = await generateUniqueGiftCode();
 

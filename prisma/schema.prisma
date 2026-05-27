@@ -155,7 +155,7 @@ model StripePayment {
   
 
   stripePaymentId String?
-  sessionId       String?
+  sessionId       String? @unique
 
   competitionId Int?
   competition   Competition? @relation(fields: [competitionId], references: [id])
