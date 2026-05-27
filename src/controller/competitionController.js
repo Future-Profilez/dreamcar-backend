@@ -237,7 +237,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
       competition
     );
   } catch (error) {
-    console.log("Add Competition Error:", error);
+
     return errorResponse(
       res,
       error.message || "Internal Server Error",
@@ -378,8 +378,11 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
 
             select: {
               id: true
-            }
-          }
+            } 
+          },
+          
+          instantWins: true,
+          instantWinPrizes: true
         }
       });
 
@@ -391,8 +394,6 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
     );
 
   } catch (error) {
-
-    console.log(error);
 
     return errorResponse(
       res,
@@ -464,7 +465,7 @@ exports.competitionDetail = catchAsync(async (req, res) => {
       responseData
     );
   } catch (error) {
-    console.log("Get Competition detail Error:", error);
+
     return errorResponse(
       res,
       error.message || "Internal Server Error",
@@ -745,7 +746,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       updatedCompetition
     );
   } catch (error) {
-    console.log("Update Competition Error:", error);
+
     return errorResponse(
       res,
       error.message || "Internal Server Error",
@@ -987,7 +988,7 @@ exports.deleteCompetition = catchAsync(async (req, res) => {
     });
     return successResponse(res, "Competition deleted successfully", 200);
   } catch (error) {
-    console.log("Delete Competition Error:", error);
+
     return errorResponse(
       res,
       error.message || "Internal Server Error",

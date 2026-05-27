@@ -173,6 +173,7 @@ exports.getTickets = catchAsync(async (req, res) => {
             winningPosition:
                 ticket.results[0]?.position || null,
             date: ticket.createdAt,
+            isInstantWin: ticket.isInstantWin
         }));
         return successResponse(
             res,
@@ -181,7 +182,7 @@ exports.getTickets = catchAsync(async (req, res) => {
             formattedTickets
         );
     } catch (error) {
-        console.log("Get Tickets Error:", error);
+
         return errorResponse(
             res,
             error.message || "Internal Server Error",

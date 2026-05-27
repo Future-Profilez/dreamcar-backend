@@ -33,7 +33,6 @@ exports.addEnquiry = catchAsync(async (req, res) => {
         );
 
     } catch (error) {
-        console.log("Contact Form Error:", error);
 
         return errorResponse(
             res,
@@ -132,7 +131,7 @@ exports.listEnquiries = catchAsync(async (req, res) => {
         );
 
     } catch (error) {
-        console.log("List Enquiries Error:", error);
+
         return errorResponse(
             res,
             error.message || "Internal Server Error",
@@ -177,7 +176,7 @@ exports.deleteEnquiry = catchAsync(async (req, res) => {
             200
         );
     } catch (error) {
-        console.log("Delete Enquiry Error:", error);
+
         return errorResponse(
             res,
             error.message ||

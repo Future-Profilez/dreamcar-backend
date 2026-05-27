@@ -73,7 +73,6 @@ exports.purchaseGiftCredit = catchAsync(async (req, res) => {
       }
     );
   } catch (error) {
-    console.log("Purchase Gift Credit Error:", error);
 
     return errorResponse(
       res,
@@ -183,8 +182,6 @@ exports.redeemGiftCredit = catchAsync(async (req, res) => {
     );
 
   } catch (error) {
-
-    console.log("Redeem Gift Credit Error:", error);
 
     return errorResponse(
       res,

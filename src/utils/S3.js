@@ -48,7 +48,7 @@ const uploadFile = (req, res) => {
                 console.error("No file received");
                 reject({ status: false, message: "No file received" });
             } else {
-                console.log("File Uploaded Successfully:", req.file);
+
                 resolve({ status: true, message: "File uploaded successfully", fileUrl: req.file.location });
             }
         });

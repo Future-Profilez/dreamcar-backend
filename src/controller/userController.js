@@ -28,7 +28,7 @@ exports.signup = catchAsync(async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const otp = generateOTP();
-    console.log("otpp ", otp);
+
     const otpExpiresAt =
       new Date(Date.now() + 10 * 60 * 1000);
 
@@ -431,6 +431,30 @@ exports.resetPassword = catchAsync(async (req, res) => {
   );
 });
 
+exports.resetAdminPassword = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const { newPassword } = req.body;
+
+  if (req.user.role !== "admin") {
+    return errorResponse(res, "Unauthorized", 401);
+  }
+
+  if (!newPassword) {
+    return errorResponse(res, "New password is required", 200);
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      password: hashedPassword,
+    },
+  });
+
+  return successResponse(res, "Password updated successfully", 200);
+});
+
 exports.login = catchAsync(async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -522,7 +546,7 @@ exports.GetUser = catchAsync(async (req, res) => {
 exports.updateProfile = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, password, marketingEmails } = req.body;
+    const { name, email, password, marketingEmails } = req.body;
 
     if (!userId) {
       return errorResponse(res, "Unauthorized", 401);
@@ -530,6 +554,16 @@ exports.updateProfile = catchAsync(async (req, res) => {
 
     const dataToUpdate = {};
     if (name) dataToUpdate.name = name;
+    
+    if (email) {
+      const existingUser = await prisma.user.findFirst({
+        where: { email, id: { not: userId } }
+      });
+      if (existingUser) {
+        return errorResponse(res, "Email already in use", 400);
+      }
+      dataToUpdate.email = email;
+    }
     
     if (marketingEmails !== undefined) {
       dataToUpdate.marketingEmails = parseInt(marketingEmails);
@@ -727,7 +761,7 @@ exports.getAllUsers = catchAsync(async (req, res) => {
     );
 
   } catch (error) {
-    console.log("Get Users Error:", error);
+
     return errorResponse(
       res,
       error.message || "Internal Server Error",
