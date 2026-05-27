@@ -10,7 +10,7 @@ exports.purchaseGiftCredit = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;
     const { amount, giftType, recipientEmail, competitionName } = req.body;
-
+    console.log("AMOUNTTT : ",amount);
     if (!amount || amount <= 0) {
       return errorResponse(res, "Invalid amount", 200);
     }

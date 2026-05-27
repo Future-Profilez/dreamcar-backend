@@ -38,7 +38,7 @@ module.exports = ({
                 margin:0;
                 font-weight:700;
             ">
-                Latest Competitions 🔥
+                Latest Competitions 
             </h1>
 
             <p style="
@@ -166,7 +166,7 @@ module.exports = ({
                 font-size:13px;
                 line-height:1.8;
             ">
-                Good luck <br/>
+                Good luck, <br/>
                 <strong>DreamCar Competitions</strong>
             </p>
 
