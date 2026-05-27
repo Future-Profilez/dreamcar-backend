@@ -420,7 +420,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                 image: w.winnerImage || "/img/trophy.png",
                 ticketCode: w.ticket?.ticketCode,
                 position: w.position,
-                winnerImage: w.winnerDetail.winnerImage
+                winnerImage: w.winnerDetail?.winnerImage || ''
             };
         });
 
