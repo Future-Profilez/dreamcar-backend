@@ -18,12 +18,14 @@ exports.verifyPayment = catchAsync(async (req, res) => {
                 tickets: true
             }
         });
+        console.log("PAYMENTTT in VERIFY PAYMENT ",payment);
         
         if (!payment || payment.length === 0) {
             // If payment not in DB, fallback to querying Stripe directly (handles webhook delays or local testing)
             if (session_id && session_id.startsWith('cs_')) {
                 try {
                     const session = await stripe.checkout.sessions.retrieve(session_id);
+                    console.log("SESSIONNN ",session);
                     if (session.payment_status === 'paid') {
                         if (session.metadata?.type === "wallet_recharge") {
                             const { processWalletRecharge } = require("../utils/paymentProcessor");
@@ -76,6 +78,7 @@ exports.verifyPayment = catchAsync(async (req, res) => {
             (sum, p) => sum + Number(p.amount),
             0
         );
+        console.log("TOTALLLL amount in verify pyament ",totalAmount);
 
         return successResponse(
             res,
