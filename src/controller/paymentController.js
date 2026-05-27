@@ -33,7 +33,6 @@ exports.verifyPayment = catchAsync(async (req, res) => {
                         } else {
                             await processSuccessfulPayment(session);
                         }
-
                         // Fetch the newly created payment
                         payment = await prisma.stripePayment.findMany({
                             where: {
