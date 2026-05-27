@@ -868,7 +868,6 @@ exports.deleteAccount = catchAsync(async (req, res) => {
       data: {
         deletedAt,
         email: `deleted_${userId}_${deletedAt.getTime()}_${req.user.email}`,
-        name: "Deleted User",
         password: unusablePassword
       }
     });

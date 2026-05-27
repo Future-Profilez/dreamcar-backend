@@ -18,22 +18,41 @@ exports.verifyPayment = catchAsync(async (req, res) => {
                 tickets: true
             }
         });
-        console.log("PAYMENTTT in VERIFY PAYMENT ",payment);
-        
+        console.log("PAYMENTTT in VERIFY PAYMENT ", payment);
+
         if (!payment || payment.length === 0) {
             // If payment not in DB, fallback to querying Stripe directly (handles webhook delays or local testing)
             if (session_id && session_id.startsWith('cs_')) {
                 try {
                     const session = await stripe.checkout.sessions.retrieve(session_id);
-                    console.log("SESSIONNN ",session);
+                    console.log("SESSIONNN ", session);
                     if (session.payment_status === 'paid') {
-                        if (session.metadata?.type === "wallet_recharge") {
-                            const { processWalletRecharge } = require("../utils/paymentProcessor");
-                            await processWalletRecharge(session);
-                        } else {
-                            await processSuccessfulPayment(session);
+
+                        // CHECK IF PAYMENT ALREADY EXISTS
+                        const existingPayment = await prisma.stripePayment.findFirst({
+                            where: {
+                                sessionId: session.id
+                            }
+                        });
+
+                        // ONLY PROCESS IF NOT EXISTS
+                        if (!existingPayment) {
+
+                            if (session.metadata?.type === "wallet_recharge") {
+
+                                const { processWalletRecharge } = require("../utils/paymentProcessor");
+
+                                await processWalletRecharge(session);
+
+                            } else {
+
+                                await processSuccessfulPayment(session);
+
+                            }
+
                         }
-                        // Fetch the newly created payment
+
+                        // ALWAYS FETCH PAYMENT AGAIN
                         payment = await prisma.stripePayment.findMany({
                             where: {
                                 sessionId: session_id,
@@ -43,6 +62,7 @@ exports.verifyPayment = catchAsync(async (req, res) => {
                                 tickets: true
                             }
                         });
+
                     }
                 } catch (stripeErr) {
                     console.error("Stripe session retrieve error:", stripeErr.message);
@@ -77,7 +97,7 @@ exports.verifyPayment = catchAsync(async (req, res) => {
             (sum, p) => sum + Number(p.amount),
             0
         );
-        console.log("TOTALLLL amount in verify pyament ",totalAmount);
+        console.log("TOTALLLL amount in verify pyament ", totalAmount);
 
         return successResponse(
             res,
@@ -115,7 +135,7 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
 
         const data = payments.map((p) => {
             let competitionName = p.competition?.title || "N/A";
-            
+
             if (p.type === "gift_credit") {
                 competitionName = "Gift Card / Credit";
             } else if (p.type === "wallet_recharge") {
@@ -356,8 +376,8 @@ exports.getAllPayments = catchAsync(async (req, res) => {
                 p.type === "gift_credit"
                     ? "Gift Credit"
                     : p.type === "wallet_recharge"
-                    ? "Wallet Recharge"
-                    : p.competition?.title || "N/A",
+                        ? "Wallet Recharge"
+                        : p.competition?.title || "N/A",
 
             competitionSlug: p.competition?.slug || null,
             competitionId: p.competition?.id || null,

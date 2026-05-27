@@ -98,8 +98,6 @@ module.exports = (user, otp) => {
                 <div style="
                     display:inline-block;
                     background:#ffffff;
-                    border:2px dashed #EC6623;
-                    border-radius:14px;
                     padding:18px 30px;
                     font-size:36px;
                     font-weight:700;
