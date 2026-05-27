@@ -52,11 +52,7 @@ router.get("/admin/dashboard", verifyToken, requireAdmin, getDashboardData);
 router.post( "/competition/feature/:id", verifyToken, requireAdmin, toggleFeaturedCompetition);
 
 
-function test (){ 
-  console.log("hdsghf")
-}
-//similar competitions
 router.get("/competition/similar/:id", getSimilarCompetitions);
-router.get("/live-draws/competition",    getLiveDraws);
+router.get("/live-draws/competition", getLiveDraws);
 
 module.exports = router;

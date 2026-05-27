@@ -4,7 +4,7 @@ const Loggers = require('../utils/Logger');
 
 async function updateCurrencyRates() {
   try {
-    console.log(`Cron: Currency rates fetch started...`);
+
     const response = await fetch('https://open.er-api.com/v6/latest/GBP');
     if (!response.ok) {
       throw new Error(`API responded with status: ${response.status}`);
@@ -24,7 +24,7 @@ async function updateCurrencyRates() {
           update: { rate },
           create: { currency, rate }
         });
-        console.log(`Cron: Updated currency ${currency} with rate ${rate}`);
+
       }
     }
 
@@ -32,7 +32,7 @@ async function updateCurrencyRates() {
   } catch (error) {
     const message = error?.message || String(error);
     Loggers.error(`Cron Error (CurrencyRates): ${message}`);
-    console.log(`Cron Error (CurrencyRates): ${message}`);
+
   }
 }
 

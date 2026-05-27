@@ -1,12 +1,11 @@
-module.exports = ({
-    competitions = []
-}) => {
+
+module.exports = (user, otp) => {
 
     return `
 
     <div style="
         font-family: Arial, sans-serif;
-        max-width: 650px;
+        max-width: 600px;
         margin: 0 auto;
         background: #ffffff;
         border: 1px solid #e5e5e5;
@@ -23,7 +22,7 @@ module.exports = ({
 
             <img 
                 src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75"
-                alt="DreamCar"
+                alt="DreamCar Logo"
                 style="
                     width:220px;
                     max-width:100%;
@@ -33,11 +32,11 @@ module.exports = ({
 
             <h1 style="
                 color:#ffffff;
+                font-size:32px;
                 margin:0;
-                font-size:34px;
                 font-weight:700;
             ">
-                Welcome To DreamCar 🎉
+                Password Reset 
             </h1>
 
             <p style="
@@ -46,7 +45,7 @@ module.exports = ({
                 font-size:15px;
                 line-height:1.6;
             ">
-                You are now subscribed to our newsletter.
+                Reset your DreamCar account password securely.
             </p>
 
         </div>
@@ -59,126 +58,76 @@ module.exports = ({
                 font-size:16px;
                 line-height:1.8;
                 margin-top:0;
-                margin-bottom:24px;
+                margin-bottom:18px;
             ">
-                You’ll now receive:
+                Hi ${user || "there"},
             </p>
 
+            <p style="
+                color:#555555;
+                font-size:15px;
+                line-height:1.8;
+                margin-bottom:30px;
+            ">
+                We received a request to reset your DreamCar account password.
+                Please use the verification code below to continue.
+            </p>
+
+            <!-- OTP BOX -->
             <div style="
                 background:#fafafa;
                 border:1px solid #eeeeee;
                 border-radius:16px;
-                padding:24px;
-                margin-bottom:34px;
+                padding:34px 24px;
+                text-align:center;
+                margin-bottom:30px;
             ">
 
-                <ul style="
-                    color:#555555;
-                    line-height:32px;
-                    padding-left:20px;
-                    margin:0;
-                    font-size:15px;
+                <p style="
+                    margin-top:0;
+                    margin-bottom:18px;
+                    color:#666666;
+                    font-size:13px;
+                    font-weight:700;
+                    letter-spacing:1px;
+                    text-transform:uppercase;
                 ">
-                    <li>Latest competitions</li>
-                    <li>Luxury watch & car giveaways</li>
-                    <li>Winner announcements</li>
-                    <li>Exclusive offers & updates</li>
-                </ul>
-
-            </div>
-
-            <h2 style="
-                color:#111111;
-                margin-bottom:22px;
-                font-size:24px;
-            ">
-                Latest Competitions
-            </h2>
-
-            ${competitions.map(item => `
+                    Your Reset Code
+                </p>
 
                 <div style="
-                    background:#fafafa;
-                    border:1px solid #eeeeee;
-                    border-radius:16px;
-                    padding:24px;
-                    margin-bottom:20px;
+                    display:inline-block;
+                    background:#ffffff;
+                    border:2px dashed #EC6623;
+                    border-radius:14px;
+                    padding:18px 30px;
+                    font-size:36px;
+                    font-weight:700;
+                    letter-spacing:8px;
+                    color:#111111;
                 ">
-
-                    <h3 style="
-                        margin:0 0 14px;
-                        color:#111111;
-                        font-size:22px;
-                        line-height:1.4;
-                    ">
-                        ${item.title}
-                    </h3>
-
-                    <p style="
-                        margin:0 0 10px;
-                        color:#666666;
-                        font-size:15px;
-                        line-height:1.7;
-                    ">
-                        Ticket Price:
-                        <strong>£${item.ticketPrice}</strong>
-                    </p>
-
-                    <p style="
-                        margin:0;
-                        color:#666666;
-                        font-size:14px;
-                        line-height:1.7;
-                    ">
-                        Enter now for your chance to win before tickets sell out.
-                    </p>
-
-                    <div style="margin-top:22px;">
-
-                        <a
-                            href="${process.env.FRONTEND_URL}/competition/${item.slug}"
-                            style="
-                                display:inline-block;
-                                background:#42BE38;
-                                color:#ffffff;
-                                text-decoration:none;
-                                padding:13px 24px;
-                                border-radius:10px;
-                                font-size:14px;
-                                font-weight:700;
-                            "
-                        >
-                            ENTER COMPETITION
-                        </a>
-
-                    </div>
-
+                    ${otp}
                 </div>
 
-            `).join("")}
-
-            <div style="
-                margin-top:34px;
-                text-align:center;
-            ">
-
-                <a
-                    href="${process.env.FRONTEND_URL}"
-                    style="
-                        display:inline-block;
-                        background:#EC6623;
-                        color:#ffffff;
-                        text-decoration:none;
-                        padding:14px 32px;
-                        border-radius:10px;
-                        font-size:15px;
-                        font-weight:700;
-                    "
-                >
-                    VIEW ALL COMPETITIONS
-                </a>
+                <p style="
+                    margin-bottom:0;
+                    margin-top:20px;
+                    color:#888888;
+                    font-size:14px;
+                ">
+                    This code expires in 10 minutes.
+                </p>
 
             </div>
+
+            <p style="
+                color:#666666;
+                font-size:14px;
+                line-height:1.8;
+                margin-bottom:0;
+            ">
+                If you did not request a password reset, you can safely ignore this email.
+            </p>
 
         </div>
 
@@ -196,7 +145,7 @@ module.exports = ({
                 font-size:13px;
                 line-height:1.8;
             ">
-                Dream big. Win bigger. 🚗<br/>
+                Stay secure, <br/>
                 <strong>DreamCar Competitions</strong>
             </p>
 
@@ -206,3 +155,4 @@ module.exports = ({
 
     `;
 };
+

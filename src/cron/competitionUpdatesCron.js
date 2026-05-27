@@ -6,7 +6,7 @@ const CompetitionUpdatesTemplate = require('../emailsTemplates/CompetitionUpdate
 
 async function processCompetitionUpdates() {
     try {
-        console.log(`Cron: Competition updates check started...`);
+
         const now = new Date();
 
         // 1. Find newly started competitions (started, not ended, email not sent)
@@ -36,11 +36,9 @@ async function processCompetitionUpdates() {
         const endingCompetitions = endingCompetitionsAll.filter(c => c.soldTickets < c.totalTickets);
 
         if (newCompetitions.length === 0 && endingCompetitions.length === 0) {
-            console.log(`Cron: No new or ending competitions to notify about.`);
+
             return { status: true, message: "No updates to send" };
         }
-
-        console.log(`Found ${newCompetitions.length} new and ${endingCompetitions.length} ending competitions.`);
 
         // 3. Get target audience (Users with marketingEmails = 1 + Newsletter subscribers)
         const optedInUsers = await prisma.user.findMany({
@@ -62,7 +60,7 @@ async function processCompetitionUpdates() {
         const emailList = Array.from(allEmails);
 
         if (emailList.length === 0) {
-            console.log(`Cron: No subscribed users found.`);
+
             return { status: true, message: "No subscribers found" };
         }
 
@@ -100,7 +98,6 @@ async function processCompetitionUpdates() {
             });
         }
 
-        console.log(`Cron: Updates sent to ${sentCount} subscribers.`);
         Loggers.info(`Cron: Competition updates sent successfully to ${sentCount} users.`);
         
         return { status: true, message: `Sent to ${sentCount} users` };

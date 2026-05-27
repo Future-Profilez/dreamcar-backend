@@ -173,7 +173,7 @@ exports.drawWinner = catchAsync(async (req, res) => {
         return successResponse(res, "Winner assigned successfully", 200, result);
 
     } catch (error) {
-        console.log("Draw Winner Error:", error);
+
         return errorResponse(
             res,
             error.message || "Internal Server Error",
@@ -404,7 +404,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                 }
             });
         }
-        console.log("winnerrrrrrrrr",winners);
+
         const data = winners.map((w) => {
             const wonPrize = w.competition.prizes?.find(p => p.position === w.position);
             return {
@@ -420,7 +420,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                 image: w.winnerImage || "/img/trophy.png",
                 ticketCode: w.ticket?.ticketCode,
                 position: w.position,
-                winnerImage: w.winnerDetail.winnerImage
+                winnerImage: w.winnerDetail?.winnerImage || ''
             };
         });
 
@@ -486,7 +486,7 @@ exports.getUserInstantWins = catchAsync(async (req, res) => {
                 []
             );
         }
-        console.log("Instant win :", instantWins);
+
         const formatted = instantWins.map((w) => ({
             id: w.id,
             winType: "instant",
@@ -511,7 +511,7 @@ exports.getUserInstantWins = catchAsync(async (req, res) => {
         );
 
     } catch (error) {
-        console.log("Get Instant Wins Error:", error);
+
         return errorResponse(
             res,
             error.message || "Internal Server Error",
@@ -671,7 +671,6 @@ exports.addWinnerDetail = catchAsync(async (req, res) => {
         );
 
     } catch (error) {
-        console.log("Add Winner Detail Error:", error);
 
         return errorResponse(
             res,
@@ -901,7 +900,6 @@ exports.getWinnerDetail = catchAsync(async (req, res) => {
         );
 
     } catch (error) {
-        console.log("Get Winner Detail Error:", error);
 
         return errorResponse(
             res,
@@ -954,10 +952,7 @@ exports.getWinnerHighlights = catchAsync(async (req, res) => {
             formatted
         );
     } catch (error) {
-        console.log(
-            "Get Winner Highlights Error:",
-            error
-        );
+
         return errorResponse(
             res,
             error.message ||

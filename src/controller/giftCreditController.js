@@ -10,7 +10,7 @@ exports.purchaseGiftCredit = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;
     const { amount, giftType, recipientEmail, competitionName } = req.body;
-
+    console.log("AMOUNTTT : ",amount);
     if (!amount || amount <= 0) {
       return errorResponse(res, "Invalid amount", 200);
     }
@@ -73,7 +73,6 @@ exports.purchaseGiftCredit = catchAsync(async (req, res) => {
       }
     );
   } catch (error) {
-    console.log("Purchase Gift Credit Error:", error);
 
     return errorResponse(
       res,
@@ -183,8 +182,6 @@ exports.redeemGiftCredit = catchAsync(async (req, res) => {
     );
 
   } catch (error) {
-
-    console.log("Redeem Gift Credit Error:", error);
 
     return errorResponse(
       res,

@@ -9,11 +9,6 @@ exports.verifyPayment = catchAsync(async (req, res) => {
         const userId = req.user.id;
         const { session_id } = req.query;
 
-
-        console.log("session_id", session_id)
-        if (!session_id) {
-            return errorResponse(res, "Session ID is required", 200);
-        }
         let payment = await prisma.stripePayment.findMany({
             where: {
                 sessionId: session_id,

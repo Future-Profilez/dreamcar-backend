@@ -36,7 +36,7 @@ module.exports = (user, otp) => {
                 margin:0;
                 font-weight:700;
             ">
-                Verify Your Account 🔐
+                Verify Your Account
             </h1>
 
             <p style="
@@ -97,8 +97,7 @@ module.exports = (user, otp) => {
                 <div style="
                     display:inline-block;
                     background:#ffffff;
-                    border:2px dashed #EC6623;
-                    border-radius:14px;
+                   
                     padding:18px 30px;
                     font-size:36px;
                     font-weight:700;
@@ -144,7 +143,7 @@ module.exports = (user, otp) => {
                 font-size:13px;
                 line-height:1.8;
             ">
-                Thank you for choosing us 🚗<br/>
+                Thank you for choosing us, <br/>
                 <strong>DreamCar Competitions</strong>
             </p>
 

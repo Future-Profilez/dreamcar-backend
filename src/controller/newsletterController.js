@@ -70,7 +70,7 @@ exports.subscribeNewsletter = catchAsync(async (req, res) => {
             newsletter
         );
     } catch (error) {
-        console.log(error);
+
         return errorResponse(
             res,
             error.message || "Internal Server Error",
@@ -136,7 +136,7 @@ exports.getNewsletterSubscribers = catchAsync(async (req, res) => {
             subscribers
         );
     } catch (error) {
-        console.log(error);
+
         return errorResponse(
             res,
             error.message || "Internal Server Error",

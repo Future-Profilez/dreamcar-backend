@@ -69,7 +69,7 @@ exports.addToCart = catchAsync(async (req, res) => {
     }
     return successResponse(res, "Item added to cart", 200, cartItem);
   } catch (error) {
-    console.log("Add To Cart Error:", error);
+
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
@@ -117,7 +117,7 @@ exports.getCart = catchAsync(async (req, res) => {
 
     return successResponse(res, "Cart fetched successfully", 200, cartItems);
   } catch (error) {
-    console.log("Get Cart Error:", error);
+
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });

@@ -45,7 +45,7 @@ module.exports = ({
                 font-size:32px;
                 font-weight:700;
             ">
-                Purchase Confirmed 🎉
+                Purchase Confirmed 
             </h1>
 
             <p style="
@@ -132,30 +132,26 @@ module.exports = ({
             </h3>
 
             <div style="
-                display:flex;
-                flex-wrap:wrap;
-                gap:12px;
-                margin-bottom:35px;
-            ">
+    margin-bottom:35px;
+    line-height:2.4;
+">
 
                 ${tickets.map(ticket => `
 
-                    <div style="
-                        display:flex;
-                        align-items:center;
-                        justify-content:center;
-                        min-width:120px;
-                        background:#000000;
-                        color:#ffffff;
-                        padding:12px 16px;
-                        border-radius:10px;
-                        font-size:14px;
-                        font-weight:700;
-                        letter-spacing:1px;
-                        box-sizing:border-box;
-                    ">
-                        ${ticket.ticketCode}
-                    </div>
+                    <span style="
+    display:inline-block;
+    background:#000000;
+    color:#ffffff;
+    padding:10px 14px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:1px;
+    margin-right:8px;
+    margin-bottom:10px;
+">
+    ${ticket.ticketCode}
+</span>
 
                 `).join("")}
 
@@ -178,7 +174,7 @@ module.exports = ({
                         color:#1f8f39;
                         font-size:22px;
                     ">
-                        🎉 Instant Win Prize
+                         Instant Win Prize
                     </h3>
 
                     ${instantWins.map(win => `
@@ -228,7 +224,7 @@ module.exports = ({
                 font-size:13px;
                 line-height:1.8;
             ">
-                Good luck 🍀<br/>
+                Good luck, <br/>
                 <strong>DreamCar Competitions</strong>
             </p>
 

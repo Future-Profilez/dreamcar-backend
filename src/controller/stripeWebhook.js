@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
               await processSuccessfulPayment(session);
               break;
           default:
-              console.log("Unknown payment type");
+
       }
     }
     return res.status(200).json({ received: true });

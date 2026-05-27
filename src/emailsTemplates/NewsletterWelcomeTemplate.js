@@ -37,7 +37,7 @@ module.exports = ({
                 font-size:34px;
                 font-weight:700;
             ">
-                Welcome To DreamCar 🎉
+                Welcome To DreamCar!!!
             </h1>
 
             <p style="
@@ -196,7 +196,7 @@ module.exports = ({
                 font-size:13px;
                 line-height:1.8;
             ">
-                Dream big. Win bigger. 🚗<br/>
+                Good Luck,<br/>
                 <strong>DreamCar Competitions</strong>
             </p>
 

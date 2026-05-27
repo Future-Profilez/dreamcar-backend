@@ -15,20 +15,12 @@ cron.schedule(
 
         try {
 
-            console.log(
-                "Running weekly newsletter..."
-            );
-
             // GET SUBSCRIBERS
 
             const subscribers =
                 await prisma.newsletter.findMany();
 
             if (!subscribers.length) {
-
-                console.log(
-                    "No newsletter subscribers"
-                );
 
                 return;
             }
@@ -50,10 +42,6 @@ cron.schedule(
                 });
 
             if (!competitions.length) {
-
-                console.log(
-                    "No competitions found"
-                );
 
                 return;
             }
@@ -77,29 +65,13 @@ cron.schedule(
                             })
                     });
 
-                    console.log(
-                        `Newsletter sent to ${sub.email}`
-                    );
-
                 } catch (mailError) {
 
-                    console.log(
-                        `Failed for ${sub.email}`,
-                        mailError.message
-                    );
                 }
             }
 
-            console.log(
-                "Weekly newsletter completed"
-            );
-
         } catch (error) {
 
-            console.log(
-                "Newsletter cron error:",
-                error
-            );
         }
     }
 );
