@@ -937,6 +937,7 @@ exports.getWinnerHighlights = catchAsync(async (req, res) => {
                     );
                 return {
                     competitionId: item.competitionId,
+                    competitionSlug: item.competition.slug,
                     winnerName: item.winnerName,
                     winnerLocation: item.winnerLocation,
                     storyDescription: item.storyDescription,
