@@ -314,19 +314,41 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
     // STATUS
     const now = new Date();
 
-    if (status === "live") {
+    // if (status === "live") {
 
-      where.startTime = { lte: now };
-      where.endTime = { gte: now };
+    //   where.startTime = { lte: now };
+    //   where.endTime = { gte: now };
 
-    } else if (status === "ended") {
+    //   // Exclude sold out competitions
+    //   where.NOT = {
+    //     soldTickets: {
+    //       gte: prisma.competition.fields.totalTickets
+    //     }
+    //   };
 
-      where.endTime = { lt: now };
+    // } else if (status === "ended") {
 
-    } else if (status === "upcoming") {
+    //   where.OR = [
+    //     {
+    //       endTime: {
+    //         lt: now
+    //       }
+    //     },
+    //     {
+    //       AND: [
+    //         {
+    //           soldTickets: {
+    //             gt: 0
+    //           }
+    //         }
+    //       ]
+    //     }
+    //   ];
 
-      where.startTime = { gt: now };
-    }
+    // } else if (status === "upcoming") {
+
+    //   where.startTime = { gt: now };
+    // }
 
     // INSTANT WIN
     if (instantWin === "enabled") {
@@ -356,7 +378,7 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
       };
     }
 
-    const competitions =
+    let competitions =
       await prisma.competition.findMany({
         where,
         orderBy,
@@ -378,13 +400,43 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
 
             select: {
               id: true
-            } 
+            }
           },
-          
+
           instantWins: true,
           instantWinPrizes: true
         }
       });
+
+      if (status === "live") {
+  competitions = competitions.filter(
+    (item) =>
+      new Date(item.startTime) <= now &&
+      new Date(item.endTime) >= now &&
+      item.soldTickets < item.totalTickets
+  );
+}
+
+if (status === "ended") {
+  competitions = competitions.filter(
+    (item) =>
+      new Date(item.endTime) < now ||
+      item.soldTickets >= item.totalTickets
+  );
+}
+
+if (status === "upcoming") {
+  competitions = competitions.filter(
+    (item) =>
+      new Date(item.startTime) > now
+  );
+}
+
+    // if (status === "live") {
+    //   competitions = competitions.filter(
+    //     (item) => item.soldTickets < item.totalTickets
+    //   );
+    // }
 
     return successResponse(
       res,
