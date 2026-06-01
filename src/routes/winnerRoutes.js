@@ -6,7 +6,7 @@ const router = require("express").Router();
 
 router.post("/draw/winner", drawWinner);
 router.delete("/draw/winner/:competitionId", resetWinners);
-router.get("/admin/winners", verifyToken, checkIsAdminHasCapablity, getAllAdminWinners);
+router.get("/admin/winners", verifyToken, getAllAdminWinners);
 router.get("/mywins", verifyToken, getUserWins);
 router.get("/myinstantwins", verifyToken, getUserInstantWins);
 router.get("/public/winners", getPublicWinners);

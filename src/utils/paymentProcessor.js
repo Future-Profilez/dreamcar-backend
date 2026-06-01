@@ -800,36 +800,184 @@ const processSuccessfulPayment = async (session) => {
                         const competitionName = txResult.competition.title;
 
                         const emailHtml = `
-                            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #f0f0f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-                                <div style="text-align: center; margin-bottom: 32px;">
-                                    <h1 style="color: #1a1a1a; margin: 0; display: inline-block; background-color: #e6ffe6; padding: 6px 12px; border-radius: 4px; font-size: 28px;">Congratulations! 🎉</h1>
-                                </div>
-                                
-                                <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6; margin-bottom: 16px;">
-                                    Hi ${user.name},
-                                </p>
-                                <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6; margin-bottom: 32px;">
-                                    You've just won an <strong>Instant Win</strong> in the <strong>${competitionName}</strong> competition!
-                                </p>
+<div style="
+    font-family: Arial, sans-serif;
+    max-width: 650px;
+    margin: 0 auto;
+    background: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-radius: 18px;
+    overflow: hidden;
+">
 
-                                <div style="background: #fafafa; padding: 32px 24px; border-radius: 12px; text-align: center; margin: 32px 0;">
-                                    <p style="color: #666; margin-top: 0; font-size: 13px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Your Prize</p>
-                                    <h2 style="color: #42BE38; font-size: 24px; margin: 12px 0;">${prizeTitle}</h2>
-                                    <p style="color: #666; font-size: 15px; margin-bottom: 0;">Winning Ticket: <strong>${ticketCode}</strong></p>
-                                </div>
+    <!-- HEADER -->
+    <div style="
+        background:#000000;
+        padding:40px 30px;
+        text-align:center;
+    ">
 
-                                <p style="color: #4a4a4a; font-size: 15px; line-height: 1.8; margin-bottom: 32px;">
-                                    Our team will be in touch with you shortly to arrange the delivery of your prize. You can view your winning details anytime in your profile under <strong>My Wins</strong>.
-                                </p>
+        <img 
+            src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75"
+            alt="DreamCar"
+            style="
+                width:220px;
+                max-width:100%;
+                margin-bottom:24px;
+            "
+        />
 
-                                <hr style="border: none; border-top: 1px solid #f0f0f0; margin: 32px 0;" />
-                                
-                                <p style="color: #888; font-size: 14px; text-align: center; margin: 0;">
-                                    Enjoy your prize!<br/>
-                                    <strong>The DreamCar Competitions Team</strong>
-                                </p>
-                            </div>
-                        `;
+        <h1 style="
+            color:#ffffff;
+            margin:0;
+            font-size:32px;
+            font-weight:700;
+        ">
+            Instant Win Prize 🎉
+        </h1>
+
+        <p style="
+            color:#bdbdbd;
+            margin-top:12px;
+            font-size:15px;
+            line-height:1.6;
+        ">
+            Congratulations! You've unlocked an instant reward.
+        </p>
+
+    </div>
+
+    <!-- BODY -->
+    <div style="padding:40px 30px;">
+
+        <p style="
+            color:#444444;
+            font-size:16px;
+            line-height:1.8;
+            margin-top:0;
+            margin-bottom:18px;
+        ">
+            Hi ${user.name},
+        </p>
+
+        <p style="
+            color:#555555;
+            font-size:15px;
+            line-height:1.8;
+            margin-bottom:30px;
+        ">
+            You've just won an 
+            <strong>Instant Win Prize</strong> 
+            in the competition 
+            <strong>${competitionName}</strong>.
+        </p>
+
+        <!-- WIN SECTION -->
+        <div style="
+            background:#f4fff4;
+            border:1px solid #b7f3c1;
+            border-radius:16px;
+            padding:32px 24px;
+            text-align:center;
+            margin-bottom:32px;
+        ">
+
+            <p style="
+                color:#1f8f39;
+                margin-top:0;
+                font-size:13px;
+                text-transform:uppercase;
+                font-weight:bold;
+                letter-spacing:1px;
+            ">
+                Your Prize
+            </p>
+
+            <h2 style="
+                color:#42BE38;
+                font-size:28px;
+                margin:12px 0;
+            ">
+                ${prizeTitle}
+            </h2>
+
+            <p style="
+                color:#555555;
+                font-size:15px;
+                margin-bottom:0;
+            ">
+                Winning Ticket:
+                <strong>${ticketCode}</strong>
+            </p>
+
+        </div>
+
+        <!-- INFO -->
+        <div style="
+            background:#fafafa;
+            border:1px solid #eeeeee;
+            border-radius:14px;
+            padding:24px;
+            margin-bottom:30px;
+        ">
+
+            <p style="
+                margin:0 0 12px;
+                color:#666666;
+                font-size:15px;
+                line-height:1.8;
+            ">
+                Competition:
+                <strong>${competitionName}</strong>
+            </p>
+
+            <p style="
+                margin:0;
+                color:#666666;
+                font-size:15px;
+                line-height:1.8;
+            ">
+                Prize:
+                <strong>${prizeTitle}</strong>
+            </p>
+
+        </div>
+
+        <p style="
+            color:#666666;
+            font-size:15px;
+            line-height:1.8;
+            margin-bottom:30px;
+        ">
+            Our team will contact you shortly regarding your prize delivery. 
+            You can also view your winning details anytime inside your 
+            <strong>My Wins</strong> section.
+        </p>
+
+    </div>
+
+    <!-- FOOTER -->
+    <div style="
+        border-top:1px solid #eeeeee;
+        padding:24px;
+        text-align:center;
+        background:#fafafa;
+    ">
+
+        <p style="
+            margin:0;
+            color:#888888;
+            font-size:13px;
+            line-height:1.8;
+        ">
+            Enjoy your prize! <br/>
+            <strong>DreamCar Competitions</strong>
+        </p>
+
+    </div>
+
+</div>
+`;
 
                         await sendEmail({
                             email: user.email,
