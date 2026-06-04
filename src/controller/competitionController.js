@@ -246,35 +246,6 @@ exports.addCompetition = catchAsync(async (req, res) => {
   }
 });
 
-// exports.getAllCompetitions = catchAsync(async (req, res) => {
-//   try {
-//     const competitions = await prisma.competition.findMany({
-//       where: {
-//         deletedAt: null,
-//       },
-//       orderBy: {
-//         createdAt: "desc",
-//       },
-//     });
-
-//     return successResponse(
-//       res,
-//       competitions.length
-//         ? "Competitions fetched successfully"
-//         : "No competitions found",
-//       200,
-//       competitions
-//     );
-//   } catch (error) {
-//     console.log("Get Competitions Error:", error);
-//     return errorResponse(
-//       res,
-//       error.message || "Internal Server Error",
-//       500
-//     );
-//   }
-// });
-
 exports.getAllCompetitions = catchAsync(async (req, res) => {
   try {
 
@@ -408,29 +379,29 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
         }
       });
 
-      if (status === "live") {
-  competitions = competitions.filter(
-    (item) =>
-      new Date(item.startTime) <= now &&
-      new Date(item.endTime) >= now &&
-      item.soldTickets < item.totalTickets
-  );
-}
+    if (status === "live") {
+      competitions = competitions.filter(
+        (item) =>
+          new Date(item.startTime) <= now &&
+          new Date(item.endTime) >= now &&
+          item.soldTickets < item.totalTickets
+      );
+    }
 
-if (status === "ended") {
-  competitions = competitions.filter(
-    (item) =>
-      new Date(item.endTime) < now ||
-      item.soldTickets >= item.totalTickets
-  );
-}
+    if (status === "ended") {
+      competitions = competitions.filter(
+        (item) =>
+          new Date(item.endTime) < now ||
+          item.soldTickets >= item.totalTickets
+      );
+    }
 
-if (status === "upcoming") {
-  competitions = competitions.filter(
-    (item) =>
-      new Date(item.startTime) > now
-  );
-}
+    if (status === "upcoming") {
+      competitions = competitions.filter(
+        (item) =>
+          new Date(item.startTime) > now
+      );
+    }
 
     // if (status === "live") {
     //   competitions = competitions.filter(
@@ -557,6 +528,8 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       instantWin,
     } = req.body;
 
+    console.log("ticketPrice received:", ticketPrice);
+
     const files = req.files || {};
 
     const baseUrl = (process.env.BACKEND_PUBLIC_URL || process.env.DOMAIN || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
@@ -618,6 +591,28 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       }
     }
 
+    if (
+      ticketPrice !== undefined &&
+      ticketPrice !== null &&
+      ticketPrice !== ""
+    ) {
+      if (!Number.isInteger(Number(ticketPrice))) {
+        return errorResponse(
+          res,
+          "Ticket price must be a whole number. Decimals are not allowed.",
+          200
+        );
+      }
+
+      if (Number(ticketPrice) <= 0) {
+        return errorResponse(
+          res,
+          "Ticket price must be greater than 0.",
+          200
+        );
+      }
+    }
+
     let mainPrizeDetail = existingCompetition.prizeDetail;
     let mainPrizeImage = existingCompetition.prizeDetailImage;
     let mainPrizeFeatures = existingCompetition.prizeFeatures;
@@ -646,7 +641,12 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       slug: finalSlug,
       ...(detail && { detail }),
       ...(productType && { productType }),
-      ...(ticketPrice && { ticketPrice: parseInt(ticketPrice) }),
+      // ...(ticketPrice && { ticketPrice: parseInt(ticketPrice) }),
+      ...(ticketPrice !== undefined &&
+        ticketPrice !== null &&
+        ticketPrice !== "" && {
+        ticketPrice: Number(ticketPrice)
+      }),
       ...(totalTickets && { totalTickets: parseInt(totalTickets) }),
       ...(parsedStartTime && { startTime: parsedStartTime }),
       ...(parsedEndTime && { endTime: parsedEndTime }),
@@ -659,6 +659,9 @@ exports.updateCompetition = catchAsync(async (req, res) => {
         instantWinTriggerPercent: instantWinData.enabled ? parseInt(instantWinData.threshold) : null,
       })
     };
+
+
+    console.log("updateData:", updateData);
 
     const updatedCompetition = await prisma.competition.update({
       where: { id: parseInt(id) },
