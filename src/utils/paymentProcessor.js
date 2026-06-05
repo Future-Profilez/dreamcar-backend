@@ -232,355 +232,127 @@ const processSuccessfulPayment = async (session) => {
                     //     `;
                     // }
                     if (giftType === "competition" && competitionName) {
-
                         subject = `You've been gifted a ticket for ${competitionName}! 🎁`;
-
                         emailHtml = `
-    
-    <div style="
-        font-family: Arial, sans-serif;
-        max-width: 600px;
-        margin: 0 auto;
-        background: #ffffff;
-        border: 1px solid #e5e5e5;
-        border-radius: 18px;
-        overflow: hidden;
-    ">
+<div style="font-family: 'Poppins', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 40px 0; width: 100%;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td align="center">
+                <table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; background-color: #f4f4f5; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+                    <tr>
+                        <td align="center" style="background-color: #171717; padding: 35px 20px;">
+                            <img src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75" width="140" alt="Dream Cars" style="display: block;">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #ffffff; border-radius: 8px; border: 2px dashed #cbd5e1;">
+                                <tr>
+                                    <td align="center" style="padding: 40px 30px;">
+                                        <h1 style="margin: 0 0 15px 0; font-size: 24px; color: #111827; text-transform: uppercase; letter-spacing: 2px;">You've Got a Gift! 🎁</h1>
+                                        <div style="width: 50px; height: 3px; background-color: #EC6623; margin: 0 auto 25px auto;"></div>
+                                        
+                                        <p style="margin: 0 0 20px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                            Hi there,
+                                        </p>
+                                        <p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                            <strong>${user ? user.name : 'Someone'}</strong> has gifted you a ticket for the <strong>${competitionName}</strong> competition on DreamCar Competitions!
+                                        </p>
+                                        <p style="margin: 0 0 15px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                            Use the code below at checkout to claim your tickets:
+                                        </p>
 
-        <!-- HEADER -->
-        <div style="
-            background:#000000;
-            padding:40px 30px;
-            text-align:center;
-        ">
+                                        <div style="${codeStyle}">
+                                            ${generatedCode}
+                                        </div>
 
-            <img 
-                src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75"
-                alt="DreamCar Logo"
-                style="
-                    width:220px;
-                    max-width:100%;
-                    margin-bottom:24px;
-                "
-            />
+                                        <p style="margin: 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                            Good luck!
+                                        </p>
 
-            <h1 style="
-                color:#ffffff;
-                font-size:32px;
-                margin:0;
-                font-weight:700;
-            ">
-                You've Got a Gift! 🎁
-            </h1>
-
-            <p style="
-                color:#bdbdbd;
-                margin-top:12px;
-                font-size:15px;
-                line-height:1.6;
-            ">
-                Someone gifted you a competition entry.
-            </p>
-
-        </div>
-
-        <!-- BODY -->
-        <div style="padding:40px 30px;">
-
-            <p style="
-                color:#444444;
-                font-size:16px;
-                line-height:1.8;
-                margin-top:0;
-                margin-bottom:18px;
-            ">
-                Hi there,
-            </p>
-
-            <p style="
-                color:#555555;
-                font-size:15px;
-                line-height:1.8;
-                margin-bottom:30px;
-            ">
-                <strong>${user ? user.name : 'Someone'}</strong>
-                has gifted you a ticket for
-                <strong>${competitionName}</strong>
-                on DreamCar Competitions.
-            </p>
-
-            <!-- GIFT CODE -->
-            <div style="
-                background:#fafafa;
-                border:1px solid #eeeeee;
-                border-radius:16px;
-                padding:34px 24px;
-                text-align:center;
-                margin-bottom:30px;
-            ">
-
-                <p style="
-                    margin-top:0;
-                    margin-bottom:18px;
-                    color:#666666;
-                    font-size:13px;
-                    font-weight:700;
-                    letter-spacing:1px;
-                    text-transform:uppercase;
-                ">
-                    Your Gift Code
-                </p>
-
-                <div style="
-                    display:inline-block;
-                    background:#ffffff;
-                    border:2px dashed #EC6623;
-                    border-radius:14px;
-                    padding:18px 30px;
-                    font-size:32px;
-                    font-weight:700;
-                    letter-spacing:6px;
-                    color:#111111;
-                ">
-                    ${generatedCode}
-                </div>
-
-                <p style="
-                    margin-bottom:0;
-                    margin-top:20px;
-                    color:#888888;
-                    font-size:14px;
-                ">
-                    Gift Value: £${amount}
-                </p>
-
-            </div>
-
-            <!-- STEPS -->
-            <div style="
-                background:#fafafa;
-                border:1px solid #eeeeee;
-                border-radius:16px;
-                padding:24px;
-                margin-bottom:30px;
-            ">
-
-                <h3 style="
-                    margin-top:0;
-                    color:#111111;
-                    font-size:18px;
-                    margin-bottom:18px;
-                ">
-                    How to Redeem
-                </h3>
-
-                <ol style="
-                    color:#555555;
-                    font-size:15px;
-                    line-height:1.9;
-                    padding-left:20px;
-                    margin:0;
-                ">
-                    <li>Login or register on DreamCar Competitions</li>
-                    <li>Open your Profile → Gift Card section</li>
-                    <li>Enter the code above</li>
-                    <li>Use your wallet balance for competition entries</li>
-                </ol>
-
-            </div>
-
-            <p style="
-                color:#666666;
-                font-size:14px;
-                line-height:1.8;
-                margin-bottom:0;
-            ">
-                Good luck and enjoy your competition entry experience.
-            </p>
-
-        </div>
-
-        <!-- FOOTER -->
-        <div style="
-            border-top:1px solid #eeeeee;
-            padding:24px;
-            text-align:center;
-            background:#fafafa;
-        ">
-
-            <p style="
-                margin:0;
-                color:#888888;
-                font-size:13px;
-                line-height:1.8;
-            ">
-                Dream big, drive bigger. <br/>
-                <strong>DreamCar Competitions</strong>
-            </p>
-
-        </div>
-
-    </div>
-
-    `;
-
+                                        <a href="${process.env.FRONTEND_URL}/competitions" style="display: inline-block; background-color: #171717; color: #ffffff; padding: 14px 32px; text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; border-radius: 6px;">Claim Your Tickets</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="background-color: #e5e7eb; padding: 25px;">
+                            <p style="margin: 0 0 10px 0; font-size: 12px; color: #6b7280;">
+                                Need help? <a href="${process.env.FRONTEND_URL}/contact" style="color: #EC6623; text-decoration: none; font-weight: 600;">Contact Support</a>
+                            </p>
+                            <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                                © ${new Date().getFullYear()} Dream Cars. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+`;
                     } else {
-
                         subject = "Your DreamCar Gift Card Code 🎁";
-
                         emailHtml = `
-    
-    <div style="
-        font-family: Arial, sans-serif;
-        max-width: 600px;
-        margin: 0 auto;
-        background: #ffffff;
-        border: 1px solid #e5e5e5;
-        border-radius: 18px;
-        overflow: hidden;
-    ">
+<div style="font-family: 'Poppins', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 40px 0; width: 100%;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td align="center">
+                <table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; background-color: #f4f4f5; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+                    <tr>
+                        <td align="center" style="background-color: #171717; padding: 35px 20px;">
+                            <img src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75" width="140" alt="Dream Cars" style="display: block;">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #ffffff; border-radius: 8px; border: 2px dashed #cbd5e1;">
+                                <tr>
+                                    <td align="center" style="padding: 40px 30px;">
+                                        <h1 style="margin: 0 0 15px 0; font-size: 24px; color: #111827; text-transform: uppercase; letter-spacing: 2px;">DreamCar Gift Card 💳</h1>
+                                        <div style="width: 50px; height: 3px; background-color: #EC6623; margin: 0 auto 25px auto;"></div>
+                                        
+                                        <p style="margin: 0 0 20px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                            Hi ${user ? user.name : 'there'},
+                                        </p>
+                                        <p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                            You've received a <strong>£${amount}</strong> gift card for DreamCar competitions!
+                                        </p>
+                                        <p style="margin: 0 0 15px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                            Use the code below at checkout to apply your balance:
+                                        </p>
 
-        <!-- HEADER -->
-        <div style="
-            background:#000000;
-            padding:40px 30px;
-            text-align:center;
-        ">
+                                        <div style="${codeStyle}">
+                                            ${generatedCode}
+                                        </div>
 
-            <img 
-                src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75"
-                alt="DreamCar Logo"
-                style="
-                    width:220px;
-                    max-width:100%;
-                    margin-bottom:24px;
-                "
-            />
+                                        <p style="margin: 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                            Enjoy your gift!
+                                        </p>
 
-            <h1 style="
-                color:#ffffff;
-                font-size:32px;
-                margin:0;
-                font-weight:700;
-            ">
-                DreamCar Gift Card 💳
-            </h1>
-
-            <p style="
-                color:#bdbdbd;
-                margin-top:12px;
-                font-size:15px;
-                line-height:1.6;
-            ">
-                Your gift credit is ready to use.
-            </p>
-
-        </div>
-
-        <!-- BODY -->
-        <div style="padding:40px 30px;">
-
-            <p style="
-                color:#444444;
-                font-size:16px;
-                line-height:1.8;
-                margin-top:0;
-                margin-bottom:18px;
-            ">
-                Hi ${user ? user.name : 'there'},
-            </p>
-
-            <p style="
-                color:#555555;
-                font-size:15px;
-                line-height:1.8;
-                margin-bottom:30px;
-            ">
-                Thank you for purchasing a DreamCar Gift Card.
-                You can redeem this code yourself or share it with someone special.
-            </p>
-
-            <!-- CODE BOX -->
-            <div style="
-                background:#fafafa;
-                border:1px solid #eeeeee;
-                border-radius:16px;
-                padding:34px 24px;
-                text-align:center;
-                margin-bottom:30px;
-            ">
-
-                <p style="
-                    margin-top:0;
-                    margin-bottom:18px;
-                    color:#666666;
-                    font-size:13px;
-                    font-weight:700;
-                    letter-spacing:1px;
-                    text-transform:uppercase;
-                ">
-                    Your Gift Code
-                </p>
-
-                <div style="
-                    display:inline-block;
-                    background:#ffffff;
-                    border:2px dashed #EC6623;
-                    border-radius:14px;
-                    padding:18px 30px;
-                    font-size:32px;
-                    font-weight:700;
-                    letter-spacing:6px;
-                    color:#111111;
-                ">
-                    ${generatedCode}
-                </div>
-
-                <p style="
-                    margin-bottom:0;
-                    margin-top:20px;
-                    color:#888888;
-                    font-size:14px;
-                ">
-                    Gift Value: £${amount}
-                </p>
-
-            </div>
-
-            <p style="
-                color:#666666;
-                font-size:14px;
-                line-height:1.8;
-                margin-bottom:0;
-            ">
-                Redeem this code inside your account under the Gift Card section.
-            </p>
-
-        </div>
-
-        <!-- FOOTER -->
-        <div style="
-            border-top:1px solid #eeeeee;
-            padding:24px;
-            text-align:center;
-            background:#fafafa;
-        ">
-
-            <p style="
-                margin:0;
-                color:#888888;
-                font-size:13px;
-                line-height:1.8;
-            ">
-                Thank you for choosing us. <br/>
-                <strong>DreamCar Competitions</strong>
-            </p>
-
-        </div>
-
-    </div>
-
-    `;
+                                        <a href="${process.env.FRONTEND_URL}/competitions" style="display: inline-block; background-color: #171717; color: #ffffff; padding: 14px 32px; text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; border-radius: 6px;">Browse Competitions</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="background-color: #e5e7eb; padding: 25px;">
+                            <p style="margin: 0 0 10px 0; font-size: 12px; color: #6b7280;">
+                                Need help? <a href="${process.env.FRONTEND_URL}/contact" style="color: #EC6623; text-decoration: none; font-weight: 600;">Contact Support</a>
+                            </p>
+                            <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                                © ${new Date().getFullYear()} Dream Cars. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+`;
                     }
                     await sendEmail({
                         email: targetEmail,
@@ -815,182 +587,58 @@ const processSuccessfulPayment = async (session) => {
                         const competitionName = txResult.competition.title;
 
                         const emailHtml = `
-<div style="
-    font-family: Arial, sans-serif;
-    max-width: 650px;
-    margin: 0 auto;
-    background: #ffffff;
-    border: 1px solid #e5e5e5;
-    border-radius: 18px;
-    overflow: hidden;
-">
+<div style="font-family: 'Poppins', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 40px 0; width: 100%;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td align="center">
+                <table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; background-color: #f4f4f5; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+                    <tr>
+                        <td align="center" style="background-color: #171717; padding: 35px 20px;">
+                            <img src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75" width="140" alt="Dream Cars" style="display: block;">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #ffffff; border-radius: 8px; border: 2px dashed #cbd5e1;">
+                                <tr>
+                                    <td align="center" style="padding: 40px 30px;">
+                                        <h1 style="margin: 0 0 15px 0; font-size: 24px; color: #111827; text-transform: uppercase; letter-spacing: 2px;">Instant Win! 🎉</h1>
+                                        <div style="width: 50px; height: 3px; background-color: #EC6623; margin: 0 auto 25px auto;"></div>
+                                        
+                                        <p style="margin: 0 0 20px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                            Hi <strong>${user.name}</strong>, congratulations on winning an instant prize in the <strong>${competitionName}</strong> competition!
+                                        </p>
 
-    <!-- HEADER -->
-    <div style="
-        background:#000000;
-        padding:40px 30px;
-        text-align:center;
-    ">
+                                        <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                                            <div style="font-size: 12px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 5px;">Your Prize</div>
+                                            <div style="font-size: 20px; color: #42BE38; font-weight: 700; margin-bottom: 10px;">${prizeTitle}</div>
+                                            <div style="font-size: 14px; color: #4b5563;">Winning Ticket: <strong>${ticketCode}</strong></div>
+                                        </div>
 
-        <img 
-            src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75"
-            alt="DreamCar"
-            style="
-                width:220px;
-                max-width:100%;
-                margin-bottom:24px;
-            "
-        />
+                                        <p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                            Our team will be in touch with you shortly. You can also view this win in your account.
+                                        </p>
 
-        <h1 style="
-            color:#ffffff;
-            margin:0;
-            font-size:32px;
-            font-weight:700;
-        ">
-            Instant Win Prize 🎉
-        </h1>
-
-        <p style="
-            color:#bdbdbd;
-            margin-top:12px;
-            font-size:15px;
-            line-height:1.6;
-        ">
-            Congratulations! You've unlocked an instant reward.
-        </p>
-
-    </div>
-
-    <!-- BODY -->
-    <div style="padding:40px 30px;">
-
-        <p style="
-            color:#444444;
-            font-size:16px;
-            line-height:1.8;
-            margin-top:0;
-            margin-bottom:18px;
-        ">
-            Hi ${user.name},
-        </p>
-
-        <p style="
-            color:#555555;
-            font-size:15px;
-            line-height:1.8;
-            margin-bottom:30px;
-        ">
-            You've just won an 
-            <strong>Instant Win Prize</strong> 
-            in the competition 
-            <strong>${competitionName}</strong>.
-        </p>
-
-        <!-- WIN SECTION -->
-        <div style="
-            background:#f4fff4;
-            border:1px solid #b7f3c1;
-            border-radius:16px;
-            padding:32px 24px;
-            text-align:center;
-            margin-bottom:32px;
-        ">
-
-            <p style="
-                color:#1f8f39;
-                margin-top:0;
-                font-size:13px;
-                text-transform:uppercase;
-                font-weight:bold;
-                letter-spacing:1px;
-            ">
-                Your Prize
-            </p>
-
-            <h2 style="
-                color:#42BE38;
-                font-size:28px;
-                margin:12px 0;
-            ">
-                ${prizeTitle}
-            </h2>
-
-            <p style="
-                color:#555555;
-                font-size:15px;
-                margin-bottom:0;
-            ">
-                Winning Ticket:
-                <strong>${ticketCode}</strong>
-            </p>
-
-        </div>
-
-        <!-- INFO -->
-        <div style="
-            background:#fafafa;
-            border:1px solid #eeeeee;
-            border-radius:14px;
-            padding:24px;
-            margin-bottom:30px;
-        ">
-
-            <p style="
-                margin:0 0 12px;
-                color:#666666;
-                font-size:15px;
-                line-height:1.8;
-            ">
-                Competition:
-                <strong>${competitionName}</strong>
-            </p>
-
-            <p style="
-                margin:0;
-                color:#666666;
-                font-size:15px;
-                line-height:1.8;
-            ">
-                Prize:
-                <strong>${prizeTitle}</strong>
-            </p>
-
-        </div>
-
-        <p style="
-            color:#666666;
-            font-size:15px;
-            line-height:1.8;
-            margin-bottom:30px;
-        ">
-            Our team will contact you shortly regarding your prize delivery. 
-            You can also view your winning details anytime inside your 
-            <strong>My Wins</strong> section.
-        </p>
-
-    </div>
-
-    <!-- FOOTER -->
-    <div style="
-        border-top:1px solid #eeeeee;
-        padding:24px;
-        text-align:center;
-        background:#fafafa;
-    ">
-
-        <p style="
-            margin:0;
-            color:#888888;
-            font-size:13px;
-            line-height:1.8;
-        ">
-            Enjoy your prize! <br/>
-            <strong>DreamCar Competitions</strong>
-        </p>
-
-    </div>
-
+                                        <a href="${process.env.FRONTEND_URL}/profile" style="display: inline-block; background-color: #171717; color: #ffffff; padding: 14px 32px; text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; border-radius: 6px;">View My Wins</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="background-color: #e5e7eb; padding: 25px;">
+                            <p style="margin: 0 0 10px 0; font-size: 12px; color: #6b7280;">
+                                Need help? <a href="${process.env.FRONTEND_URL}/contact" style="color: #EC6623; text-decoration: none; font-weight: 600;">Contact Support</a>
+                            </p>
+                            <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                                © ${new Date().getFullYear()} Dream Cars. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </div>
 `;
 

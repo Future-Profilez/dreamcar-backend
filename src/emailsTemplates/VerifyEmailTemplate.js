@@ -1,4 +1,4 @@
-module.exports = (user) => {
+module.exports = (user, otp) => {
     return `
     <div style="font-family: 'Poppins', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 40px 0; width: 100%;">
         <table border="0" cellpadding="0" cellspacing="0" width="100%">
@@ -15,16 +15,23 @@ module.exports = (user) => {
                                 <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #ffffff; border-radius: 8px; border: 2px dashed #cbd5e1;">
                                     <tr>
                                         <td align="center" style="padding: 40px 30px;">
-                                            <h1 style="margin: 0 0 15px 0; font-size: 24px; color: #111827; text-transform: uppercase; letter-spacing: 2px;">Account Verified</h1>
+                                            <h1 style="margin: 0 0 15px 0; font-size: 24px; color: #111827; text-transform: uppercase; letter-spacing: 2px;">Verify Your Account</h1>
                                             <div style="width: 50px; height: 3px; background-color: #EC6623; margin: 0 auto 25px auto;"></div>
                                             
                                             <p style="margin: 0 0 20px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
-                                                Hi <strong>${user || 'there'}</strong>, your email has been successfully verified.
+                                                Hi <strong>${user || 'there'}</strong>, welcome to Dream Cars!
                                             </p>
-                                            <p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">Your DreamCar account is now active and ready to go.</p><p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">You can now enter live competitions, use wallet payments, and track your entries & winnings.</p>
+                                            <p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">To complete your registration and activate your account, please use the OTP code below.</p>
 
                                             
-                                            <a href="${process.env.FRONTEND_URL}" style="display: inline-block; background-color: #171717; color: #ffffff; padding: 14px 32px; text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; border-radius: 6px;">Start Exploring</a>
+                                            <div style="margin: 30px 0;">
+                                                <p style="margin: 0 0 10px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Your OTP Code</p>
+                                                <div style="display: inline-block; background-color: #f9fafb; border: 2px dashed #EC6623; border-radius: 8px; padding: 15px 30px; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #111827;">
+                                                    ${otp}
+                                                </div>
+                                            </div>
+                                            
+
                                             
                                         </td>
                                     </tr>
