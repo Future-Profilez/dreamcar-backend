@@ -3,6 +3,44 @@ const catchAsync = require("../utils/catchAsync");
 const prisma = require("../prismaconfig");
 const stripe = require("../utils/stripe");
 const { processSuccessfulPayment } = require("../utils/paymentProcessor");
+const { getCompetitionTicketDiscountPercent } = require("../utils/ticketDiscount");
+
+const round2 = (v) => Math.round(Number(v || 0) * 100) / 100;
+
+const enrichPaymentWithDiscount = (payment) => {
+    const storedAmount = Number(payment.amount) || 0;
+    const isCompetition = payment.type === "competition";
+    if (!isCompetition) {
+        return {
+            ...payment,
+            storedAmount,
+            amount: storedAmount,
+            originalAmount: storedAmount,
+            discountAmount: 0,
+            discountPercent: 0
+        };
+    }
+
+    const qty = Number(payment.quantity || 0);
+    const ticketPrice = Number(payment.competition?.ticketPrice || 0);
+    const discountPercent = getCompetitionTicketDiscountPercent(qty);
+    const originalAmount = qty > 0 && ticketPrice > 0 ? round2(qty * ticketPrice) : storedAmount;
+    const expectedDiscountedAmount = round2(originalAmount * (1 - discountPercent));
+    const amount =
+        discountPercent > 0 && Math.abs(storedAmount - originalAmount) < 0.01
+            ? expectedDiscountedAmount
+            : storedAmount;
+    const discountAmount = round2(Math.max(0, originalAmount - amount));
+
+    return {
+        ...payment,
+        storedAmount,
+        amount,
+        originalAmount,
+        discountAmount,
+        discountPercent
+    };
+};
 
 exports.verifyPayment = catchAsync(async (req, res) => {
     try {
@@ -15,6 +53,14 @@ exports.verifyPayment = catchAsync(async (req, res) => {
                 userId: userId
             },
             include: {
+                competition: {
+                    select: {
+                        id: true,
+                        title: true,
+                        slug: true,
+                        ticketPrice: true
+                    }
+                },
                 tickets: true
             }
         });
@@ -59,6 +105,14 @@ exports.verifyPayment = catchAsync(async (req, res) => {
                                 userId: userId
                             },
                             include: {
+                                competition: {
+                                    select: {
+                                        id: true,
+                                        title: true,
+                                        slug: true,
+                                        ticketPrice: true
+                                    }
+                                },
                                 tickets: true
                             }
                         });
@@ -74,29 +128,10 @@ exports.verifyPayment = catchAsync(async (req, res) => {
             return errorResponse(res, "Payment not found or not completed", 200);
         }
 
-        // const competition = await prisma.competition.findUnique({
-        //     where: { id: payment.competitionId }
-        // });
-
-        // return successResponse(res, "Payment fetched successfully", 200, {
-        //     ...payment,
-        //     competition
-        // });
-
-        let competition = null;
-
-        if (payment.competitionId) {
-            competition = await prisma.competition.findUnique({
-                where: {
-                    id: payment.competitionId
-                }
-            });
-        }
-
-        const totalAmount = payment.reduce(
-            (sum, p) => sum + Number(p.amount),
-            0
-        );
+        const enrichedPayments = payment.map(enrichPaymentWithDiscount);
+        const totalAmount = enrichedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+        const subtotalAmount = enrichedPayments.reduce((sum, p) => sum + Number(p.originalAmount || 0), 0);
+        const discountTotal = enrichedPayments.reduce((sum, p) => sum + Number(p.discountAmount || 0), 0);
         console.log("TOTALLLL amount in verify pyament ", totalAmount);
 
         return successResponse(
@@ -104,7 +139,9 @@ exports.verifyPayment = catchAsync(async (req, res) => {
             "Payment fetched successfully",
             200,
             {
-                payments: payment,
+                payments: enrichedPayments,
+                subtotalAmount,
+                discountTotal,
                 totalAmount,
                 createdAt: payment[0]?.createdAt
             }
@@ -125,7 +162,14 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
                 userId,
             },
             include: {
-                competition: true,
+                competition: {
+                    select: {
+                        id: true,
+                        title: true,
+                        slug: true,
+                        ticketPrice: true
+                    }
+                },
                 tickets: true
             },
             orderBy: {
@@ -134,6 +178,7 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
         });
 
         const data = payments.map((p) => {
+            const enriched = enrichPaymentWithDiscount(p);
             let competitionName = p.competition?.title || "N/A";
 
             if (p.type === "gift_credit") {
@@ -149,7 +194,10 @@ exports.getPaymentHistory = catchAsync(async (req, res) => {
                 competition: competitionName,
                 competitionSlug: p.competition?.slug || null,
                 tickets: p.quantity || 0,
-                amount: p.amount,
+                originalAmount: enriched.originalAmount,
+                discountAmount: enriched.discountAmount,
+                discountPercent: enriched.discountPercent,
+                amount: enriched.amount,
                 date: p.createdAt,
                 competitionId: p.competitionId,
                 sessionId: p.sessionId,
@@ -339,6 +387,7 @@ exports.getAllPayments = catchAsync(async (req, res) => {
                         id: true,
                         title: true,
                         slug: true,
+                        ticketPrice: true,
                     },
                 },
                 tickets: {
@@ -352,22 +401,23 @@ exports.getAllPayments = catchAsync(async (req, res) => {
             },
             orderBy,
         });
+        const enrichedPayments = payments.map(enrichPaymentWithDiscount);
         // DASHBOARD STATS
-        const totalRevenue = payments.reduce(
-            (sum, p) => sum + Number(p.amount),
-            0
-        );
-        const totalCompetitionRevenue = payments
+        const totalRevenue = enrichedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalCompetitionRevenue = enrichedPayments
             .filter(p => p.type === "competition")
             .reduce((sum, p) => sum + Number(p.amount), 0);
-        const totalGiftRevenue = payments
+        const totalGiftRevenue = enrichedPayments
             .filter(p => p.type === "gift_credit")
             .reduce((sum, p) => sum + Number(p.amount), 0);
-        const totalWalletRevenue = payments
+        const totalWalletRevenue = enrichedPayments
             .filter(p => p.type === "wallet_recharge")
             .reduce((sum, p) => sum + Number(p.amount), 0);
 
-        const data = payments.map((p) => ({
+        const data = enrichedPayments.map((p) => ({
+            originalAmount: p.originalAmount,
+            discountAmount: p.discountAmount,
+            discountPercent: p.discountPercent,
             id: p.id,
             orderId: p.id.slice(0, 6),
             userName: p.user?.name,
@@ -388,12 +438,8 @@ exports.getAllPayments = catchAsync(async (req, res) => {
             paymentType: p.type,
             sessionId: p.sessionId,
             stripePaymentId: p.stripePaymentId,
-            ticketNumbers: p.tickets.map(
-                (t) => t.ticketNumber
-            ),
-            ticketCodes: p.tickets.map(
-                (t) => t.ticketCode
-            ),
+            ticketNumbers: p.tickets.map((t) => t.ticketNumber),
+            ticketCodes: p.tickets.map((t) => t.ticketCode),
             createdAt: p.createdAt,
         }));
 

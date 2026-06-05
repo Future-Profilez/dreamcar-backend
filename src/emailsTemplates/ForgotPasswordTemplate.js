@@ -1,156 +1,67 @@
-
 module.exports = (user, otp) => {
-
     return `
+    <div style="font-family: 'Poppins', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 40px 0; width: 100%;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+                <td align="center">
+                    <table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; background-color: #f4f4f5; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+                        <tr>
+                            <td align="center" style="background-color: #171717; padding: 35px 20px;">
+                                <img src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75" width="140" alt="Dream Cars" style="display: block;">
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 40px 30px;">
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #ffffff; border-radius: 8px; border: 2px dashed #cbd5e1;">
+                                    <tr>
+                                        <td align="center" style="padding: 40px 30px;">
+                                            <h1 style="margin: 0 0 15px 0; font-size: 24px; color: #111827; text-transform: uppercase; letter-spacing: 2px;">Reset Your Password</h1>
+                                            <div style="width: 50px; height: 3px; background-color: #EC6623; margin: 0 auto 25px auto;"></div>
+                                            
+                                            <p style="margin: 0 0 20px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                                Hi <strong>${user || 'there'}</strong>, we received a request to reset your password.
+                                            </p>
+                                            <p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">Please use the OTP code below to set a new password for your account.</p><p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">If you didn't request this, you can safely ignore this email.</p>
 
-    <div style="
-        font-family: Arial, sans-serif;
-        max-width: 600px;
-        margin: 0 auto;
-        background: #ffffff;
-        border: 1px solid #e5e5e5;
-        border-radius: 18px;
-        overflow: hidden;
-    ">
+                                            
+                                            <div style="margin: 30px 0;">
+                                                <p style="margin: 0 0 10px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Your OTP Code</p>
+                                                <div style="display: inline-block; background-color: #f9fafb; border: 2px dashed #EC6623; border-radius: 8px; padding: 15px 30px; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #111827;">
+                                                    ${otp}
+                                                </div>
+                                            </div>
+                                            
 
-        <!-- HEADER -->
-        <div style="
-            background:#000000;
-            padding:40px 30px;
-            text-align:center;
-        ">
+                                            
+                                        </td>
+                                    </tr>
+                                </table>
 
-            <img 
-                src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75"
-                alt="DreamCar Logo"
-                style="
-                    width:220px;
-                    max-width:100%;
-                    margin-bottom:24px;
-                "
-            />
-
-            <h1 style="
-                color:#ffffff;
-                font-size:32px;
-                margin:0;
-                font-weight:700;
-            ">
-                Password Reset 
-            </h1>
-
-            <p style="
-                color:#bdbdbd;
-                margin-top:12px;
-                font-size:15px;
-                line-height:1.6;
-            ">
-                Reset your DreamCar account password securely.
-            </p>
-
-        </div>
-
-        <!-- BODY -->
-        <div style="padding:40px 30px;">
-
-            <p style="
-                color:#444444;
-                font-size:16px;
-                line-height:1.8;
-                margin-top:0;
-                margin-bottom:18px;
-            ">
-                Hi ${user || "there"},
-            </p>
-
-            <p style="
-                color:#555555;
-                font-size:15px;
-                line-height:1.8;
-                margin-bottom:30px;
-            ">
-                We received a request to reset your DreamCar account password.
-                Please use the verification code below to continue.
-            </p>
-
-            <!-- OTP BOX -->
-            <div style="
-                background:#fafafa;
-                border:1px solid #eeeeee;
-                border-radius:16px;
-                padding:34px 24px;
-                text-align:center;
-                margin-bottom:30px;
-            ">
-
-                <p style="
-                    margin-top:0;
-                    margin-bottom:18px;
-                    color:#666666;
-                    font-size:13px;
-                    font-weight:700;
-                    letter-spacing:1px;
-                    text-transform:uppercase;
-                ">
-                    Your Reset Code
-                </p>
-
-                <div style="
-                    display:inline-block;
-                    background:#ffffff;
-                    padding:18px 30px;
-                    font-size:36px;
-                    font-weight:700;
-                    letter-spacing:8px;
-                    color:#111111;
-                ">
-                    ${otp}
-                </div>
-
-                <p style="
-                    margin-bottom:0;
-                    margin-top:20px;
-                    color:#888888;
-                    font-size:14px;
-                ">
-                    This code expires in 10 minutes.
-                </p>
-
-            </div>
-
-            <p style="
-                color:#666666;
-                font-size:14px;
-                line-height:1.8;
-                margin-bottom:0;
-            ">
-                If you did not request a password reset, you can safely ignore this email.
-            </p>
-
-        </div>
-
-        <!-- FOOTER -->
-        <div style="
-            border-top:1px solid #eeeeee;
-            padding:24px;
-            text-align:center;
-            background:#fafafa;
-        ">
-
-            <p style="
-                margin:0;
-                color:#888888;
-                font-size:13px;
-                line-height:1.8;
-            ">
-                Stay secure, <br/>
-                <strong>DreamCar Competitions</strong>
-            </p>
-
-        </div>
-
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px;">
+                                    <tr>
+                                        <td align="center" style="font-size: 13px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                                            <span style="color: #EC6623;">✓</span> Guaranteed Draws &nbsp;&nbsp;|&nbsp;&nbsp; 
+                                            <span style="color: #EC6623;">✓</span> Secure Entry &nbsp;&nbsp;|&nbsp;&nbsp; 
+                                            <span style="color: #EC6623;">✓</span> Fixed Odds
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td align="center" style="background-color: #e5e7eb; padding: 25px;">
+                                <p style="margin: 0 0 10px 0; font-size: 12px; color: #6b7280;">
+                                    Need help? <a href="${process.env.FRONTEND_URL}/contact" style="color: #EC6623; text-decoration: none; font-weight: 600;">Contact Support</a>
+                                </p>
+                                <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                                    © ${new Date().getFullYear()} Dream Cars. All rights reserved.
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
     </div>
-
     `;
 };
-

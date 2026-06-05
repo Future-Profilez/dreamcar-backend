@@ -5,6 +5,9 @@ const stripe = require('../utils/stripe');
 const generateSlug = require('../utils/generateSlug');
 const { createAdminNotification } = require("../utils/createAdminNotification");
 const parseLondonDateTime = require("../utils/parseLondonDateTime");
+const {
+  getCompetitionTicketDiscountPercent,
+} = require("../utils/ticketDiscount");
 
 exports.addCompetition = catchAsync(async (req, res) => {
   try {
@@ -818,10 +821,14 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
     if (!items || !Array.isArray(items) || items.length === 0) {
       return errorResponse(res, "Items are required", 200);
     }
-    let totalAmount = 0;
     let lineItems = [];
-    for (const item of items) {
+    const pricedItems = new Array(items.length);
+    const ticketPricing = [];
+    let giftSubtotalCents = 0;
+    let ticketSubtotalCents = 0;
 
+    for (let idx = 0; idx < items.length; idx++) {
+      const item = items[idx];
       const { competitionId, quantity, answer, itemType, itemId } = item;
 
       //for gift credit
@@ -837,36 +844,39 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
           );
         }
 
-        totalAmount += amount;
+        const amountCents = Math.round(amount * 100);
+        giftSubtotalCents += amountCents;
 
         lineItems.push({
           price_data: {
-            currency: "usd",
+            currency: "gbp",
 
             product_data: {
               name:
                 `DreamCar Gift Credit (£${amount})`
             },
 
-            unit_amount: Math.round(amount * 100)
+            unit_amount: amountCents
           },
 
           quantity: 1
         });
 
+        pricedItems[idx] = {
+          ...item,
+          finalAmountCents: amountCents,
+        };
+
         continue;
       }
 
-      if (!itemId || !quantity) {
+      const parsedQty = parseInt(quantity, 10);
+      if (!itemId || !Number.isInteger(parsedQty) || parsedQty <= 0) {
         return errorResponse(res, "competitionId and quantity are required", 200);
       }
 
       if (req.user.role !== "user") {
         return errorResponse(res, "Only users can buy tickets", 200);
-      }
-
-      if (quantity <= 0 || quantity > 10) {
-        return errorResponse(res, "Invalid ticket quantity (max 10)", 200);
       }
 
       const competition = await prisma.competition.findUnique({
@@ -887,35 +897,53 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
         return errorResponse(res, "Competition not started yet", 200);
       }
 
-      if (competition.soldTickets + quantity > competition.totalTickets) {
+      if (competition.soldTickets + parsedQty > competition.totalTickets) {
         const available = competition.totalTickets - competition.soldTickets;
         return errorResponse(res, `Not enough tickets left for ${competition.title}. Only ${available} available.`, 200);
       }
 
-      const existingTickets = await prisma.ticket.count({
-        where: {
-          userId,
-          competitionId: parseInt(itemId)
-        }
-      });
+      const subtotalCents = Math.round(Number(competition.ticketPrice) * 100) * parsedQty;
+      ticketSubtotalCents += subtotalCents;
 
-      if (existingTickets + quantity > 10) {
-        return errorResponse(res, "Ticket limit exceeded (max 10 per user)", 200);
-      }
+      const discountPercent = getCompetitionTicketDiscountPercent(parsedQty);
+      const discountCents = Math.round(subtotalCents * discountPercent);
+      const finalCents = Math.max(0, subtotalCents - discountCents);
 
-      const amount = competition.ticketPrice * quantity;
-      totalAmount += amount;
-      lineItems.push({
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: `${competition.title} - ${quantity} Ticket(s)`
-          },
-          unit_amount: Math.round(amount * 100)
-        },
-        quantity: 1
+      ticketPricing.push({
+        idx,
+        item,
+        competition,
+        parsedQty,
+        subtotalCents,
+        finalCents,
       });
     }
+
+    let discountedTicketTotalCents = 0;
+    for (let i = 0; i < ticketPricing.length; i++) {
+      const t = ticketPricing[i];
+      discountedTicketTotalCents += t.finalCents;
+
+      lineItems.push({
+        price_data: {
+          currency: "gbp",
+          product_data: {
+            name: `${t.competition.title} - ${t.parsedQty} Ticket(s)`,
+          },
+          unit_amount: t.finalCents,
+        },
+        quantity: 1,
+      });
+
+      pricedItems[t.idx] = {
+        ...t.item,
+        quantity: t.parsedQty,
+        finalAmountCents: t.finalCents,
+      };
+    }
+
+    const pricedItemsForMetadata = pricedItems.filter(Boolean);
+    const totalAmount = (giftSubtotalCents + discountedTicketTotalCents) / 100;
     if (isWalletPayment) {
       const wallet = await prisma.wallet.findUnique({
         where: { userId: req.user.id },
@@ -933,11 +961,11 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
       const sessionObj = {
         id: mockSessionId,
         payment_intent: mockPaymentIntent,
-        currency: "usd",
+        currency: "gbp",
         metadata: {
           userId: userId.toString(),
           type: "competition_ticket",
-          items: JSON.stringify(items)
+          items: JSON.stringify(pricedItemsForMetadata)
         }
       };
 
@@ -1010,7 +1038,7 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
         metadata: {
           userId: userId.toString(),
           type: "competition_ticket",
-          items: JSON.stringify(items)
+          items: JSON.stringify(pricedItemsForMetadata)
         }
       });
       return successResponse(res, "Session created", 200, {

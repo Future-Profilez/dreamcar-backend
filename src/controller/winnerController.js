@@ -129,35 +129,59 @@ exports.drawWinner = catchAsync(async (req, res) => {
                 const ticketCode = ticket.ticketCode || `#${ticket.ticketNumber}`;
 
                 const emailHtml = `
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #f0f0f0; border-radius: 16px; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-                        <div style="text-align: center; margin-bottom: 32px;">
-                            <h1 style="color: #1a1a1a; margin: 0; display: inline-block; background-color: #e6ffe6; padding: 6px 12px; border-radius: 4px; font-size: 28px;">Congratulations! 🎉</h1>
-                        </div>
-                        
-                        <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6; margin-bottom: 16px;">
-                            Hi ${ticket.user.name},
-                        </p>
-                        <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6; margin-bottom: 32px;">
-                            You are the <strong>${positionText}</strong> in the <strong>${competition.title}</strong> competition!
-                        </p>
+                <div style="font-family: 'Poppins', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 40px 0; width: 100%;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                        <tr>
+                            <td align="center">
+                                <table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; background-color: #f4f4f5; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+                                    <tr>
+                                        <td align="center" style="background-color: #171717; padding: 35px 20px;">
+                                            <img src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75" width="140" alt="Dream Cars" style="display: block;">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 40px 30px;">
+                                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #ffffff; border-radius: 8px; border: 2px dashed #cbd5e1;">
+                                                <tr>
+                                                    <td align="center" style="padding: 40px 30px;">
+                                                        <h1 style="margin: 0 0 15px 0; font-size: 24px; color: #111827; text-transform: uppercase; letter-spacing: 2px;">Congratulations! 🎉</h1>
+                                                        <div style="width: 50px; height: 3px; background-color: #EC6623; margin: 0 auto 25px auto;"></div>
+                                                        
+                                                        <p style="margin: 0 0 20px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                                            Hi <strong>\${ticket.user.name}</strong>, you are the <strong>\${positionText}</strong> in the <strong>\${competition.title}</strong> competition!
+                                                        </p>
 
-                        <div style="background: #fafafa; padding: 32px 24px; border-radius: 12px; text-align: center; margin: 32px 0;">
-                            <p style="color: #666; margin-top: 0; font-size: 13px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Your Prize</p>
-                            <h2 style="color: #42BE38; font-size: 24px; margin: 12px 0;">${prizeTitle}</h2>
-                            <p style="color: #666; font-size: 15px; margin-bottom: 0;">Winning Ticket: <strong>${ticketCode}</strong></p>
-                        </div>
+                                                        <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                                                            <div style="font-size: 12px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 5px;">Your Prize</div>
+                                                            <div style="font-size: 20px; color: #42BE38; font-weight: 700; margin-bottom: 10px;">\${prizeTitle}</div>
+                                                            <div style="font-size: 14px; color: #4b5563;">Winning Ticket: <strong>\${ticketCode}</strong></div>
+                                                        </div>
 
-                        <p style="color: #4a4a4a; font-size: 15px; line-height: 1.8; margin-bottom: 32px;">
-                            Our team will be in touch with you shortly to arrange the delivery of your prize. You can view your winning details anytime in your profile under <strong>My Wins</strong>.
-                        </p>
+                                                        <p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
+                                                            Our team will be in touch with you shortly to arrange the delivery of your prize.
+                                                        </p>
 
-                        <hr style="border: none; border-top: 1px solid #f0f0f0; margin: 32px 0;" />
-                        
-                        <p style="color: #888; font-size: 14px; text-align: center; margin: 0;">
-                            Enjoy your prize!<br/>
-                            <strong>The DreamCar Competitions Team</strong>
-                        </p>
-                    </div>
+                                                        <a href="\${process.env.FRONTEND_URL}/profile" style="display: inline-block; background-color: #171717; color: #ffffff; padding: 14px 32px; text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; border-radius: 6px;">View My Wins</a>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td align="center" style="background-color: #e5e7eb; padding: 25px;">
+                                            <p style="margin: 0 0 10px 0; font-size: 12px; color: #6b7280;">
+                                                Need help? <a href="\${process.env.FRONTEND_URL}/contact" style="color: #EC6623; text-decoration: none; font-weight: 600;">Contact Support</a>
+                                            </p>
+                                            <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                                                © \${new Date().getFullYear()} Dream Cars. All rights reserved.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
                 `;
 
                 await sendEmail({
