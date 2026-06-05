@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const sendEmail = require("./EmailMailler");
 const TicketPurchaseTemplate = require("../emailsTemplates/TicketPurchaseTemplate");
 const { createAdminNotification } = require("./createAdminNotification");
+const { getCompetitionTicketDiscountPercent } = require("./ticketDiscount");
 
 const processWalletRecharge = async (session) => {
     const { userId, amount, type } = session.metadata;
@@ -621,13 +622,27 @@ const processSuccessfulPayment = async (session) => {
                     images: true
                 }
             });
+
+            if (!competition) {
+                throw new Error("Competition not found");
+            }
+
+            const computedOriginalAmount = parsedQty * Number(competition.ticketPrice);
+            const computedDiscountPercent = getCompetitionTicketDiscountPercent(parsedQty);
+            const computedDiscountedAmount = Math.round(computedOriginalAmount * (1 - computedDiscountPercent) * 100) / 100;
+
+            const amountFromMeta =
+                item.finalAmountCents !== undefined && item.finalAmountCents !== null
+                    ? Number(item.finalAmountCents) / 100
+                    : computedDiscountedAmount;
+
             // 1. Create Payment Record
             const payment = await tx.stripePayment.create({
                 data: {
                     userId: parsedUserId,
                     competitionId: parsedCompetitionId,
                     // amount: session.amount_total / 100,
-                    amount: parsedQty * Number(competition.ticketPrice),
+                    amount: amountFromMeta,
                     currency: session.currency,
                     status: "success",
                     type: "competition",
@@ -636,10 +651,6 @@ const processSuccessfulPayment = async (session) => {
                     quantity: parsedQty
                 }
             });
-
-            if (!competition) {
-                throw new Error("Competition not found");
-            }
 
             // 3. Check Answer
             const question = await tx.complianceQuestion.findFirst({
@@ -684,7 +695,11 @@ const processSuccessfulPayment = async (session) => {
 
             for (let i = 0; i < parsedQty; i++) {
                 const ticketNumber = startNumber + i;
-                const ticketCode = generateTicketCode(parsedCompetitionId, ticketNumber);
+                const ticketCode = generateTicketCode(
+                    parsedCompetitionId,
+                    ticketNumber,
+                    competition.totalTickets
+                );
 
                 const instantWin = instantWinsMap.get(ticketNumber);
 
@@ -744,7 +759,7 @@ const processSuccessfulPayment = async (session) => {
                             user,
                             competition: txResult.competition,
                             tickets: paymentTickets,
-                            amount: paymentTickets.length * Number(txResult.competition.ticketPrice),
+                            amount: Number(txResult.payment.amount),
                             instantWins: txResult.wonInstantWinsList || []
                         })
                 });

@@ -1,236 +1,104 @@
-
-module.exports = ({
-    user,
-    competition,
-    tickets,
-    amount,
-    instantWins = []
-}) => {
-
-    const hasInstantWin =
-        instantWins.length > 0;
+module.exports = ({ user, competition, tickets, amount, instantWins = [] }) => {
+    const hasInstantWin = instantWins.length > 0;
+    const ticketHtml = tickets.map(t => `<span style="display:inline-block; background:#000000; color:#ffffff; padding:8px 12px; border-radius:6px; font-size:13px; font-weight:700; letter-spacing:1px; margin-right:6px; margin-bottom:8px;">${t.ticketCode}</span>`).join('');
+    
+    let instantWinHtml = '';
+    if (hasInstantWin) {
+        instantWinHtml = `
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f4fff4; border: 1px solid #b7f3c1; border-radius: 8px; margin-bottom: 25px;">
+                <tr>
+                    <td style="padding: 20px;">
+                        <h3 style="margin: 0 0 10px 0; color: #1f8f39; font-size: 18px;">Instant Win!</h3>
+                        ${instantWins.map(win => `<p style="margin: 0; color: #444; font-size: 14px;">Ticket <strong>${win.ticketCode}</strong> won <strong>${win.prize?.title || 'a prize'}</strong></p>`).join('')}
+                    </td>
+                </tr>
+            </table>
+        `;
+    }
 
     return `
+    <div style="font-family: 'Poppins', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 40px 0; width: 100%;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+                <td align="center">
+                    <table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; background-color: #ffffff; border-top: 5px solid #42BE38; box-shadow: 0 10px 40px rgba(0,0,0,0.06); border-left: 1px solid #f0f0f0; border-right: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0;">
+                        <tr>
+                            <td style="background-color: #171717; padding: 30px 40px;">
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                    <tr>
+                                        <td align="left">
+                                            <img src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75" width="110" alt="Dream Cars" style="display: block;">
+                                        </td>
+                                        <td align="right" style="font-size: 11px; color: #42BE38; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">
+                                            Confirmed
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 50px 40px;">
+                                <h1 style="margin: 0 0 20px 0; font-size: 28px; font-weight: 800; color: #111827; line-height: 1.2; text-transform: uppercase; letter-spacing: -0.5px;">
+                                    You're in the Draw.
+                                </h1>
+                                <p style="margin: 0 0 35px 0; font-size: 15px; color: #4b5563; line-height: 1.7;">
+                                    Hi <strong>${user.name}</strong>, your entry is officially locked in. Keep this receipt safe.
+                                </p>
 
-    <div style="
-        font-family: Arial, sans-serif;
-        max-width: 650px;
-        margin: 0 auto;
-        background: #ffffff;
-        border: 1px solid #e5e5e5;
-        border-radius: 18px;
-        overflow: hidden;
-    ">
+                                ${instantWinHtml}
 
-        <!-- HEADER -->
-        <div style="
-            background:#000000;
-            padding:40px 30px;
-            text-align:center;
-        ">
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-top: 2px solid #111827; padding-top: 25px; margin-bottom: 35px;">
+                                    <tr>
+                                        <td style="padding-bottom: 20px;">
+                                            <div style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Amount Paid</div>
+                                            <div style="font-size: 16px; color: #111827; font-weight: 700;">£${amount}</div>
+                                        </td>
+                                        <td style="padding-bottom: 20px;" align="right">
+                                            <div style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Tickets</div>
+                                            <div style="font-size: 20px; color: #EC6623; font-weight: 800;">${tickets.length}x</div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="2" style="padding-bottom: 20px;">
+                                            <div style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Competition</div>
+                                            <div style="font-size: 18px; color: #111827; font-weight: 700;">${competition.title}</div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="2" style="padding: 20px; background-color: #f9fafb; border-radius: 4px;">
+                                            <div style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 10px;">Your Ticket Numbers</div>
+                                            <div style="font-size: 15px; color: #111827; font-weight: 600; line-height: 1.6;">
+                                                ${ticketHtml}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
 
-            <img 
-                src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75"
-                alt="DreamCar"
-                style="
-                    width:220px;
-                    max-width:100%;
-                    margin-bottom:24px;
-                "
-            />
-
-            <h1 style="
-                color:#ffffff;
-                margin:0;
-                font-size:32px;
-                font-weight:700;
-            ">
-                Purchase Confirmed 
-            </h1>
-
-            <p style="
-                color:#bdbdbd;
-                margin-top:12px;
-                font-size:15px;
-                line-height:1.6;
-            ">
-                Your competition entries are officially booked.
-            </p>
-
-        </div>
-
-        <!-- BODY -->
-        <div style="padding:40px 30px;">
-
-            <p style="
-                color:#444444;
-                font-size:16px;
-                line-height:1.8;
-                margin-top:0;
-                margin-bottom:18px;
-            ">
-                Hi ${user.name},
-            </p>
-
-            <p style="
-                color:#555555;
-                font-size:15px;
-                line-height:1.8;
-                margin-bottom:30px;
-            ">
-                Thank you for entering 
-                <strong>${competition.title}</strong>.
-            </p>
-
-            <!-- ORDER SUMMARY -->
-            <div style="
-                background:#fafafa;
-                border:1px solid #eeeeee;
-                border-radius:16px;
-                padding:28px 24px;
-                margin-bottom:30px;
-            ">
-
-                <h2 style="
-                    margin-top:0;
-                    margin-bottom:18px;
-                    color:#111111;
-                    font-size:24px;
-                ">
-                    ${competition.title}
-                </h2>
-
-                <p style="
-                    margin:0 0 10px;
-                    color:#666666;
-                    font-size:15px;
-                    line-height:1.7;
-                ">
-                    Total Tickets Purchased:
-                    <strong>${tickets.length}</strong>
-                </p>
-
-                <p style="
-                    margin:0;
-                    color:#666666;
-                    font-size:15px;
-                    line-height:1.7;
-                ">
-                    Amount Paid:
-                    <strong>£${amount}</strong>
-                </p>
-
-            </div>
-
-            <!-- TICKETS -->
-            <h3 style="
-                color:#111111;
-                font-size:20px;
-                margin-bottom:18px;
-            ">
-                Your Ticket Numbers
-            </h3>
-
-            <div style="
-    margin-bottom:35px;
-    line-height:2.4;
-">
-
-                ${tickets.map(ticket => `
-
-                    <span style="
-    display:inline-block;
-    background:#000000;
-    color:#ffffff;
-    padding:10px 14px;
-    border-radius:8px;
-    font-size:13px;
-    font-weight:700;
-    letter-spacing:1px;
-    margin-right:8px;
-    margin-bottom:10px;
-">
-    ${ticket.ticketCode}
-</span>
-
-                `).join("")}
-
-            </div>
-
-            ${hasInstantWin
-                ?
-                `
-                <div style="
-                    background:#f4fff4;
-                    border:1px solid #b7f3c1;
-                    border-radius:16px;
-                    padding:24px;
-                    margin-bottom:30px;
-                ">
-
-                    <h3 style="
-                        margin-top:0;
-                        margin-bottom:16px;
-                        color:#1f8f39;
-                        font-size:22px;
-                    ">
-                         Instant Win Prize
-                    </h3>
-
-                    ${instantWins.map(win => `
-
-                        <p style="
-                            color:#444444;
-                            font-size:15px;
-                            line-height:1.8;
-                            margin:0 0 10px;
-                        ">
-                            You won
-                            <strong>${win.prize?.title}</strong>
-                            with ticket
-                            <strong>${win.ticketCode}</strong>
-                        </p>
-
-                    `).join("")}
-
-                </div>
-                `
-                :
-                ""
-            }
-
-            <p style="
-                color:#666666;
-                font-size:14px;
-                line-height:1.8;
-                margin-bottom:0;
-            ">
-                You can view all your tickets and entries anytime inside your account dashboard.
-            </p>
-
-        </div>
-
-        <!-- FOOTER -->
-        <div style="
-            border-top:1px solid #eeeeee;
-            padding:24px;
-            text-align:center;
-            background:#fafafa;
-        ">
-
-            <p style="
-                margin:0;
-                color:#888888;
-                font-size:13px;
-                line-height:1.8;
-            ">
-                Good luck, <br/>
-                <strong>DreamCar Competitions</strong>
-            </p>
-
-        </div>
-
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                    <tr>
+                                        <td align="left">
+                                            <a href="${process.env.FRONTEND_URL}/profile" style="display: inline-block; background-color: #171717; color: #ffffff; padding: 16px 36px; text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; font-size: 14px;">View My Tickets</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background-color: #fafafa; padding: 30px 40px; border-top: 1px solid #f0f0f0;">
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                                    <tr>
+                                        <td align="left" style="font-size: 12px; color: #9ca3af; line-height: 1.6;">
+                                            © ${new Date().getFullYear()} Dream Cars. All rights reserved.<br>
+                                            <a href="${process.env.FRONTEND_URL}/profile" style="color: #6b7280; text-decoration: underline;">My Account</a> &nbsp;|&nbsp; <a href="${process.env.FRONTEND_URL}/contact" style="color: #6b7280; text-decoration: underline;">Support</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
     </div>
-
     `;
 };
