@@ -20,7 +20,7 @@ module.exports = (user, updates) => {
                                             <div style="width: 50px; height: 3px; background-color: #EC6623; margin: 0 auto 25px auto;"></div>
                                             
                                             <p style="margin: 0 0 20px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
-                                                Hi <strong>${user || 'there'}</strong>, here are some important updates for the competitions you've entered:
+                                                Hi <strong>${user?.name || ''}</strong>, here are some important updates for the competitions you've entered:
                                             </p>
                                             <p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;"><ul style='text-align: left; padding-left: 20px;'>${updateList}</ul></p>
 
