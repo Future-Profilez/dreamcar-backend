@@ -1620,3 +1620,40 @@ exports.getLiveDraws = catchAsync(async (req, res) => {
 
 
 });
+
+exports.toggleHeroCompetition = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const competition =
+    await prisma.competition.findUnique({
+      where: {
+        id: parseInt(id)
+      }
+    });
+
+  if (!competition) {
+    return errorResponse(
+      res,
+      "Competition not found",
+      404
+    );
+  }
+
+  const updated =
+    await prisma.competition.update({
+      where: {
+        id: parseInt(id)
+      },
+      data: {
+        isHero: competition.isHero === 1 ? 0 : 1
+      }
+    });
+
+  return successResponse(
+    res,
+    updated.isHero
+      ? "Competition will be shown on Hero Banner"
+      : "Competition removed from Hero Banner",
+    200,
+    updated
+  );
+});

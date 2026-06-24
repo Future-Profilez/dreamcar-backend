@@ -62,6 +62,7 @@ model Competition {
   totalTickets     Int
   soldTickets      Int             @default(0)
   isFeatured       Int             @default(0)  //0->not featured 1->featured
+  isHero           Int             @default(0)  //0->not on hero section 1->on hero section
   startTime        DateTime
   endTime          DateTime
 
