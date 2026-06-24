@@ -1,7 +1,16 @@
+const { getDisplayTicketNumber } = require("../utils/getDisplayTicketNumber");
+
 module.exports = ({ user, competition, tickets, amount, instantWins = [] }) => {
     const hasInstantWin = instantWins.length > 0;
-    const ticketHtml = tickets.map(t => `<span style="display:inline-block; background:#000000; color:#ffffff; padding:8px 12px; border-radius:6px; font-size:13px; font-weight:700; letter-spacing:1px; margin-right:6px; margin-bottom:8px;">${t.ticketCode}</span>`).join('');
-    
+    // const ticketHtml = tickets.map(t => `<span style="display:inline-block; background:#000000; color:#ffffff; padding:8px 12px; border-radius:6px; font-size:13px; font-weight:700; letter-spacing:1px; margin-right:6px; margin-bottom:8px;">${t.ticketCode}</span>`).join('');
+    const ticketHtml = tickets.map(t =>
+        `<span style="display:inline-block; background:#000000; color:#ffffff; padding:8px 12px; border-radius:6px; font-size:13px; font-weight:700; letter-spacing:1px; margin-right:6px; margin-bottom:8px;">
+    #${getDisplayTicketNumber(
+            t.ticketCode,
+            competition.id
+        )}
+  </span>`
+    ).join('');
     let instantWinHtml = '';
     if (hasInstantWin) {
         instantWinHtml = `
@@ -9,7 +18,13 @@ module.exports = ({ user, competition, tickets, amount, instantWins = [] }) => {
                 <tr>
                     <td style="padding: 20px;">
                         <h3 style="margin: 0 0 10px 0; color: #1f8f39; font-size: 18px;">Instant Win!</h3>
-                        ${instantWins.map(win => `<p style="margin: 0; color: #444; font-size: 14px;">Ticket <strong>${win.ticketCode}</strong> won <strong>${win.prize?.title || 'a prize'}</strong></p>`).join('')}
+                        ${instantWins.map(win => `<p style="margin: 0; color: #444; font-size: 14px;">Ticket 
+                            <strong>
+                            #${getDisplayTicketNumber(
+                            win.ticketCode,
+                            competition.id
+                           )}
+                      </strong> won <strong>${win.prize?.title || 'a prize'}</strong></p>`).join('')}
                     </td>
                 </tr>
             </table>
