@@ -1,4 +1,4 @@
-const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition, getCurrencyRates, syncCurrencyRates, getDashboardData, toggleFeaturedCompetition, getSimilarCompetitions, getAllInstantWinsAdmin, triggerCompetitionUpdates, getLiveDraws } = require("../controller/competitionController");
+const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition, getCurrencyRates, syncCurrencyRates, getDashboardData, toggleFeaturedCompetition, getSimilarCompetitions, getAllInstantWinsAdmin, triggerCompetitionUpdates, getLiveDraws, toggleHeroCompetition } = require("../controller/competitionController");
 const { verifyToken, checkIsAdminHasCapablity, requireAdmin } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
@@ -51,6 +51,8 @@ router.get("/admin/dashboard", verifyToken, requireAdmin, getDashboardData);
 //featured competition
 router.post( "/competition/feature/:id", verifyToken, requireAdmin, toggleFeaturedCompetition);
 
+//hero section competitions
+router.post( "/competition/hero/:id", verifyToken, requireAdmin, toggleHeroCompetition);
 
 router.get("/competition/similar/:id", getSimilarCompetitions);
 router.get("/live-draws/competition", getLiveDraws);
