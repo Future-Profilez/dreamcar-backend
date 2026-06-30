@@ -1,68 +1,34 @@
-module.exports = (user, competitions) => {
-    let compHtml = competitions.map(comp => `
-        <div style="margin-bottom: 20px; padding: 15px; background: #f9fafb; border-radius: 8px;">
-            <strong style="color: #111827; font-size: 16px;">${comp.title}</strong><br>
-            <span style="color: #666; font-size: 14px;">Ticket Price: £${comp.ticketPrice}</span><br>
-            <a href="${process.env.FRONTEND_URL}/competition/${comp.slug}" style="color: #EC6623; text-decoration: underline; font-size: 14px;">Enter Now</a>
-        </div>
-    `).join('');
+const { renderEmail, SITE, SANS, MONO, T } = require('./_emailLayout');
 
-    return `
-    <div style="font-family: 'Poppins', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 40px 0; width: 100%;">
-        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+// Called as WeeklyCompetitionTemplate({ competitions }) from the newsletter cron.
+module.exports = ({ competitions = [], user } = {}) => {
+    const rows = competitions.map(comp => `
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:12px;border:1px solid ${T.line};border-radius:8px;">
             <tr>
-                <td align="center">
-                    <table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; background-color: #f4f4f5; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+                <td style="padding:18px 20px;">
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
                         <tr>
-                            <td align="center" style="background-color: #171717; padding: 35px 20px;">
-                                <img src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75" width="140" alt="Dream Cars" style="display: block;">
+                            <td align="left" valign="middle">
+                                <div style="font-family:${SANS};font-size:16px;font-weight:700;color:${T.ink};line-height:1.3;">${comp.title}</div>
+                                <div style="font-family:${MONO};font-size:12px;color:${T.mute};margin-top:4px;">£${comp.ticketPrice} / ticket</div>
                             </td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 40px 30px;">
-                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #ffffff; border-radius: 8px; border: 2px dashed #cbd5e1;">
-                                    <tr>
-                                        <td align="center" style="padding: 40px 30px;">
-                                            <h1 style="margin: 0 0 15px 0; font-size: 24px; color: #111827; text-transform: uppercase; letter-spacing: 2px;">This Week's Draws</h1>
-                                            <div style="width: 50px; height: 3px; background-color: #EC6623; margin: 0 auto 25px auto;"></div>
-                                            
-                                            <p style="margin: 0 0 20px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
-                                                Hi <strong>${user || 'there'}</strong>, check out our featured competitions this week!
-                                            </p>
-                                            <p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">Don't miss your chance to win these incredible prizes:</p><p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">${compHtml}</p>
-
-                                            
-                                            <a href="${process.env.FRONTEND_URL}/competitions" style="display: inline-block; background-color: #171717; color: #ffffff; padding: 14px 32px; text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; border-radius: 6px;">View All Draws</a>
-                                            
-                                        </td>
-                                    </tr>
-                                </table>
-
-                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px;">
-                                    <tr>
-                                        <td align="center" style="font-size: 13px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-                                            <span style="color: #EC6623;">✓</span> Guaranteed Draws &nbsp;&nbsp;|&nbsp;&nbsp; 
-                                            <span style="color: #EC6623;">✓</span> Secure Entry &nbsp;&nbsp;|&nbsp;&nbsp; 
-                                            <span style="color: #EC6623;">✓</span> Fixed Odds
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td align="center" style="background-color: #e5e7eb; padding: 25px;">
-                                <p style="margin: 0 0 10px 0; font-size: 12px; color: #6b7280;">
-                                    Need help? <a href="${process.env.FRONTEND_URL}/contact" style="color: #EC6623; text-decoration: none; font-weight: 600;">Contact Support</a>
-                                </p>
-                                <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-                                    © ${new Date().getFullYear()} Dream Cars. All rights reserved.
-                                </p>
+                            <td align="right" valign="middle">
+                                <a href="${SITE}/competition/${comp.slug}" style="font-family:${SANS};font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${T.accent};text-decoration:none;white-space:nowrap;">Enter &rarr;</a>
                             </td>
                         </tr>
                     </table>
                 </td>
             </tr>
         </table>
-    </div>
-    `;
+    `).join('');
+
+    return renderEmail({
+        preheader: 'This week\'s featured DreamCar draws are live.',
+        tag: 'This week',
+        eyebrow: 'Weekly draws',
+        heading: "This week's competitions",
+        intro: `Hi <strong>${user || 'there'}</strong>, here are the draws everyone's entering right now. Don't miss your shot.`,
+        bodyHtml: rows,
+        cta: { text: 'View all draws', href: `${SITE}/competitions`, variant: 'ink' },
+    });
 };
