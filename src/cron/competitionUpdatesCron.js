@@ -1,8 +1,7 @@
 const cron = require('node-cron');
 const prisma = require('../prismaconfig');
 const Loggers = require('../utils/Logger');
-const sendEmail = require('../utils/EmailMailler');
-const CompetitionUpdatesTemplate = require('../emailsTemplates/CompetitionUpdatesTemplate');
+const { sendCompetitionUpdateEmails } = require('../utils/competitionEmails');
 
 async function processCompetitionUpdates() {
     try {
@@ -40,47 +39,15 @@ async function processCompetitionUpdates() {
             return { status: true, message: "No updates to send" };
         }
 
-        // 3. Get target audience (Users with marketingEmails = 1 + Newsletter subscribers)
-        const optedInUsers = await prisma.user.findMany({
-            where: { marketingEmails: 1, deletedAt: null },
-            select: { email: true }
+        // 3 & 4. Resolve audience + send via shared helper (also used by the
+        // admin manual-resend endpoint).
+        const { sent: sentCount, recipients } = await sendCompetitionUpdateEmails({
+            newCompetitions,
+            endingCompetitions
         });
 
-        const newsletterSubscribers = await prisma.newsletter.findMany({
-            where: { deletedAt: null },
-            select: { email: true }
-        });
-
-        // Merge and deduplicate emails
-        const allEmails = new Set([
-            ...optedInUsers.map(u => u.email),
-            ...newsletterSubscribers.map(n => n.email)
-        ]);
-
-        const emailList = Array.from(allEmails);
-
-        if (emailList.length === 0) {
-
+        if (recipients === 0) {
             return { status: true, message: "No subscribers found" };
-        }
-
-        // 4. Send Emails
-        const emailHtml = CompetitionUpdatesTemplate(newCompetitions, endingCompetitions);
-        
-        let sentCount = 0;
-        // In a real production environment, you might want to use a queue or batch this.
-        // For now, we'll loop through (or use BCC if list is small, but looping is safer for personalized unsubscribe links in future)
-        for (const email of emailList) {
-            try {
-                await sendEmail({
-                    email,
-                    subject: "DreamCar: New Competitions & Ending Soon Alerts! 🚗",
-                    emailHtml
-                });
-                sentCount++;
-            } catch (err) {
-                console.error(`Failed to send update email to ${email}:`, err);
-            }
         }
 
         // 5. Mark as sent

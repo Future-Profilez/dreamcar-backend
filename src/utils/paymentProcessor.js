@@ -384,6 +384,15 @@ const processSuccessfulPayment = async (session) => {
                 return null; // Already processed
             }
 
+            // Reservation (card/wallet flow). If already confirmed, this is a
+            // duplicate webhook delivery — skip idempotently.
+            const reservation = await tx.ticketReservation.findUnique({
+                where: { sessionId_competitionId: { sessionId: session.id, competitionId: parsedCompetitionId } }
+            });
+            if (reservation && reservation.status === "confirmed") {
+                return null;
+            }
+
             const competition = await tx.competition.findUnique({
                 where: { id: parsedCompetitionId },
                 select: {
@@ -431,13 +440,28 @@ const processSuccessfulPayment = async (session) => {
 
             const isCorrect = question?.answers?.includes(answer);
 
-            // 4. UPDATE SOLD TICKETS FIRST
+            // 4. CONFIRM SALE.
+            // If this purchase reserved inventory, atomically claim that reservation
+            // (reserved -> confirmed) and convert the held slots: reservedTickets-- / soldTickets++.
+            // The conditional claim makes confirm and release mutually exclusive, so a slot
+            // is never both released and confirmed. No reservation (legacy in-flight session)
+            // => fall back to a plain soldTickets++.
+            let reservedConsumed = false;
+            if (reservation && reservation.status === "reserved") {
+                const claim = await tx.ticketReservation.updateMany({
+                    where: { id: reservation.id, status: "reserved" },
+                    data: { status: "confirmed" }
+                });
+                reservedConsumed = claim.count > 0;
+            }
+
             const updatedCompetition = await tx.competition.update({
                 where: { id: parsedCompetitionId },
                 data: {
-                    soldTickets: {
-                        increment: parsedQty
-                    }
+                    soldTickets: { increment: parsedQty },
+                    // Release exactly what this reservation held (its own quantity), so
+                    // reservedTickets can never drift negative if qty ever diverges.
+                    ...(reservedConsumed ? { reservedTickets: { decrement: reservation.quantity } } : {})
                 }
             });
 
@@ -525,7 +549,7 @@ const processSuccessfulPayment = async (session) => {
             try {
                 const user = await prisma.user.findUnique({ where: { id: parsedUserId } });
                 const paymentTickets = await prisma.ticket.findMany({ where: { paymentId: txResult.payment.id } });
-                sendEmail({
+                await sendEmail({
                     email: user.email, subject: `Your Tickets for ${txResult.competition.title} 🎟️`, emailHtml:
                         TicketPurchaseTemplate({
                             user,
@@ -717,4 +741,27 @@ async function generateUniqueGiftCode() {
     return code;
 }
 
-module.exports = { processSuccessfulPayment, processWalletRecharge };
+// Release inventory held by reservations for a session (Stripe expired/cancelled,
+// or a failed wallet purchase, or the safety cron). Idempotent: only rows still in
+// "reserved" are claimed, so it never races with a concurrent confirm.
+const releaseReservationsForSession = async (sessionId) => {
+    const reservations = await prisma.ticketReservation.findMany({
+        where: { sessionId, status: "reserved" }
+    });
+
+    for (const r of reservations) {
+        await prisma.$transaction(async (tx) => {
+            const claim = await tx.ticketReservation.updateMany({
+                where: { id: r.id, status: "reserved" },
+                data: { status: "released" }
+            });
+            if (claim.count === 0) return; // already confirmed or released elsewhere
+            await tx.competition.update({
+                where: { id: r.competitionId },
+                data: { reservedTickets: { decrement: r.quantity } }
+            });
+        });
+    }
+};
+
+module.exports = { processSuccessfulPayment, processWalletRecharge, releaseReservationsForSession };

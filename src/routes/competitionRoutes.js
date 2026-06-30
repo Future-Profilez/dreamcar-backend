@@ -17,7 +17,9 @@ router.post("/competition/create",
     // { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 }, // ✅ include here
     { name: "instantWinImages", maxCount: 50 },
-    { name: "prizeImages", maxCount: 10 }
+    { name: "prizeImages", maxCount: 10 },
+    { name: "sectionImages", maxCount: 50 },
+    { name: "sectionVideos", maxCount: 50 }
   ]), addCompetition);
 
 router.get("/competition/get",
@@ -39,7 +41,9 @@ router.post("/competition/update/:id",
     // { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 },
     { name: "instantWinImages", maxCount: 50 },
-    { name: "prizeImages", maxCount: 10 }
+    { name: "prizeImages", maxCount: 10 },
+    { name: "sectionImages", maxCount: 50 },
+    { name: "sectionVideos", maxCount: 50 }
   ]), updateCompetition);
 
 router.post("/competition/ticket-buy", verifyToken, checkIsAdminHasCapablity, createCompetitionPayment);
