@@ -107,7 +107,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
         slug,
         detail,
         productType,
-        ticketPrice: parseInt(ticketPrice),
+        ticketPrice: Number(ticketPrice),
         totalTickets: parseInt(totalTickets),
         startTime: parsedStartTime,
         endTime: parsedEndTime,
@@ -599,10 +599,19 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       ticketPrice !== null &&
       ticketPrice !== ""
     ) {
-      if (!Number.isInteger(Number(ticketPrice))) {
+      // if (!Number.isInteger(Number(ticketPrice))) {
+      //   return errorResponse(
+      //     res,
+      //     "Ticket price must be a whole number. Decimals are not allowed.",
+      //     200
+      //   );
+      // }
+      const price = Number(ticketPrice);
+
+      if (isNaN(price) || price <= 0) {
         return errorResponse(
           res,
-          "Ticket price must be a whole number. Decimals are not allowed.",
+          "Invalid ticket price",
           200
         );
       }

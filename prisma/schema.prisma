@@ -58,7 +58,7 @@ model Competition {
   slug             String?         @unique
   detail           String
   productType      productTypeEnum @default(car_bike)
-  ticketPrice      Int
+  ticketPrice      Decimal @db.Decimal(10,2)
   totalTickets     Int
   soldTickets      Int             @default(0)
   isFeatured       Int             @default(0)  //0->not featured 1->featured
