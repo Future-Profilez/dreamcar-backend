@@ -1,61 +1,26 @@
-module.exports = (user, updates) => {
-    const updateList = updates.map(u => `<li><strong>${u.title}</strong>: ${u.message}</li>`).join('');
-    return `
-    <div style="font-family: 'Poppins', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 40px 0; width: 100%;">
-        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+const { renderEmail, SITE, SANS, T } = require('./_emailLayout');
+
+// user = { name }, updates = [{ title, message }]
+module.exports = (user, updates = []) => {
+    const rows = updates.map(u => `
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:12px;">
             <tr>
-                <td align="center">
-                    <table border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; background-color: #f4f4f5; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
-                        <tr>
-                            <td align="center" style="background-color: #171717; padding: 35px 20px;">
-                                <img src="https://fp-dreamcar.vercel.app/_next/image?url=%2Fimg%2FlogoDC.png&w=128&q=75" width="140" alt="Dream Cars" style="display: block;">
-                            </td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 40px 30px;">
-                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #ffffff; border-radius: 8px; border: 2px dashed #cbd5e1;">
-                                    <tr>
-                                        <td align="center" style="padding: 40px 30px;">
-                                            <h1 style="margin: 0 0 15px 0; font-size: 24px; color: #111827; text-transform: uppercase; letter-spacing: 2px;">Competition Updates</h1>
-                                            <div style="width: 50px; height: 3px; background-color: #EC6623; margin: 0 auto 25px auto;"></div>
-                                            
-                                            <p style="margin: 0 0 20px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
-                                                Hi <strong>${user?.name || ''}</strong>, here are some important updates for the competitions you've entered:
-                                            </p>
-                                            <p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;"><ul style='text-align: left; padding-left: 20px;'>${updateList}</ul></p>
-
-                                            
-                                            <a href="${process.env.FRONTEND_URL}/profile" style="display: inline-block; background-color: #171717; color: #ffffff; padding: 14px 32px; text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; border-radius: 6px;">View My Entries</a>
-                                            
-                                        </td>
-                                    </tr>
-                                </table>
-
-                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top: 30px;">
-                                    <tr>
-                                        <td align="center" style="font-size: 13px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-                                            <span style="color: #EC6623;">✓</span> Guaranteed Draws &nbsp;&nbsp;|&nbsp;&nbsp; 
-                                            <span style="color: #EC6623;">✓</span> Secure Entry &nbsp;&nbsp;|&nbsp;&nbsp; 
-                                            <span style="color: #EC6623;">✓</span> Fixed Odds
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td align="center" style="background-color: #e5e7eb; padding: 25px;">
-                                <p style="margin: 0 0 10px 0; font-size: 12px; color: #6b7280;">
-                                    Need help? <a href="${process.env.FRONTEND_URL}/contact" style="color: #EC6623; text-decoration: none; font-weight: 600;">Contact Support</a>
-                                </p>
-                                <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-                                    © ${new Date().getFullYear()} Dream Cars. All rights reserved.
-                                </p>
-                            </td>
-                        </tr>
-                    </table>
+                <td width="4" style="background:${T.accent};border-radius:4px;">&nbsp;</td>
+                <td style="padding:14px 18px;background:#F6F7F9;border-radius:0 8px 8px 0;">
+                    <div style="font-family:${SANS};font-size:15px;font-weight:700;color:${T.ink};">${u.title}</div>
+                    <div style="font-family:${SANS};font-size:14px;color:${T.text};margin-top:3px;line-height:1.5;">${u.message}</div>
                 </td>
             </tr>
         </table>
-    </div>
-    `;
+    `).join('');
+
+    return renderEmail({
+        preheader: 'New competitions and ending-soon alerts from DreamCar.',
+        tag: 'Alert',
+        eyebrow: 'Competition updates',
+        heading: 'Updates on your draws',
+        intro: `Hi <strong>${user?.name || 'there'}</strong>, here's what's moving right now — jump in before these close.`,
+        bodyHtml: rows,
+        cta: { text: 'View competitions', href: `${SITE}/competitions`, variant: 'orange' },
+    });
 };
