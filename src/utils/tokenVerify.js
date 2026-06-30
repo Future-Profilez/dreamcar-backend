@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../prismaconfig');
+const Loggers = require('./Logger');
 
 exports.verifyToken = async (req, res, next) => {
   try {
@@ -48,6 +49,9 @@ exports.verifyToken = async (req, res, next) => {
     };
     next();
   } catch (error) {
+    // Log the real reason (TokenExpiredError / JsonWebTokenError / etc.) so JWT
+    // failures are debuggable; the client still gets a generic 401.
+    Loggers.warn(`Token verify failed: ${error.name} - ${error.message}`);
     return res.status(401).json({
       status: false,
       message: 'Invalid or expired token'

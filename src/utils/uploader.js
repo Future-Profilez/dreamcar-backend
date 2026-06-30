@@ -32,8 +32,8 @@ const upload = multer({
   storage,
   fileFilter, // apply our custom file filter
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB per file
-    files: 10,
+    fileSize: 50 * 1024 * 1024, // 50MB per file (allows short section videos)
+    files: 120, // total files per request across all fields (images, prizes, instant-win, sections)
   },
 });
 

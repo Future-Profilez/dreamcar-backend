@@ -115,53 +115,14 @@ exports.redeemGiftCredit = catchAsync(async (req, res) => {
       return errorResponse(res, "Gift code expired", 200);
     }
 
-    // 4. Get/create wallet
-    let wallet = await prisma.wallet.findUnique({
-      where: { userId }
-    });
-
-    if (!wallet) {
-      wallet = await prisma.wallet.create({
-        data: {
-          userId,
-          balance: 0
-        }
-      });
-    }
-
-    const newBalance =
-      Number(wallet.balance) + Number(giftCredit.amount);
-
-    // 5. Transaction
-    await prisma.$transaction(async (tx) => {
-
-      // update wallet
-      await tx.wallet.update({
-        where: {
-          id: wallet.id
-        },
-        data: {
-          balance: newBalance
-        }
-      });
-
-      // wallet transaction
-      await tx.walletTransaction.create({
-        data: {
-          walletId: wallet.id,
-          userId,
-          type: "credit",
-          amount: giftCredit.amount,
-          reason: `Gift credit redeemed (${giftCredit.code})`,
-          balance: newBalance
-        }
-      });
-
-      // mark redeemed
-      await tx.giftCredit.update({
-        where: {
-          id: giftCredit.id
-        },
+    // 4 + 5. Atomic redeem.
+    // - Claim the code with a conditional update (isRedeemed: 0 -> 1). Only one
+    //   concurrent request can flip it, so the credit can never be redeemed twice.
+    // - Credit the wallet with `increment` (not an absolute set) to avoid the
+    //   lost-update race when multiple credits are redeemed at once.
+    const txResult = await prisma.$transaction(async (tx) => {
+      const claim = await tx.giftCredit.updateMany({
+        where: { id: giftCredit.id, isRedeemed: 0 },
         data: {
           isRedeemed: 1,
           redeemedById: userId,
@@ -169,7 +130,33 @@ exports.redeemGiftCredit = catchAsync(async (req, res) => {
         }
       });
 
+      if (claim.count === 0) {
+        return { alreadyRedeemed: true };
+      }
+
+      const wallet = await tx.wallet.upsert({
+        where: { userId },
+        update: { balance: { increment: giftCredit.amount } },
+        create: { userId, balance: giftCredit.amount }
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          userId,
+          type: "credit",
+          amount: giftCredit.amount,
+          reason: `Gift credit redeemed (${giftCredit.code})`,
+          balance: wallet.balance
+        }
+      });
+
+      return { alreadyRedeemed: false, balance: wallet.balance };
     });
+
+    if (txResult.alreadyRedeemed) {
+      return errorResponse(res, "Gift code already redeemed", 200);
+    }
 
     return successResponse(
       res,
@@ -177,7 +164,7 @@ exports.redeemGiftCredit = catchAsync(async (req, res) => {
       200,
       {
         amount: giftCredit.amount,
-        balance: newBalance
+        balance: txResult.balance
       }
     );
 

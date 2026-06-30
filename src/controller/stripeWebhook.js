@@ -1,6 +1,6 @@
 const stripe = require("../utils/stripe");
 const prisma = require("../prismaconfig");
-const { processSuccessfulPayment, processWalletRecharge, processGiftCreditPayment } = require("../utils/paymentProcessor");
+const { processSuccessfulPayment, processWalletRecharge, releaseReservationsForSession } = require("../utils/paymentProcessor");
 
 module.exports = async (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -36,6 +36,13 @@ module.exports = async (req, res) => {
 
       }
     }
+
+    // Checkout abandoned/expired or payment failed -> release any inventory it held.
+    if (event.type === "checkout.session.expired" || event.type === "checkout.session.async_payment_failed") {
+      const session = event.data.object;
+      await releaseReservationsForSession(session.id);
+    }
+
     return res.status(200).json({ received: true });
   } catch (error) {
     console.error("Webhook processing error:", error);
