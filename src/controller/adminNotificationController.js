@@ -94,6 +94,7 @@ exports.deleteAdminNotification = catchAsync(async (req, res) => {
   }
 });
 
+
 exports.deleteAllAdminNotifications = catchAsync(async (req, res) => {
   try {
     if (req.user.role !== "admin") {
