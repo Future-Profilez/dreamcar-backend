@@ -58,7 +58,7 @@ model Competition {
   slug             String?         @unique
   detail           String
   productType      productTypeEnum @default(car_bike)
-  ticketPrice      Decimal @db.Decimal(10,2)
+  ticketPrice      Decimal         @db.Decimal(10, 2)
   totalTickets     Int
   soldTickets      Int             @default(0)
   reservedTickets  Int             @default(0)  // in-flight (paid pending) card checkouts; availability = totalTickets - soldTickets - reservedTickets
