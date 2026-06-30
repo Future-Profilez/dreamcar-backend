@@ -45,6 +45,12 @@ exports.addCompetition = catchAsync(async (req, res) => {
       return errorResponse(res, "Invalid total tickets", 200);
     }
 
+    // Upper bound: prevents memory exhaustion in the instant-win number generator
+    // (Set fill loop) when an unreasonably large totalTickets is submitted.
+    if (Number(totalTickets) > 10000000) {
+      return errorResponse(res, "Total tickets exceeds the allowed maximum (10,000,000)", 200);
+    }
+
     const parsedStartTime = parseLondonDateTime(startTime);
     const parsedEndTime = parseLondonDateTime(endTime, { endOfDay: true });
 
@@ -140,6 +146,54 @@ exports.addCompetition = catchAsync(async (req, res) => {
           position: i + 1, // 1 for winner, 2 for runner-up 1, etc.
         }
       });
+    }
+
+    // Dynamic content sections (admin-managed detail blocks)
+    if (req.body.contentSections) {
+      let parsedSections;
+      try {
+        parsedSections = JSON.parse(req.body.contentSections);
+      } catch (err) {
+        return errorResponse(res, "Invalid content sections JSON", 200);
+      }
+      if (Array.isArray(parsedSections)) {
+        let secImgIdx = 0;
+        let secVidIdx = 0;
+        for (let i = 0; i < parsedSections.length; i++) {
+          const s = parsedSections[i] || {};
+          if (!s.title || !s.description) continue;
+
+          let image = null;
+          if (s.hasNewImage && files.sectionImages && files.sectionImages[secImgIdx]) {
+            image = `${baseUrl}/uploads/${files.sectionImages[secImgIdx].filename}`;
+            secImgIdx++;
+          }
+
+          let video = null;
+          if (s.hasNewVideo && files.sectionVideos && files.sectionVideos[secVidIdx]) {
+            video = `${baseUrl}/uploads/${files.sectionVideos[secVidIdx].filename}`;
+            secVidIdx++;
+          } else if (s.videoUrl && s.videoUrl.trim()) {
+            video = s.videoUrl.trim();
+          }
+
+          const specs = Array.isArray(s.specs)
+            ? s.specs.map((x) => String(x).slice(0, 60)).filter((x) => x.trim())
+            : [];
+
+          await prisma.contentSection.create({
+            data: {
+              competitionId: competition.id,
+              title: s.title,
+              description: s.description,
+              image,
+              video,
+              specs,
+              position: i + 1,
+            },
+          });
+        }
+      }
     }
 
     for (const q of parsedQuestions) {
@@ -447,6 +501,10 @@ exports.competitionDetail = catchAsync(async (req, res) => {
         prizes: {
           orderBy: { position: 'asc' }
         },
+        contentSections: {
+          where: { deletedAt: null },
+          orderBy: { position: 'desc' } // newest-first on detail page
+        },
         instantWinPrizes: true,
         instantWins: {
           include: {
@@ -748,6 +806,61 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       }
     }
 
+    // Dynamic content sections — replace strategy (only when payload sent)
+    if (req.body.contentSections !== undefined) {
+      let parsedSections = [];
+      if (req.body.contentSections) {
+        try {
+          parsedSections = JSON.parse(req.body.contentSections);
+        } catch (err) {
+          return errorResponse(res, "Invalid content sections JSON", 400);
+        }
+      }
+
+      await prisma.contentSection.deleteMany({
+        where: { competitionId: parseInt(id) },
+      });
+
+      if (Array.isArray(parsedSections)) {
+        let secImgIdx = 0;
+        let secVidIdx = 0;
+        for (let i = 0; i < parsedSections.length; i++) {
+          const s = parsedSections[i] || {};
+          if (!s.title || !s.description) continue;
+
+          let image = s.existingImage || null;
+          if (s.hasNewImage && files.sectionImages && files.sectionImages[secImgIdx]) {
+            image = `${baseUrl}/uploads/${files.sectionImages[secImgIdx].filename}`;
+            secImgIdx++;
+          }
+
+          let video = s.existingVideo || null;
+          if (s.hasNewVideo && files.sectionVideos && files.sectionVideos[secVidIdx]) {
+            video = `${baseUrl}/uploads/${files.sectionVideos[secVidIdx].filename}`;
+            secVidIdx++;
+          } else if (s.videoUrl !== undefined) {
+            video = s.videoUrl && s.videoUrl.trim() ? s.videoUrl.trim() : (s.existingVideo || null);
+          }
+
+          const specs = Array.isArray(s.specs)
+            ? s.specs.map((x) => String(x).slice(0, 60)).filter((x) => x.trim())
+            : [];
+
+          await prisma.contentSection.create({
+            data: {
+              competitionId: parseInt(id),
+              title: s.title,
+              description: s.description,
+              image,
+              video,
+              specs,
+              position: i + 1,
+            },
+          });
+        }
+      }
+    }
+
     if (instantWinData?.enabled && !existingCompetition.instantWinGenerated) {
       if (!instantWinData.threshold || !instantWinData.prizes?.length) {
         return errorResponse(res, "Invalid instant win configuration", 200);
@@ -897,8 +1010,9 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
         return errorResponse(res, "Competition not started yet", 200);
       }
 
-      if (competition.soldTickets + parsedQty > competition.totalTickets) {
-        const available = competition.totalTickets - competition.soldTickets;
+      // Best-effort pre-check (authoritative atomic reservation happens below).
+      if (competition.soldTickets + competition.reservedTickets + parsedQty > competition.totalTickets) {
+        const available = competition.totalTickets - competition.soldTickets - competition.reservedTickets;
         return errorResponse(res, `Not enough tickets left for ${competition.title}. Only ${available} available.`, 200);
       }
 
@@ -944,19 +1058,79 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
 
     const pricedItemsForMetadata = pricedItems.filter(Boolean);
     const totalAmount = (giftSubtotalCents + discountedTicketTotalCents) / 100;
+
+    const RESERVATION_TTL_MS = 35 * 60 * 1000; // 35 min (>= Stripe's 30-min minimum expires_at, with buffer)
+
+    // Atomically reserve inventory for every competition in this purchase.
+    // The guarded UPDATE only succeeds while real availability remains, so concurrent
+    // buyers (card OR wallet) can never oversell. Returns the per-competition amounts
+    // reserved so the caller can roll them back on any later failure.
+    const reserveInventory = async () => {
+      const reserved = [];
+      for (const t of ticketPricing) {
+        const affected = await prisma.$executeRaw`
+          UPDATE "Competition"
+          SET "reservedTickets" = "reservedTickets" + ${t.parsedQty}
+          WHERE id = ${t.competition.id}
+            AND "totalTickets" - "soldTickets" - "reservedTickets" >= ${t.parsedQty}`;
+        if (affected === 0) {
+          // Roll back whatever we already reserved in this loop, then signal sold-out.
+          await releaseInventory(reserved);
+          const err = new Error(`Not enough tickets left for ${t.competition.title}.`);
+          err.soldOut = true;
+          throw err;
+        }
+        reserved.push({ competitionId: t.competition.id, qty: t.parsedQty });
+      }
+      return reserved;
+    };
+
+    const releaseInventory = async (reserved) => {
+      for (const r of reserved) {
+        await prisma.$executeRaw`
+          UPDATE "Competition" SET "reservedTickets" = "reservedTickets" - ${r.qty} WHERE id = ${r.competitionId}`;
+      }
+    };
+
     if (isWalletPayment) {
+      // 1. Reserve inventory (so wallet buys can't oversell either).
+      let reserved;
+      try {
+        reserved = await reserveInventory();
+      } catch (reserveErr) {
+        if (reserveErr.soldOut) return errorResponse(res, reserveErr.message, 200);
+        throw reserveErr;
+      }
+
+      // 2. Atomic, race-safe wallet deduction (only succeeds if balance still sufficient).
+      const deduct = await prisma.wallet.updateMany({
+        where: { userId: req.user.id, balance: { gte: totalAmount } },
+        data: { balance: { decrement: totalAmount } }
+      });
+
+      if (deduct.count === 0) {
+        await releaseInventory(reserved);
+        return errorResponse(res, "Insufficient Wallet Balance.", 200);
+      }
+
       const wallet = await prisma.wallet.findUnique({
         where: { userId: req.user.id },
       });
 
-      if (!wallet || Number(wallet.balance) < Number(totalAmount)) {
-        return errorResponse(res, "Insufficient Wallet Balance.", 200);
-      }
-
-      const remainingBalance = Number(wallet.balance) - Number(totalAmount);
-
       const mockSessionId = "wallet_sess_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
       const mockPaymentIntent = "wallet_pi_" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+
+      // 3. Persist reservation rows so processSuccessfulPayment converts reserved -> sold.
+      await prisma.ticketReservation.createMany({
+        data: reserved.map(r => ({
+          sessionId: mockSessionId,
+          competitionId: r.competitionId,
+          userId,
+          quantity: r.qty,
+          status: "reserved",
+          expiresAt: new Date(Date.now() + RESERVATION_TTL_MS)
+        }))
+      });
 
       const sessionObj = {
         id: mockSessionId,
@@ -970,20 +1144,14 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
       };
 
       try {
-        // Deduct balance
-        const updatedWallet = await prisma.wallet.update({
-          where: { userId: req.user.id },
-          data: { balance: remainingBalance }
-        });
-
-        // Create transaction record
-        const transaction = await prisma.walletTransaction.create({
+        // Create transaction record (balance already decremented atomically above)
+        await prisma.walletTransaction.create({
           data: {
             walletId: wallet.id,
             userId: userId,
             type: "debit",
             amount: totalAmount,
-            balance: updatedWallet.balance,
+            balance: wallet.balance,
             reason: "Purchased items from cart"
           }
         });
@@ -1012,6 +1180,10 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
             }
           });
 
+          // Release any still-reserved inventory for this mock session
+          const { releaseReservationsForSession } = require("../utils/paymentProcessor");
+          await releaseReservationsForSession(mockSessionId);
+
           throw processErr; // Re-throw to be caught by outer catch
         }
 
@@ -1021,26 +1193,66 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
 
       } catch (err) {
         console.error("Wallet payment processing failed:", err);
-        // We could implement rollback here if needed
         return errorResponse(res, "Payment processing failed. Please contact support.", 500);
       }
 
     } else {
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
-        mode: "payment",
-        customer_email: req.user.email,
+      // Card flow: reserve inventory BEFORE handing out a checkout URL.
+      let reserved;
+      try {
+        reserved = await reserveInventory();
+      } catch (reserveErr) {
+        if (reserveErr.soldOut) return errorResponse(res, reserveErr.message, 200);
+        throw reserveErr;
+      }
 
-        line_items: lineItems,
-        success_url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/ticket/payment/cancel`,
+      const expiresAtUnix = Math.floor(Date.now() / 1000) + Math.floor(RESERVATION_TTL_MS / 1000);
 
-        metadata: {
-          userId: userId.toString(),
-          type: "competition_ticket",
-          items: JSON.stringify(pricedItemsForMetadata)
-        }
-      });
+      let session;
+      try {
+        session = await stripe.checkout.sessions.create({
+          payment_method_types: ["card"],
+          mode: "payment",
+          customer_email: req.user.email,
+          expires_at: expiresAtUnix,
+
+          line_items: lineItems,
+          success_url: `${process.env.FRONTEND_URL}/ticket/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${process.env.FRONTEND_URL}/ticket/payment/cancel`,
+
+          metadata: {
+            userId: userId.toString(),
+            type: "competition_ticket",
+            items: JSON.stringify(pricedItemsForMetadata)
+          }
+        });
+      } catch (stripeErr) {
+        // Stripe failed — free the reserved inventory so it isn't leaked.
+        await releaseInventory(reserved);
+        throw stripeErr;
+      }
+
+      // Persist reservation rows keyed by the real session id (webhook/cron use these
+      // to confirm on success or release on expiry).
+      try {
+        await prisma.ticketReservation.createMany({
+          data: reserved.map(r => ({
+            sessionId: session.id,
+            competitionId: r.competitionId,
+            userId,
+            quantity: r.qty,
+            status: "reserved",
+            expiresAt: new Date(expiresAtUnix * 1000)
+          }))
+        });
+      } catch (persistErr) {
+        // Couldn't record the reservation — release inventory and cancel the session
+        // so the customer isn't charged against tickets we can't track.
+        await releaseInventory(reserved);
+        try { await stripe.checkout.sessions.expire(session.id); } catch (_) {}
+        throw persistErr;
+      }
+
       return successResponse(res, "Session created", 200, {
         url: session.url
       });

@@ -61,6 +61,7 @@ model Competition {
   ticketPrice      Int
   totalTickets     Int
   soldTickets      Int             @default(0)
+  reservedTickets  Int             @default(0)  // in-flight (paid pending) card checkouts; availability = totalTickets - soldTickets - reservedTickets
   isFeatured       Int             @default(0)  //0->not featured 1->featured
   isHero           Int             @default(0)  //0->not on hero section 1->on hero section
   startTime        DateTime
@@ -76,7 +77,9 @@ model Competition {
   payments                 StripePayment[]
   results                  Result[]
   prizes                   Prize[]
+  contentSections          ContentSection[]
   winnerDetail             WinnerDetail?
+  reservations             TicketReservation[]
   
   newEmailSent      Int       @default(0)
   endingEmailSent   Int       @default(0)
@@ -85,6 +88,25 @@ model Competition {
   createdAt DateTime? @default(now()) @db.Timestamp(0)
   updatedAt DateTime? @db.Timestamp(0)
   deletedAt DateTime? @db.Timestamp(0)
+}
+
+// Holds inventory for an in-flight card checkout so concurrent buyers can't oversell.
+// Lifecycle: reserved -> confirmed (webhook success) | released (expired/cancelled/cron).
+model TicketReservation {
+  id            String   @id @default(uuid())
+  sessionId     String                       // Stripe checkout session id
+  competitionId Int
+  userId        Int
+  quantity      Int
+  status        String   @default("reserved") // reserved | confirmed | released
+  expiresAt     DateTime
+  createdAt     DateTime @default(now()) @db.Timestamp(0)
+  updatedAt     DateTime? @updatedAt @db.Timestamp(0)
+
+  competition Competition @relation(fields: [competitionId], references: [id])
+
+  @@unique([sessionId, competitionId])        // one reservation row per competition per session; makes confirm/release idempotent
+  @@index([status, expiresAt])                // release-cron lookup
 }
 
 model Prize {
@@ -101,6 +123,24 @@ model Prize {
 
   competition   Competition @relation(fields: [competitionId], references: [id])
   @@unique([competitionId, position]) // one prize per position
+}
+
+// Dynamic admin-managed content blocks on the competition detail page
+// (e.g. "Want to know more", "How does it drive", "Hugely comfortable")
+model ContentSection {
+  id            String   @id @default(uuid())
+  competitionId Int
+  title         String
+  image         String?  // optional; falls back to competition image on frontend
+  video         String?  // optional; uploaded file URL or external (YouTube/Vimeo) URL
+  description   String   // line breaks preserved (\n)
+  specs         String[] // unlimited items, per-item length capped on input
+  position      Int      // creation order; rendered newest-first on detail page
+  createdAt     DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt     DateTime? @db.Timestamp(0)
+  deletedAt     DateTime? @db.Timestamp(0)
+
+  competition Competition @relation(fields: [competitionId], references: [id])
 }
 
 model ComplianceQuestion {

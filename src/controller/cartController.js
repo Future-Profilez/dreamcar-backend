@@ -35,10 +35,10 @@ exports.addToCart = catchAsync(async (req, res) => {
     if (itemType === "competition" || !itemType) {
       const competition = await prisma.competition.findUnique({
         where: { id: parseInt(itemId) },
-        select: { totalTickets: true, soldTickets: true }
+        select: { totalTickets: true, soldTickets: true, reservedTickets: true }
       });
       if (competition) {
-        const available = competition.totalTickets - competition.soldTickets;
+        const available = competition.totalTickets - competition.soldTickets - competition.reservedTickets;
         const requestedQty = parseInt(quantity);
         if (requestedQty > available) {
           return errorResponse(res, `Only ${available} tickets remaining`, 200);
@@ -146,10 +146,10 @@ exports.updateCartItem = catchAsync(async (req, res) => {
     if (existingItem.itemType === "competition") {
       const competition = await prisma.competition.findUnique({
         where: { id: parseInt(itemId) },
-        select: { totalTickets: true, soldTickets: true }
+        select: { totalTickets: true, soldTickets: true, reservedTickets: true }
       });
       if (competition) {
-        const available = competition.totalTickets - competition.soldTickets;
+        const available = competition.totalTickets - competition.soldTickets - competition.reservedTickets;
         if (parseInt(quantity) > available) {
           return errorResponse(res, `Only ${available} tickets remaining`, 200);
         }
