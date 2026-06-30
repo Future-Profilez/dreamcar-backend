@@ -657,19 +657,10 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       ticketPrice !== null &&
       ticketPrice !== ""
     ) {
-      // if (!Number.isInteger(Number(ticketPrice))) {
-      //   return errorResponse(
-      //     res,
-      //     "Ticket price must be a whole number. Decimals are not allowed.",
-      //     200
-      //   );
-      // }
-      const price = Number(ticketPrice);
-
-      if (isNaN(price) || price <= 0) {
+      if (isNaN(Number(ticketPrice))) {
         return errorResponse(
           res,
-          "Invalid ticket price",
+          "Ticket price must be a valid number.",
           200
         );
       }
