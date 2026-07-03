@@ -148,20 +148,20 @@ exports.drawWinner = catchAsync(async (req, res) => {
                                                         <div style="width: 50px; height: 3px; background-color: #EC6623; margin: 0 auto 25px auto;"></div>
                                                         
                                                         <p style="margin: 0 0 20px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
-                                                            Hi <strong>\${ticket.user.name}</strong>, you are the <strong>\${positionText}</strong> in the <strong>\${competition.title}</strong> competition!
+                                                            Hi <strong>${ticket.user.name}</strong>, you are the <strong> ${positionText}</strong> in the <strong>${competition.title}</strong> competition!
                                                         </p>
 
                                                         <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
                                                             <div style="font-size: 12px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 5px;">Your Prize</div>
-                                                            <div style="font-size: 20px; color: #42BE38; font-weight: 700; margin-bottom: 10px;">\${prizeTitle}</div>
-                                                            <div style="font-size: 14px; color: #4b5563;">Winning Ticket: <strong>\${ticketCode}</strong></div>
+                                                            <div style="font-size: 20px; color: #42BE38; font-weight: 700; margin-bottom: 10px;">${prizeTitle}</div>
+                                                            <div style="font-size: 14px; color: #4b5563;">Winning Ticket: <strong>${ticketCode}</strong></div>
                                                         </div>
 
                                                         <p style="margin: 0 0 25px 0; font-size: 15px; color: #4b5563; line-height: 1.6;">
                                                             Our team will be in touch with you shortly to arrange the delivery of your prize.
                                                         </p>
 
-                                                        <a href="\${process.env.FRONTEND_URL}/profile" style="display: inline-block; background-color: #171717; color: #ffffff; padding: 14px 32px; text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; border-radius: 6px;">View My Wins</a>
+                                                        <a href="${process.env.FRONTEND_URL}/profile" style="display: inline-block; background-color: #171717; color: #ffffff; padding: 14px 32px; text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; border-radius: 6px;">View My Wins</a>
                                                     </td>
                                                 </tr>
                                             </table>
@@ -170,10 +170,10 @@ exports.drawWinner = catchAsync(async (req, res) => {
                                     <tr>
                                         <td align="center" style="background-color: #e5e7eb; padding: 25px;">
                                             <p style="margin: 0 0 10px 0; font-size: 12px; color: #6b7280;">
-                                                Need help? <a href="\${process.env.FRONTEND_URL}/contact" style="color: #EC6623; text-decoration: none; font-weight: 600;">Contact Support</a>
+                                                Need help? <a href="${process.env.FRONTEND_URL}/contact" style="color: #EC6623; text-decoration: none; font-weight: 600;">Contact Support</a>
                                             </p>
                                             <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-                                                © \${new Date().getFullYear()} Dream Cars. All rights reserved.
+                                                © ${new Date().getFullYear()} Dream Cars. All rights reserved.
                                             </p>
                                         </td>
                                     </tr>
