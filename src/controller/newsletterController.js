@@ -6,8 +6,13 @@ const { successResponse, errorResponse } = require("../utils/ErrorHandling");
 
 exports.subscribeNewsletter = catchAsync(async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, fullName, phone } = req.body;
         const cleanEmail = (email || "").trim().toLowerCase();
+        const cleanName = (fullName || "").trim();
+        const cleanPhone = (phone || "").trim();
+        if (!cleanName) {
+            return errorResponse(res, "Full name is required", 200);
+        }
         if (!cleanEmail) {
             return errorResponse(
                 res,
@@ -33,7 +38,11 @@ exports.subscribeNewsletter = catchAsync(async (req, res) => {
         let newsletter;
         try {
             newsletter = await prisma.newsletter.create({
-                data: { email: cleanEmail }
+                data: {
+                    email: cleanEmail,
+                    fullName: cleanName,
+                    phone: cleanPhone || null
+                }
             });
         } catch (err) {
             if (err?.code === "P2002") {
@@ -46,22 +55,22 @@ exports.subscribeNewsletter = catchAsync(async (req, res) => {
             throw err;
         }
         const latestCompetitions = await prisma.competition.findMany({
-                where: {
-                    deletedAt: null
-                },
-                orderBy: {
-                    createdAt: "desc"
-                },
-                take: 3
-            });
+            where: {
+                deletedAt: null
+            },
+            orderBy: {
+                createdAt: "desc"
+            },
+            take: 3
+        });
 
         await sendEmail({
             email: cleanEmail,
             subject: "Welcome To DreamCar Competitions 🚗",
             emailHtml: NewsletterWelcomeTemplate({
-                    competitions:
-                        latestCompetitions
-                })
+                competitions:
+                    latestCompetitions
+            })
         });
         return successResponse(
             res,
@@ -82,7 +91,7 @@ exports.subscribeNewsletter = catchAsync(async (req, res) => {
 exports.deleteNewsletterSubscriber = catchAsync(async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         // Admin check
         if (req.user.role !== "admin") {
             return errorResponse(res, "Unauthorized", 403);
@@ -110,10 +119,25 @@ exports.getNewsletterSubscribers = catchAsync(async (req, res) => {
         let where = {};
         // SEARCH
         if (search) {
-            where.email = {
-                contains: search,
-                mode: "insensitive"
-            };
+            where.OR = [
+                {
+                    email: {
+                        contains: search,
+                        mode: "insensitive",
+                    },
+                },
+                {
+                    fullName: {
+                        contains: search,
+                        mode: "insensitive",
+                    },
+                },
+                {
+                    phone: {
+                        contains: search,
+                    },
+                },
+            ];
         }
         // SORT
         let orderBy = {

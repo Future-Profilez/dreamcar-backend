@@ -1249,7 +1249,7 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
         // Couldn't record the reservation — release inventory and cancel the session
         // so the customer isn't charged against tickets we can't track.
         await releaseInventory(reserved);
-        try { await stripe.checkout.sessions.expire(session.id); } catch (_) {}
+        try { await stripe.checkout.sessions.expire(session.id); } catch (_) { }
         throw persistErr;
       }
 
@@ -1696,141 +1696,265 @@ exports.getAllInstantWinsAdmin = catchAsync(async (req, res) => {
   }
 });
 
+// exports.getLiveDraws = catchAsync(async (req, res) => {
+
+
+//   const now = new Date();
+
+//   const competitions =
+//     await prisma.competition.findMany({
+//       where: {
+//         deletedAt: null,
+//         endTime: {
+//           gte: now
+//         }
+//       },
+
+//       orderBy: {
+//         endTime: "asc"
+//       },
+
+//       select: {
+//         id: true,
+//         title: true,
+//         slug: true,
+//         images: true,
+//         soldTickets: true,
+//         totalTickets: true,
+//         endTime: true,
+
+//         prizes: {
+//           orderBy: {
+//             position: "asc"
+//           },
+//           select: {
+//             id: true,
+//             title: true,
+//             position: true
+//           }
+//         },
+
+//         instantWinPrizes: {
+//           select: {
+//             id: true,
+//             title: true
+//           }
+//         }
+//       }
+//     });
+
+//   const data = competitions.map((item) => {
+
+//     const mainPrize =
+//       item.prizes.find(
+//         (p) => p.position === 1
+//       );
+
+//     const runnerUpPrizes =
+//       item.prizes
+//         .filter((p) => p.position > 1)
+//         .map((p) => p.title);
+
+//     const instantWinTitles =
+//       item.instantWinPrizes.map(
+//         (p) => p.title
+//       );
+
+//     const allPrizes = [];
+
+//     // MAIN PRIZE
+//     if (mainPrize) {
+
+//       allPrizes.push({
+//         title: mainPrize.title,
+//         type: "main"
+//       });
+
+//     }
+
+//     // RUNNER UPS
+//     if (runnerUpPrizes.length > 0) {
+
+//       allPrizes.push({
+//         title:
+//           runnerUpPrizes.join(", "),
+//         type: "runner_up"
+//       });
+
+//     }
+
+//     // INSTANT WINS
+//     if (instantWinTitles.length > 0) {
+
+//       allPrizes.push({
+//         title:
+//           instantWinTitles.join(", "),
+//         type: "instant_win"
+//       });
+
+//     }
+
+//     return {
+//       id: item.id,
+//       title: item.title,
+//       slug: item.slug,
+//       image: item.images?.[0],
+
+//       drawDate: item.endTime,
+
+//       drawTime:
+//         item.endTime.toLocaleTimeString(
+//           "en-GB",
+//           {
+//             hour: "2-digit",
+//             minute: "2-digit"
+//           }
+//         ),
+
+//       soldPercentage:
+//         item.totalTickets > 0
+//           ? Math.round(
+//             (item.soldTickets / item.totalTickets) * 100
+//           )
+//           : 0,
+
+//       prizes: allPrizes
+//     };
+
+//   });
+
+//   return successResponse(
+//     res,
+//     "Live draws fetched successfully",
+//     200,
+//     data
+//   );
+
+
+// });
+
 exports.getLiveDraws = catchAsync(async (req, res) => {
+  try {
+    const now = new Date();
 
-
-  const now = new Date();
-
-  const competitions =
-    await prisma.competition.findMany({
+    const competitions = await prisma.competition.findMany({
       where: {
         deletedAt: null,
         endTime: {
-          gte: now
-        }
+          gte: now,
+        },
       },
-
       orderBy: {
-        endTime: "asc"
+        endTime: "asc",
       },
-
       select: {
         id: true,
         title: true,
         slug: true,
-        images: true,
+        productType: true,
+        ticketPrice: true,
         soldTickets: true,
         totalTickets: true,
         endTime: true,
+        images: true,
 
         prizes: {
           orderBy: {
-            position: "asc"
+            position: "asc",
           },
           select: {
-            id: true,
             title: true,
-            position: true
-          }
+            position: true,
+          },
         },
-
-        instantWinPrizes: {
-          select: {
-            id: true,
-            title: true
-          }
-        }
-      }
+      },
     });
 
-  const data = competitions.map((item) => {
+    const grouped = {};
 
-    const mainPrize =
-      item.prizes.find(
-        (p) => p.position === 1
-      );
+    competitions.forEach((item) => {
+      const drawDate = new Date(item.endTime);
 
-    const runnerUpPrizes =
-      item.prizes
-        .filter((p) => p.position > 1)
-        .map((p) => p.title);
+      const dateKey = drawDate.toISOString().split("T")[0];
 
-    const instantWinTitles =
-      item.instantWinPrizes.map(
-        (p) => p.title
-      );
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = {
+          drawDate: dateKey,
 
-    const allPrizes = [];
+          displayDay: drawDate.toLocaleDateString("en-GB", {
+            weekday: "long",
+          }),
 
-    // MAIN PRIZE
-    if (mainPrize) {
+          displayDate: drawDate.toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "long",
+          }),
 
-      allPrizes.push({
-        title: mainPrize.title,
-        type: "main"
+          drawImages: [],
+
+          competitions: [],
+        };
+      }
+
+      const mainPrize =
+        item.prizes.find((p) => p.position === 1);
+
+      const competitionImage =
+        item.images?.length
+          ? item.images[0]
+          : null;
+
+      // one image per competition
+      if (competitionImage) {
+        grouped[dateKey].drawImages.push(competitionImage);
+      }
+
+      grouped[dateKey].competitions.push({
+        id: item.id,
+        slug: item.slug,
+
+        title: item.title,
+
+        prizeTitle:
+          mainPrize?.title || item.title,
+
+        productType: item.productType,
+
+        image: competitionImage,
+
+        ticketPrice: item.ticketPrice,
+
+        drawTime: drawDate.toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+
+        soldTickets: item.soldTickets,
+
+        totalTickets: item.totalTickets,
+
+        soldPercentage:
+          item.totalTickets > 0
+            ? Math.round(
+                (item.soldTickets / item.totalTickets) * 100
+              )
+            : 0,
       });
+    });
 
-    }
-
-    // RUNNER UPS
-    if (runnerUpPrizes.length > 0) {
-
-      allPrizes.push({
-        title:
-          runnerUpPrizes.join(", "),
-        type: "runner_up"
-      });
-
-    }
-
-    // INSTANT WINS
-    if (instantWinTitles.length > 0) {
-
-      allPrizes.push({
-        title:
-          instantWinTitles.join(", "),
-        type: "instant_win"
-      });
-
-    }
-
-    return {
-      id: item.id,
-      title: item.title,
-      slug: item.slug,
-      image: item.images?.[0],
-
-      drawDate: item.endTime,
-
-      drawTime:
-        item.endTime.toLocaleTimeString(
-          "en-GB",
-          {
-            hour: "2-digit",
-            minute: "2-digit"
-          }
-        ),
-
-      soldPercentage:
-        item.totalTickets > 0
-          ? Math.round(
-            (item.soldTickets / item.totalTickets) * 100
-          )
-          : 0,
-
-      prizes: allPrizes
-    };
-
-  });
-
-  return successResponse(
-    res,
-    "Live draws fetched successfully",
-    200,
-    data
-  );
-
-
+    return successResponse(
+      res,
+      "Live draws fetched successfully",
+      200,
+      Object.values(grouped)
+    );
+  } catch (error) {
+    return errorResponse(
+      res,
+      error.message || "Internal Server Error",
+      500
+    );
+  }
 });
 
 exports.toggleHeroCompetition = catchAsync(async (req, res) => {
