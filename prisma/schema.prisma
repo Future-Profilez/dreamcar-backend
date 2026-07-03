@@ -376,7 +376,8 @@ model WinnerDetail {
 model Newsletter {
   id               Int       @id @default(autoincrement())
   email            String    @unique
-
+  fullName         String
+  phone            String?
   createdAt        DateTime? @default(now()) @db.Timestamp(0)
   deletedAt        DateTime? @db.Timestamp(0)
 }
