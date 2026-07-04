@@ -1955,9 +1955,8 @@ exports.getLiveDraws = catchAsync(async (req, res) => {
       500
     );
   }
-  
-}); 
 
+}); 
 
 exports.toggleHeroCompetition = catchAsync(async (req, res) => {
   const { id } = req.params;
