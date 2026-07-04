@@ -346,6 +346,7 @@ exports.getAllAdminWinners = catchAsync(async (req, res) => {
                 winnerName: w.user.name,
                 winnerEmail: w.user.email,
                 ticketCode: w.ticket?.ticketCode || `#${w.ticket?.ticketNumber}`,
+                ticketNumber: w.ticket?.ticketNumber,
                 position: w.position,
                 date: w.createdAt,
                 isManual: w.isManual
@@ -394,7 +395,8 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                     },
                     ticket: {
                         select: {
-                            ticketCode: true
+                            ticketCode: true,
+                            ticketNumber: true
                         }
                     },
                     winnerDetail: {
