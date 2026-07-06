@@ -331,7 +331,7 @@ model WalletTransaction {
 model GiftCredit {
   id                Int      @id @default(autoincrement())
   code        String   @unique
-  amount            Int
+  amount            Decimal  @db.Decimal(10, 2)
   
   purchasedById       Int?
   purchasedByUser   User?    @relation("PurchasedGift", fields: [purchasedById], references: [id])
@@ -345,6 +345,18 @@ model GiftCredit {
   createdAt         DateTime? @default(now()) @db.Timestamp(0)
 
   
+}
+
+model GiftCardProduct {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  price       Decimal   @db.Decimal(10, 2)
+  image       String?
+  isActive    Boolean   @default(true)
+
+  createdAt   DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt   DateTime? @updatedAt @db.Timestamp(0)
 }
 
 model CurrencyRate {

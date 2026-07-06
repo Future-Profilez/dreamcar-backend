@@ -54,6 +54,7 @@ app.use("/api", require("./routes/ticketRoutes"));
 app.use("/api", require("./routes/winnerRoutes"));
 app.use("/api", require("./routes/contactRoutes"));
 app.use("/api", require("./routes/giftCreditRoutes"));
+app.use("/api", require("./routes/giftCardProductRoutes"));
 app.use("/api", require("./routes/newsletterRoutes"));
 app.use("/api", require("./routes/adminNotificationRoutes"));
 app.use("/api", require("./routes/marketingRoutes"));

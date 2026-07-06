@@ -36,10 +36,12 @@ exports.purchaseGiftCredit = catchAsync(async (req, res) => {
             product_data: {
               name: giftType === "competition" && competitionName
                 ? `Gift Ticket: ${competitionName}`
+                : giftType === "gift_card" && competitionName
+                ? competitionName
                 : `DreamCar Gift Credit (£${amount})`,
             },
 
-            unit_amount: amount * 100,
+            unit_amount: Math.round(Number(amount) * 100),
           },
 
           quantity: 1,

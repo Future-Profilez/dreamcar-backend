@@ -86,24 +86,22 @@ exports.createGiftCardProduct = catchAsync(async (req, res) => {
       return errorResponse(res, "Title is required", 200);
     }
 
-    const parsedPrice = parseInt(price);
-    if (!parsedPrice || parsedPrice <= 0) {
+    const parsedPrice = parseFloat(price);
+    if (!parsedPrice || Number.isNaN(parsedPrice) || parsedPrice <= 0) {
       return errorResponse(res, "Invalid price", 200);
     }
 
-    const file = req.file;
-    if (!file) {
-      return errorResponse(res, "Image is required", 200);
+    let image = null;
+    if (req.file) {
+      const baseUrl = getBaseUrl(req);
+      image = `${baseUrl}/uploads/${req.file.filename}`;
     }
-
-    const baseUrl = getBaseUrl(req);
-    const image = `${baseUrl}/uploads/${file.filename}`;
 
     const item = await prisma.giftCardProduct.create({
       data: {
         title: String(title).trim(),
         description: description ? String(description).trim() : null,
-        price: parsedPrice,
+        price: Math.round(parsedPrice * 100) / 100,
         image,
         isActive:
           typeof isActive === "undefined"
@@ -150,11 +148,11 @@ exports.updateGiftCardProduct = catchAsync(async (req, res) => {
     }
 
     if (typeof price !== "undefined") {
-      const parsedPrice = parseInt(price);
-      if (!parsedPrice || parsedPrice <= 0) {
+      const parsedPrice = parseFloat(price);
+      if (!parsedPrice || Number.isNaN(parsedPrice) || parsedPrice <= 0) {
         return errorResponse(res, "Invalid price", 200);
       }
-      data.price = parsedPrice;
+      data.price = Math.round(parsedPrice * 100) / 100;
     }
 
     if (typeof isActive !== "undefined") {
