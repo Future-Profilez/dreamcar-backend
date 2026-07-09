@@ -1,5 +1,5 @@
-const { signup, login, GetUser, updateProfile, getUserProfileDashboard, getAllUsers, createWalletPayment, getWallet, deleteAccount, verifyOTP, resendOTP, forgotPassword, resetPassword, toggleBlockUser, deleteUserByAdmin, resetAdminPassword } = require("../controller/userController");
-const { verifyToken } = require("../utils/tokenVerify");
+const { signup, login, GetUser, updateProfile, getUserProfileDashboard, getAllUsers, createWalletPayment, getWallet, deleteAccount, verifyOTP, resendOTP, forgotPassword, resetPassword, toggleBlockUser, deleteUserByAdmin, resetAdminPassword, adminCreateUser, adminResetUserPassword } = require("../controller/userController");
+const { verifyToken, requireAdmin } = require("../utils/tokenVerify");
 
 const router = require("express").Router();
 
@@ -13,9 +13,9 @@ router.get("/user/profile", verifyToken, GetUser);
 router.put("/user/profile", verifyToken, updateProfile);
 router.delete("/user/delete", verifyToken, deleteAccount);
 router.post("/admin/user/block/:id", verifyToken, toggleBlockUser);
-// router.delete("/admin/user/delete/:id", verifyToken, deleteUserByAdmin);
+router.delete("/admin/user/delete/:id", verifyToken, requireAdmin, deleteUserByAdmin);
 router.get("/user/profile/dashboard", verifyToken, getUserProfileDashboard);
-router.get("/users", verifyToken, getAllUsers);
+router.get("/users", verifyToken, requireAdmin, getAllUsers);
 
 router.get("/user/wallet/get", verifyToken, getWallet);
 router.post("/users/wallet/recharge", verifyToken, createWalletPayment);
@@ -25,6 +25,8 @@ router.post("/users/wallet/recharge", verifyToken, createWalletPayment);
 // admin routes
 router.post("/admin/login", login);
 router.post("/admin/reset-password", verifyToken, resetAdminPassword);
+router.post("/admin/user/create", verifyToken, requireAdmin, adminCreateUser);
+router.post("/admin/user/reset-password/:id", verifyToken, requireAdmin, adminResetUserPassword);
 
 
 

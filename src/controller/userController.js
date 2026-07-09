@@ -942,60 +942,120 @@ exports.toggleBlockUser = catchAsync(async (req, res) => {
   );
 });
 
-// exports.deleteUserByAdmin = catchAsync(async (req, res) => {
 
-//   if (req.user.role !== "admin") {
-//     return errorResponse(
-//       res,
-//       "Unauthorized",
-//       200
-//     );
-//   }
+exports.adminCreateUser = catchAsync(async (req, res) => {
+  try {
+    const { name, password } = req.body;
+    const email = req.body.email?.trim();
+    if (!name || !email || !password) {
+      return errorResponse(res, "Name, email and password are required", 200);
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return errorResponse(res, "Invalid email address", 200);
+    }
+    if (password.length < 8) {
+      return errorResponse(res, "Password must be at least 8 characters", 200);
+    }
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+    if (existingUser) {
+      return errorResponse(res, "Email already registered", 200);
+    }
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        otpVerifiedAt: new Date(),
+      },
+    });
+    return successResponse(res, "User created successfully", 201, {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        password,
+      },
+    });
+  } catch (error) {
+    Loggers.error(`Admin create user error: ${error?.stack || error?.message || String(error)}`);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
 
-//   const userId =
-//     parseInt(req.params.id);
+exports.adminResetUserPassword = catchAsync(async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    const { password } = req.body;
+    if (!userId) {
+      return errorResponse(res, "User id is required", 200);
+    }
+    if (!password || password.length < 8) {
+      return errorResponse(res, "Password must be at least 8 characters", 200);
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user || user.deletedAt) {
+      return errorResponse(res, "User not found", 200);
+    }
+    const hashedPassword = await bcrypt.hash(password, 12);
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        otpVerifiedAt: user.otpVerifiedAt || new Date(),
+      },
+    });
+    return successResponse(res, "Password reset successfully", 200, {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        password,
+      },
+    });
+  } catch (error) {
+    Loggers.error(`Admin reset user password error: ${error?.stack || error?.message || String(error)}`);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
 
-//   const user =
-//     await prisma.user.findUnique({
-//       where: { id: userId }
-//     });
+exports.deleteUserByAdmin = catchAsync(async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    if (!userId) {
+      return errorResponse(res, "User id is required", 200);
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user || user.deletedAt) {
+      return errorResponse(res, "User not found", 200);
+    }
+    if (user.role === "admin") {
+      return errorResponse(res, "Admin account cannot be deleted", 200);
+    }
 
-//   if (!user) {
-//     return errorResponse(
-//       res,
-//       "User not found",
-//       200
-//     );
-//   }
+    const deletedAt = new Date();
+    const unusablePassword = await bcrypt.hash(`${userId}_${deletedAt.toISOString()}_${Math.random()}`, 12);
 
-//   if (user.role === "admin") {
-//     return errorResponse(
-//       res,
-//       "Admin account cannot be deleted",
-//       200
-//     );
-//   }
+    // Soft delete: timestamp + invalidate credentials, frees email for re-registration
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt,
+        email: `deleted_${userId}_${deletedAt.getTime()}_${user.email}`,
+        password: unusablePassword,
+      },
+    });
 
-//   if (user.deletedAt) {
-//     return errorResponse(
-//       res,
-//       "User already deleted",
-//       200
-//     );
-//   }
-
-//   await prisma.user.update({
-//     where: {
-//       id: userId
-//     },
-//     data: {
-//       deletedAt: new Date()
-//     }
-//   });
-
-//   return successResponse(
-//     res,
-//     "User deleted successfully",
-//     200
-//   );
-// });
+    Loggers.info(`User deleted by admin ${req.user.id}: ${userId}`);
+    return successResponse(res, "User deleted successfully", 200);
+  } catch (error) {
+    Loggers.error(`Admin delete user error: ${error?.stack || error?.message || String(error)}`);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
