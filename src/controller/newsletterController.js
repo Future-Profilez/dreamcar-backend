@@ -4,6 +4,105 @@ const catchAsync = require("../utils/catchAsync");
 const sendEmail = require("../utils/EmailMailler");
 const { successResponse, errorResponse } = require("../utils/ErrorHandling");
 
+
+const axios = require("axios");
+
+const headers = {
+    Authorization: `Klaviyo-API-Key ${process.env.KLAVIYO_PRIVATE_API_KEY}`,
+    accept: "application/json",
+    "content-type": "application/json",
+    revision: "2024-10-15"
+};
+
+const subscribeToKlaviyo = async ({ email, name, phone }) => {
+    try {
+        let firstName = "";
+        let lastName = "";
+
+        if (name?.trim()) {
+            const parts = name.trim().split(" ");
+            firstName = parts[0];
+            lastName = parts.slice(1).join(" ");
+        }
+
+        const rawPhone = phone?.trim() || "";
+
+        const profileAttributes = {
+            email,
+            first_name: firstName,
+            last_name: lastName,
+            properties: {}
+        };
+
+        const subscriptionProfileAttributes = {
+            email
+        };
+
+        if (rawPhone) {
+            profileAttributes.properties.phone = rawPhone;
+
+            if (rawPhone.startsWith("+")) {
+                profileAttributes.phone_number = rawPhone;
+                subscriptionProfileAttributes.phone_number = rawPhone;
+            }
+        }
+
+        // 1. Create or Update Profile (Upsert)
+        await axios.post(
+            "https://a.klaviyo.com/api/profile-import/",
+            {
+                data: {
+                    type: "profile",
+                    attributes: profileAttributes
+                }
+            },
+            { headers }
+        );
+
+        // 2. Subscribe to Newsletter List
+        await axios.post(
+            "https://a.klaviyo.com/api/profile-subscription-bulk-create-jobs",
+            {
+                data: {
+                    type: "profile-subscription-bulk-create-job",
+                    attributes: {
+                        custom_source: "Newsletter Form",
+                        profiles: {
+                            data: [
+                                {
+                                    type: "profile",
+                                    attributes: subscriptionProfileAttributes
+                                }
+                            ]
+                        }
+                    },
+                    relationships: {
+                        list: {
+                            data: {
+                                type: "list",
+                                id: process.env.WEBSITE_NEWSLETTER_KLAVIYO_LIST_ID
+                            }
+                        }
+                    }
+                }
+            },
+            { headers }
+        );
+
+        console.log("Klaviyo profile synced and subscribed successfully.");
+
+        return true;
+
+    } catch (error) {
+
+        console.log(
+            JSON.stringify(error.response?.data, null, 2)
+        );
+
+        return false;
+    }
+};
+
 exports.subscribeNewsletter = catchAsync(async (req, res) => {
     try {
         const { email, fullName, phone } = req.body;
@@ -28,6 +127,7 @@ exports.subscribeNewsletter = catchAsync(async (req, res) => {
                 },
             },
         });
+
         if (existing) {
             return successResponse(
                 res,
@@ -35,6 +135,13 @@ exports.subscribeNewsletter = catchAsync(async (req, res) => {
                 200
             );
         }
+
+        await subscribeToKlaviyo({
+            email: cleanEmail,
+            name: cleanName,
+            phone: cleanPhone
+        });
+
         let newsletter;
         try {
             newsletter = await prisma.newsletter.create({
@@ -47,8 +154,7 @@ exports.subscribeNewsletter = catchAsync(async (req, res) => {
         } catch (err) {
             if (err?.code === "P2002") {
                 return successResponse(
-                    res,
-                    "You are already subscribed to our newsletter!",
+                    res, "You are already subscribed to our newsletter!",
                     200
                 );
             }
