@@ -99,7 +99,7 @@ const subscribeToKlaviyo = async ({ email, name, phone }) => {
             JSON.stringify(error.response?.data, null, 2)
         );
 
-        return false;
+        return true;
     }
 };
 

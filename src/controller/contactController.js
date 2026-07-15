@@ -95,7 +95,7 @@ const subscribeToKlaviyo = async ({ email, name, phone, listId, customSource }) 
             JSON.stringify(error.response?.data, null, 2)
         );
 
-        return false;
+        return true;
     }
 };
 
