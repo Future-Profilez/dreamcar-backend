@@ -586,7 +586,7 @@ const processSuccessfulPayment = async (session) => {
                 if (user && user.email) {
                     for (const win of txResult.wonInstantWinsList) {
                         const prizeTitle = win.prize ? win.prize.title : "an Instant Prize";
-                        const ticketCode = win.ticketCode;
+                        const ticketCode = `#${win.ticketNumber}`;
                         const competitionName = txResult.competition.title;
 
                         await createAdminNotification({
@@ -623,7 +623,7 @@ const processSuccessfulPayment = async (session) => {
 
                     for (const win of txResult.wonInstantWinsList) {
                         const prizeTitle = win.prize ? win.prize.title : 'an Instant Prize';
-                        const ticketCode = win.ticketCode;
+                        const ticketCode = `#${win.ticketNumber}`;
                         const competitionName = txResult.competition.title;
 
                         const emailHtml = `

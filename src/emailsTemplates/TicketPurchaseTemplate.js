@@ -1,11 +1,10 @@
-const { getDisplayTicketNumber } = require("../utils/getDisplayTicketNumber");
 const { renderEmail, SITE, SANS, MONO, T } = require('./_emailLayout');
 
 module.exports = ({ user, competition, tickets, amount, instantWins = [] }) => {
     const hasInstantWin = instantWins.length > 0;
 
     const ticketChips = tickets.map(t =>
-        `<span style="display:inline-block;background:${T.ink};color:#ffffff;font-family:${MONO};font-size:13px;font-weight:700;letter-spacing:1px;padding:8px 12px;border-radius:5px;margin:0 6px 8px 0;">#${getDisplayTicketNumber(t.ticketCode, competition.id)}</span>`
+        `<span style="display:inline-block;background:${T.ink};color:#ffffff;font-family:${MONO};font-size:13px;font-weight:700;letter-spacing:1px;padding:8px 12px;border-radius:5px;margin:0 6px 8px 0;">#${t.ticketNumber}</span>`
     ).join('');
 
     const instantWinHtml = hasInstantWin ? `
@@ -13,7 +12,7 @@ module.exports = ({ user, competition, tickets, amount, instantWins = [] }) => {
             <tr>
                 <td style="padding:20px 22px;">
                     <div style="font-family:${MONO};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${T.green};font-weight:700;margin-bottom:8px;">Instant win!</div>
-                    ${instantWins.map(win => `<div style="font-family:${SANS};font-size:14px;color:${T.text};line-height:1.6;">Ticket <strong style="font-family:${MONO};">#${getDisplayTicketNumber(win.ticketCode, competition.id)}</strong> won <strong>${win.prize?.title || 'a prize'}</strong></div>`).join('')}
+                    ${instantWins.map(win => `<div style="font-family:${SANS};font-size:14px;color:${T.text};line-height:1.6;">Ticket <strong style="font-family:${MONO};">#${win.ticketNumber}</strong> won <strong>${win.prize?.title || 'a prize'}</strong></div>`).join('')}
                 </td>
             </tr>
         </table>

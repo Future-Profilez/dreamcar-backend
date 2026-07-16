@@ -646,7 +646,7 @@ exports.getUserProfileDashboard = catchAsync(async (req, res) => {
           };
         }
 
-        grouped[compId].tickets.push(t.ticketCode || `#${t.ticketNumber}`);
+        grouped[compId].tickets.push(`#${t.ticketNumber}`);
       });
 
       data = Object.values(grouped);

@@ -101,7 +101,7 @@ exports.drawWinner = catchAsync(async (req, res) => {
             const wonPrize = competition.prizes?.find(p => p.position === Number(position));
             const prizeTitle = wonPrize ? wonPrize.title : competition.title;
             const positionText = Number(position) === 1 ? "Main Winner" : `Runner-up (Position ${position})`;
-            const ticketCode = ticket.ticketCode || `#${ticket.ticketNumber}`;
+            const ticketCode = `#${ticket.ticketNumber}`;
 
             await createAdminNotification({
                 key: `winner-decided-${result.id}`,
@@ -126,7 +126,7 @@ exports.drawWinner = catchAsync(async (req, res) => {
                 const wonPrize = competition.prizes?.find(p => p.position === Number(position));
                 const prizeTitle = wonPrize ? wonPrize.title : competition.title;
                 const positionText = Number(position) === 1 ? "Main Winner" : `Runner-up (Position ${position})`;
-                const ticketCode = ticket.ticketCode || `#${ticket.ticketNumber}`;
+                const ticketCode = `#${ticket.ticketNumber}`;
 
                 const emailHtml = `
                 <div style="font-family: 'Poppins', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 40px 0; width: 100%;">
@@ -278,7 +278,7 @@ exports.getUserWins = catchAsync(async (req, res) => {
                 id: w.id,
                 title: wonPrize ? wonPrize.title : w.competition.title,
                 image: wonPrize?.prizeDetailImage || w.competition.images?.[0],
-                ticketCode: w.ticket?.ticketCode || `#${w.ticket?.ticketNumber || w.ticketId.slice(0, 6)}`,
+                ticketCode: w.ticket ? `#${w.ticket.ticketNumber}` : `#${w.ticketId.slice(0, 6)}`,
                 position: w.position,
                 drawDate: w.competition.endTime,
                 competitionId: w.competition.id,
@@ -345,7 +345,7 @@ exports.getAllAdminWinners = catchAsync(async (req, res) => {
                 prizeTitle: wonPrize ? wonPrize.title : w.competition.title,
                 winnerName: w.user.name,
                 winnerEmail: w.user.email,
-                ticketCode: w.ticket?.ticketCode || `#${w.ticket?.ticketNumber}`,
+                ticketCode: w.ticket ? `#${w.ticket.ticketNumber}` : null,
                 ticketNumber: w.ticket?.ticketNumber,
                 position: w.position,
                 date: w.createdAt,
@@ -444,7 +444,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                 date: w.competition.endTime,
                 winnerName: w.user.name,
                 image: w.winnerImage || "/img/trophy.png",
-                ticketCode: w.ticket?.ticketCode,
+                ticketCode: w.ticket ? `#${w.ticket.ticketNumber}` : null,
                 position: w.position,
                 winnerImage: w.winnerDetail?.winnerImage || ''
             };
@@ -522,7 +522,7 @@ exports.getUserInstantWins = catchAsync(async (req, res) => {
             image:
                 w.prize.image ||
                 w.competition.images?.[0],
-            ticketCode: w.ticket?.ticketCode || `#${w.ticketNumber}`,
+            ticketCode: `#${w.ticketNumber}`,
             claimedAt: w.claimedAt,
             drawDate: w.competition.endTime,
             type: w.competition.productType,
@@ -766,7 +766,7 @@ exports.getWinnerDetailPrefill = catchAsync(async (req, res) => {
                     galleryImages: existingDetail.galleryImages || [],
                     
                     competitionTitle: result.competition.title,
-                    winnerTicket: result.ticket.ticketCode,
+                    winnerTicket: `#${result.ticket.ticketNumber}`,
                     prizeTitle: wonPrize?.title,
                     questions: result.competition.questions,
                     isEditing: true
@@ -782,7 +782,7 @@ exports.getWinnerDetailPrefill = catchAsync(async (req, res) => {
                 winnerName: result.user.name,
                 winnerLocation: "",
                 competitionTitle: result.competition.title,
-                winnerTicket: result.ticket.ticketCode,
+                winnerTicket: `#${result.ticket.ticketNumber}`,
                 prizeTitle: wonPrize?.title,
                 winnerImage: result.winnerImage,
                 galleryImages: [],
@@ -876,7 +876,7 @@ exports.getWinnerDetail = catchAsync(async (req, res) => {
                 winnerImage: result.winnerImage,
                 galleryImages: [],
                 createdAt: result.createdAt,
-                ticketCode: result.ticket?.ticketCode,
+                ticketCode: result.ticket ? `#${result.ticket.ticketNumber}` : null,
                 winnerJoinedAt: result.user?.createdAt,
                 prize: mainPrize,
                 complianceQuestions: result.competition.questions,
@@ -911,7 +911,8 @@ exports.getWinnerDetail = catchAsync(async (req, res) => {
             galleryImages: winnerDetail.galleryImages,
             createdAt: winnerDetail.createdAt,
             ticketCode: winnerDetail.result.ticket
-                ?.ticketCode,
+                ? `#${winnerDetail.result.ticket.ticketNumber}`
+                : null,
             winnerJoinedAt: winnerDetail.result.user
                 ?.createdAt,
             prize: mainPrize,
