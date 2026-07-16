@@ -8,6 +8,7 @@
     "dev": "nodemon src/app.js",
     "build": "prisma generate",
     "postinstall": "prisma generate",
+    "push": "git add . && git commit -m 'update' && git push",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
