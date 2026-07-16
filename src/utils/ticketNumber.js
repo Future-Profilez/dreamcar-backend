@@ -31,7 +31,7 @@ function prf(key, round, value) {
  * @param {number} position      0-indexed slot in the sold order (0 … N-1)
  * @param {number} totalTickets  N — size of the number space
  * @param {string|Buffer} key    competition.shuffleKey (secret)
- * @returns {number} unique ticket number in [0, N)
+ * @returns {number} unique ticket number in [1, N] (1-based for humans — no ticket #0)
  */
 function mapPositionToTicket(position, totalTickets, key) {
   const N = Number(totalTickets);
@@ -39,7 +39,7 @@ function mapPositionToTicket(position, totalTickets, key) {
   if (!Number.isInteger(position) || position < 0 || position >= N) {
     throw new Error(`ticketNumber: position ${position} out of range [0, ${N})`);
   }
-  if (N <= 1) return 0;
+  if (N <= 1) return 1;
 
   // Even bit-width so the Feistel halves are equal size.
   let bits = Math.ceil(Math.log2(N));
@@ -63,11 +63,11 @@ function mapPositionToTicket(position, totalTickets, key) {
       R = nextR;
     }
     x = ((L << half) | R) >>> 0;
-    if (x < N) return x;
+    if (x < N) return x + 1; // shift to 1-based: tickets run 1..N, never #0
   }
 
   // Unreachable for realistic N; never hang.
-  return position;
+  return position + 1;
 }
 
 module.exports = { mapPositionToTicket };
