@@ -523,6 +523,7 @@ exports.GetUser = catchAsync(async (req, res) => {
       where: { id },
       select: {
         id: true,
+        memberNumber: true,
         name: true,
         email: true,
         role: true,
@@ -701,6 +702,11 @@ exports.getAllUsers = catchAsync(async (req, res) => {
           }
         }
       ];
+      // numeric search also matches member number ("#12" or "12")
+      const numeric = parseInt(String(search).replace("#", ""), 10);
+      if (!isNaN(numeric)) {
+        where.OR.push({ memberNumber: numeric });
+      }
     }
 
     // STATUS
@@ -746,6 +752,7 @@ exports.getAllUsers = catchAsync(async (req, res) => {
     }
     const formattedUsers = allUsers.map((user) => ({
       id: user.id,
+      memberNumber: user.memberNumber,
       name: user.name,
       email: user.email,
       tickets: user.tickets?.length || 0,

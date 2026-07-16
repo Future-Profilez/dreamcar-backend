@@ -21,6 +21,7 @@ enum itemTypeEnum {
 
 model User {
   id            Int       @id @default(autoincrement())
+  memberNumber  Int       @unique @default(autoincrement()) // permanent sequential member no. (1,2,3…); backfilled by join date
   name          String
   email         String    @unique
   password      String
