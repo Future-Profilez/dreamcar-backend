@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const prisma = require('../prismaconfig');
 const Loggers = require('../utils/Logger');
 const { createAdminNotification } = require('../utils/createAdminNotification');
+const { mapPositionToTicket } = require('../utils/ticketNumber');
 
 // Run every minute
 cron.schedule('* * * * *', async () => {
@@ -61,11 +62,16 @@ cron.schedule('* * * * *', async () => {
 
         Loggers.info(`Cron: Threshold reached for competition ${comp.id}. Generating instant wins...`);
 
-        // Pick numbers from soldTickets + 1 to totalTickets
-        const startRange = comp.soldTickets + 1;
-        const endRange = comp.totalTickets;
+        // Pick instant wins in POSITION space (not number space) so only tickets not
+        // yet sold can win, then map each position to its ticket number via the same
+        // permutation used at purchase. This keeps fairness (already-sold positions
+        // can't be picked) and guarantees each instant win will eventually be handed
+        // to a real buyer. Positions are 0-indexed: [soldTickets, totalTickets).
+        const startPos = comp.soldTickets;
+        const endPos = comp.totalTickets;
+        const availablePositions = endPos - startPos;
 
-        if (totalPrizes > (endRange - startRange + 1)) {
+        if (totalPrizes > availablePositions) {
           Loggers.error(`Cron: Not enough unsold tickets to assign instant wins for competition ${comp.id}`);
 
           // Rollback the generation flag
@@ -76,25 +82,30 @@ cron.schedule('* * * * *', async () => {
           continue;
         }
 
-        const winningNumbers = new Set();
+        const winningPositions = new Set();
 
-        while (winningNumbers.size < totalPrizes) {
-          const rand = Math.floor(Math.random() * (endRange - startRange + 1)) + startRange;
-          winningNumbers.add(rand);
+        while (winningPositions.size < totalPrizes) {
+          const rand = Math.floor(Math.random() * availablePositions) + startPos;
+          winningPositions.add(rand);
         }
 
-        const numbersArray = Array.from(winningNumbers);
+        const positionsArray = Array.from(winningPositions);
         let index = 0;
 
         try {
           await prisma.$transaction(async (tx) => {
             for (const prize of comp.instantWinPrizes) {
               for (let i = 0; i < prize?.quantity; i++) {
+                const position = positionsArray[index++];
+                const ticketNumber = comp.shuffleKey
+                  ? mapPositionToTicket(position, comp.totalTickets, comp.shuffleKey)
+                  : position + 1; // legacy fallback
                 await tx.instantWin.create({
                   data: {
                     competitionId: comp.id,
                     prizeId: prize.id,
-                    ticketNumber: numbersArray[index++]
+                    ticketNumber,
+                    position
                   }
                 });
               }

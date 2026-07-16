@@ -1,3 +1,5 @@
+const { mapPositionToTicket } = require("./ticketNumber");
+
 const generateInstantWinTickets = async (tx, competition) => {
   const threshold = Math.floor(
     (competition.instantWinTriggerPercent / 100) * competition.totalTickets
@@ -27,31 +29,40 @@ const generateInstantWinTickets = async (tx, competition) => {
     return;
   }
 
-  const winningNumbers = new Set();
+  // Pick in POSITION space among not-yet-sold slots, then map to ticket numbers
+  // via the competition's shuffleKey permutation (Option A). Positions are
+  // 0-indexed: [soldTickets, totalTickets).
+  const winningPositions = new Set();
 
-  const min = threshold + 1;
-  const max = competition.totalTickets;
+  const startPos = competition.soldTickets;
+  const endPos = competition.totalTickets;
+  const availablePositions = endPos - startPos;
 
   // 🔥 IMPORTANT: prevent infinite loop
-  if (totalPrizes > (max - min + 1)) {
+  if (totalPrizes > availablePositions) {
     throw new Error("Too many instant win prizes for available ticket range");
   }
 
-  while (winningNumbers.size < totalPrizes) {
-    const rand = Math.floor(Math.random() * (max - min + 1)) + min;
-    winningNumbers.add(rand);
+  while (winningPositions.size < totalPrizes) {
+    const rand = Math.floor(Math.random() * availablePositions) + startPos;
+    winningPositions.add(rand);
   }
 
-  const numbersArray = Array.from(winningNumbers);
+  const positionsArray = Array.from(winningPositions);
   let index = 0;
 
   for (const prize of prizeData) {
     for (let i = 0; i < prize.quantity; i++) {
+      const position = positionsArray[index++];
+      const ticketNumber = competition.shuffleKey
+        ? mapPositionToTicket(position, competition.totalTickets, competition.shuffleKey)
+        : position + 1; // legacy fallback
       await tx.instantWin.create({
         data: {
           competitionId: competition.id,
           prizeId: prize.id,
-          ticketNumber: numbersArray[index++],
+          ticketNumber,
+          position,
         },
       });
     }

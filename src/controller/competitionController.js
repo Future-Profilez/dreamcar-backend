@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { errorResponse, successResponse, validationErrorResponse, } = require("../utils/ErrorHandling");
 const catchAsync = require("../utils/catchAsync");
 const prisma = require("../prismaconfig");
@@ -117,6 +118,8 @@ exports.addCompetition = catchAsync(async (req, res) => {
         totalTickets: parseInt(totalTickets),
         startTime: parsedStartTime,
         endTime: parsedEndTime,
+        // secret key for random ticket-number allocation (Option A permutation)
+        shuffleKey: crypto.randomBytes(16).toString("hex"),
         // prizeDetail: mainPrize.prizeDescription,
         // prizeDetailImage: mainPrizeImage,
         // prizeFeatures: mainPrize.prizeFeatures || [],
@@ -646,9 +649,13 @@ exports.updateCompetition = catchAsync(async (req, res) => {
     //   return errorResponse(res, "End time must be after start time", 400);
     // }
 
+    // Random ticket-number allocation (Option A) maps each position -> number using
+    // totalTickets (N) as the domain size. Changing N after any ticket is sold/reserved
+    // would produce a different permutation for new purchases, colliding with numbers
+    // already issued under the old N. So lock totalTickets once sales/reservations start.
     if (totalTickets && parseInt(totalTickets) !== existingCompetition.totalTickets) {
-      if (existingCompetition.instantWinEnabled && existingCompetition.soldTickets > 0) {
-        return errorResponse(res, "Cannot change total tickets after tickets have been sold in an instant win competition.", 200);
+      if (existingCompetition.soldTickets > 0 || existingCompetition.reservedTickets > 0) {
+        return errorResponse(res, "Cannot change total tickets after tickets have been sold or reserved.", 200);
       }
     }
 
@@ -1682,6 +1689,7 @@ exports.getAllInstantWinsAdmin = catchAsync(async (req, res) => {
       prizeTitle: iw.prize.title,
       prizeImage: iw.prize.image,
       ticketNumber: iw.ticketNumber,
+      position: iw.position,
       ticketCode: iw.ticket?.ticketCode || null,
       isClaimed: iw.isClaimed,
       claimedBy: iw.claimedBy?.name || null,

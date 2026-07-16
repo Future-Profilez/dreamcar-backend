@@ -62,6 +62,7 @@ model Competition {
   totalTickets     Int
   soldTickets      Int             @default(0)
   reservedTickets  Int             @default(0)  // in-flight (paid pending) card checkouts; availability = totalTickets - soldTickets - reservedTickets
+  shuffleKey       String?         // secret key for random ticket-number allocation (Option A permutation); null = legacy sequential numbering
   isFeatured       Int             @default(0)  //0->not featured 1->featured
   isHero           Int             @default(0)  //0->not on hero section 1->on hero section
   startTime        DateTime
@@ -170,6 +171,7 @@ model InstantWin {
   competitionId Int
   prizeId       String
   ticketNumber  Int
+  position      Int?      // sold-order slot that maps to ticketNumber (Option A); shown to admin for testing
 
   isClaimed   Boolean   @default(false)
   claimedById Int?

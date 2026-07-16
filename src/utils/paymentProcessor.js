@@ -1,5 +1,6 @@
 const prisma = require("../prismaconfig");
 const { generateTicketCode } = require("./ticketCode");
+const { mapPositionToTicket } = require("./ticketNumber");
 const crypto = require("crypto");
 const sendEmail = require("./EmailMailler");
 const TicketPurchaseTemplate = require("../emailsTemplates/TicketPurchaseTemplate");
@@ -399,6 +400,8 @@ const processSuccessfulPayment = async (session) => {
                     id: true,
                     title: true,
                     soldTickets: true,
+                    totalTickets: true, // number-space size for the ticketNumber permutation
+                    shuffleKey: true,   // secret key for random ticket-number allocation (Option A)
                     ticketPrice: true,
                     images: true
                 }
@@ -465,20 +468,33 @@ const processSuccessfulPayment = async (session) => {
                 }
             });
 
-            // 5. Generate ticket numbers safely + check wins
-            const startNumber = updatedCompetition.soldTickets - parsedQty + 1;
+            // 5. Generate ticket numbers safely + check wins.
+            // Each buyer claims a contiguous block of POSITIONS (0-indexed) in the sold
+            // order; the shuffleKey permutation maps every position to a scattered, unique
+            // ticket number across the whole range. Uniqueness is guaranteed by the
+            // bijection, so no collision checks/retries are needed. Competitions without a
+            // shuffleKey (legacy) fall back to plain sequential numbering (position + 1).
+            const startPosition = updatedCompetition.soldTickets - parsedQty; // first 0-indexed position of this purchase
+            const shuffleKey = competition.shuffleKey;
+            const ticketNumbers = [];
+            for (let i = 0; i < parsedQty; i++) {
+                const position = startPosition + i;
+                ticketNumbers.push(
+                    shuffleKey
+                        ? mapPositionToTicket(position, competition.totalTickets, shuffleKey)
+                        : position + 1
+                );
+            }
+
             const ticketsData = [];
             const instantWinUpdates = [];
             const wonInstantWinsList = [];
 
-            // Pre-fetch all potential instant wins for these ticket numbers to avoid querying in loop
+            // Pre-fetch all potential instant wins for these (scattered) ticket numbers.
             const potentialWins = await tx.instantWin.findMany({
                 where: {
                     competitionId: parsedCompetitionId,
-                    ticketNumber: {
-                        gte: startNumber,
-                        lt: startNumber + parsedQty
-                    }
+                    ticketNumber: { in: ticketNumbers }
                 },
                 include: {
                     prize: true
@@ -490,7 +506,7 @@ const processSuccessfulPayment = async (session) => {
             );
 
             for (let i = 0; i < parsedQty; i++) {
-                const ticketNumber = startNumber + i;
+                const ticketNumber = ticketNumbers[i];
                 const ticketCode = generateTicketCode(
                     parsedCompetitionId,
                     ticketNumber,
