@@ -1,12 +1,11 @@
 const stripe = require("../utils/stripe");
 const prisma = require("../prismaconfig");
-const { generateTicketCode } = require("../utils/ticketCode");
+const { processSuccessfulPayment, processWalletRecharge, releaseReservationsForSession } = require("../utils/paymentProcessor");
 
 module.exports = async (req, res) => {
   const sig = req.headers["stripe-signature"];
 
   let event;
-
 
   try {
     event = stripe.webhooks.constructEvent(
@@ -23,185 +22,28 @@ module.exports = async (req, res) => {
     // ✅ Only handle successful checkout
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
+      switch (session.metadata.type) {
+          case "competition_ticket":
+            await processSuccessfulPayment(session);
+              break;
+          case "wallet_recharge":
+              await processWalletRecharge(session);
+              break;
+          case "gift_credit":
+              await processSuccessfulPayment(session);
+              break;
+          default:
 
-      const {
-        userId,
-        items,
-        type,
-      } = session.metadata;
-
-      if (type !== "competition_ticket") {
-        return res.status(200).json({ received: true });
-      }
-
-      const parsedUserId = parseInt(userId);
-      let parsedItems = [];
-
-      try {
-        parsedItems = items ? JSON.parse(items) : [];
-      } catch (e) {
-        console.error("JSON parse error:", items);
-        throw new Error("Invalid metadata items");
-      }
-
-      for (const item of parsedItems) {
-        // 🔥 Transaction (VERY IMPORTANT)
-        await prisma.$transaction(async (tx) => {
-
-          const parsedCompetitionId = parseInt(item.competitionId);
-          const parsedQty = parseInt(item.quantity);
-          const answer = item.answer;
-
-          // ✅ 1. Create Payment Record
-          const payment = await tx.stripePayment.create({
-            data: {
-              userId: parsedUserId,
-              competitionId: parsedCompetitionId,
-              amount: session.amount_total / 100,
-              currency: session.currency,
-              status: "success",
-              type: "competition",
-              stripePaymentId: session.payment_intent,
-              sessionId: session.id,
-              quantity: parsedQty
-            }
-          });
-
-          // ✅ 2. Get competition (for ticket number logic)
-          const competition = await tx.competition.findUnique({
-            where: { id: parsedCompetitionId }
-          });
-
-          if (!competition) {
-            throw new Error("Competition not found in webhook");
-          }
-          // ✅ 3. Check Answer 
-          const question = await tx.complianceQuestion.findFirst({
-            where: { competitionId: parsedCompetitionId }
-          });
-
-          const isCorrect = question?.answers?.includes(answer);
-
-          // ✅ 4. UPDATE SOLD TICKETS FIRST (CRITICAL)
-          const updatedCompetition = await tx.competition.update({
-            where: { id: parsedCompetitionId },
-            data: {
-              soldTickets: {
-                increment: parsedQty
-              }
-            }
-          });
-
-          // ✅ 5.Generate ticket numbers safely + check wins
-          const startNumber = updatedCompetition.soldTickets - parsedQty + 1;
-          const ticketsData = [];
-          const instantWinUpdates = [];
-
-          for (let i = 0; i < parsedQty; i++) {
-            const ticketNumber = startNumber + i;
-
-            // ✅ Check if this ticket is a winning ticket
-            const instantWin = await tx.instantWin.findUnique({
-              where: {
-                competitionId_ticketNumber: {
-                  competitionId: parsedCompetitionId,
-                  ticketNumber: ticketNumber,
-                },
-              },
-            });
-
-
-            let isInstantWin = false;
-
-            if (instantWin && !instantWin.isClaimed) {
-              isInstantWin = true;
-
-              instantWinUpdates.push({
-                id: instantWin.id
-              });
-            }
-
-            ticketsData.push({
-              userId: parsedUserId,
-              competitionId: parsedCompetitionId,
-              paymentId: payment.id,
-              ticketNumber,
-              ticketCode: generateTicketCode(parsedCompetitionId, ticketNumber),
-              isEligible: isCorrect,
-              isInstantWin,
-            });
-          }
-
-          // ✅ 6. Create tickets after payment
-          await tx.ticket.createMany({
-            data: ticketsData
-          });
-
-          // ✅ 7. Claim instant wins automatically
-          for (const win of instantWinUpdates) {
-            await tx.instantWin.update({
-              where: { id: win.id },
-              data: {
-                isClaimed: true,
-                claimedById: parsedUserId,
-                claimedAt: new Date(),
-              },
-            });
-          }
-
-          // ✅ 6. Create tickets one by one
-          // for (const ticketData of ticketsData) {
-
-          //   const createdTicket = await tx.ticket.create({
-          //     data: ticketData
-          //   });
-
-          //   // ✅ If instant win ticket
-          //   if (createdTicket.isInstantWin) {
-
-          //     const matchingWin = await tx.instantWin.findUnique({
-          //       where: {
-          //         competitionId_ticketNumber: {
-          //           competitionId: parsedCompetitionId,
-          //           ticketNumber: createdTicket.ticketNumber,
-          //         },
-          //       },
-          //     });
-
-          //     if (matchingWin) {
-          //       await tx.instantWin.update({
-          //         where: {
-          //           id: matchingWin.id
-          //         },
-
-          //         data: {
-          //           isClaimed: true,
-          //           claimedById: parsedUserId,
-          //           claimedAt: new Date(),
-
-          //           // 🔥 IMPORTANT
-          //           ticketId: createdTicket.id,
-          //         },
-          //       });
-          //     }
-          //   }
-          // }
-
-          // ✅ 8. CLEAR USER CART
-          await tx.cartItem.deleteMany({
-            where: {
-              cart: {
-                userId: parsedUserId
-              }
-            }
-          });
-
-        });
       }
     }
 
-    return res.status(200).json({ received: true });
+    // Checkout abandoned/expired or payment failed -> release any inventory it held.
+    if (event.type === "checkout.session.expired" || event.type === "checkout.session.async_payment_failed") {
+      const session = event.data.object;
+      await releaseReservationsForSession(session.id);
+    }
 
+    return res.status(200).json({ received: true });
   } catch (error) {
     console.error("Webhook processing error:", error);
     return res.status(500).send("Webhook handler failed");

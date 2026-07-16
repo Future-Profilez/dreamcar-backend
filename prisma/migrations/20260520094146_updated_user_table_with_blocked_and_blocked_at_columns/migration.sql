@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "blockedAt" TIMESTAMP(0),
+ADD COLUMN     "isBlocked" INTEGER NOT NULL DEFAULT 0;

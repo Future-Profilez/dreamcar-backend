@@ -1,23 +1,32 @@
-const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition } = require("../controller/competitionController");
-const { verifyToken } = require("../utils/tokenVerify");
+const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition, getCurrencyRates, syncCurrencyRates, getDashboardData, toggleFeaturedCompetition, getSimilarCompetitions, getAllInstantWinsAdmin, triggerCompetitionUpdates, getLiveDraws, toggleHeroCompetition } = require("../controller/competitionController");
+const { verifyToken, checkIsAdminHasCapablity, requireAdmin } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
 const router = require("express").Router();
 
+router.get("/currency-rates", getCurrencyRates);
+router.post("/admin/sync-currency", verifyToken, requireAdmin, syncCurrencyRates);
+router.post("/admin/trigger-competition-updates", verifyToken, requireAdmin, triggerCompetitionUpdates);
+
 router.post("/competition/create",
   verifyToken,
+  requireAdmin,
   upload.fields([
     // { name: "detailImage", maxCount: 1 },
     { name: "prizeDetailImage", maxCount: 1 },
     // { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 }, // ✅ include here
     { name: "instantWinImages", maxCount: 50 },
-    { name: "prizeImages", maxCount: 10 }
+    { name: "prizeImages", maxCount: 10 },
+    { name: "sectionImages", maxCount: 50 },
+    { name: "sectionVideos", maxCount: 50 }
   ]), addCompetition);
 
 router.get("/competition/get",
   // verifyToken, 
   getAllCompetitions);
+
+router.get("/admin/instant-wins", verifyToken, requireAdmin, getAllInstantWinsAdmin);
 
 router.get("/competition/:id",
   // verifyToken,
@@ -25,15 +34,31 @@ router.get("/competition/:id",
 )
 router.post("/competition/update/:id",
   verifyToken,
+  requireAdmin,
   upload.fields([
     // { name: "detailImage", maxCount: 1 },
     { name: "prizeDetailImage", maxCount: 1 },
     // { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 },
-    { name: "prizeImages", maxCount: 10 }
+    { name: "instantWinImages", maxCount: 50 },
+    { name: "prizeImages", maxCount: 10 },
+    { name: "sectionImages", maxCount: 50 },
+    { name: "sectionVideos", maxCount: 50 }
   ]), updateCompetition);
 
-router.post("/competition/ticket-buy", verifyToken, createCompetitionPayment);
-router.delete("/competition/:id", verifyToken, deleteCompetition);
+router.post("/competition/ticket-buy", verifyToken, checkIsAdminHasCapablity, createCompetitionPayment);
+router.delete("/competition/:id", verifyToken, requireAdmin, deleteCompetition);
+
+//admin dashboard
+router.get("/admin/dashboard", verifyToken, requireAdmin, getDashboardData);
+
+//featured competition
+router.post( "/competition/feature/:id", verifyToken, requireAdmin, toggleFeaturedCompetition);
+
+//hero section competitions
+router.post( "/competition/hero/:id", verifyToken, requireAdmin, toggleHeroCompetition);
+
+router.get("/competition/similar/:id", getSimilarCompetitions);
+router.get("/live-draws/competition", getLiveDraws);
 
 module.exports = router;
