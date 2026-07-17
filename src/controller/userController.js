@@ -15,9 +15,17 @@ const ForgotPasswordTemplate = require("../emailsTemplates/ForgotPasswordTemplat
 
 exports.signup = catchAsync(async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
+    const { name, email, password, phone, marketingOptIn } = req.body;
+    if (!name || !email || !password || !phone) {
       return errorResponse(res, "All fields are required", 200);
+    }
+    const cleanPhone = phone.trim();
+    if (!cleanPhone) {
+      return errorResponse(res, "Phone number is required", 200);
+    }
+    const strippedPhone = cleanPhone.replace(/[\-\s()]/g, "");
+    if (!/^\+[0-9]{7,20}$/.test(strippedPhone)) {
+      return errorResponse(res, "Please enter a valid phone number", 200);
     }
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -37,7 +45,8 @@ exports.signup = catchAsync(async (req, res) => {
         name,
         email,
         password: hashedPassword,
-
+        phone: cleanPhone || null,
+        marketingEmails: marketingOptIn ? 1 : 0,
         otp,
         otpExpiresAt
       },
@@ -184,6 +193,7 @@ exports.verifyOTP = catchAsync(async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        phone: user.phone,
       }
     }
   );
@@ -505,6 +515,7 @@ exports.login = catchAsync(async (req, res) => {
       email: user.email,
       role: user.role,
       otpVerifiedAt: user.otpVerifiedAt,
+      phone: user.phone,
     },
     token,
   });
@@ -528,7 +539,8 @@ exports.GetUser = catchAsync(async (req, res) => {
         email: true,
         role: true,
         otpVerifiedAt: true,
-        marketingEmails: true
+        marketingEmails: true,
+        phone: true,
       }
     });
     if (!user) {
@@ -547,7 +559,7 @@ exports.GetUser = catchAsync(async (req, res) => {
 exports.updateProfile = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, email, password, marketingEmails } = req.body;
+    const { name, email, password, marketingEmails, phone } = req.body;
 
     if (!userId) {
       return errorResponse(res, "Unauthorized", 401);
@@ -570,6 +582,19 @@ exports.updateProfile = catchAsync(async (req, res) => {
       dataToUpdate.marketingEmails = parseInt(marketingEmails);
     }
 
+    if (phone !== undefined) {
+      if (phone === null || phone.trim() === "") {
+        dataToUpdate.phone = null;
+      } else {
+        const cleanPhone = phone.trim();
+        const strippedPhone = cleanPhone.replace(/[\-\s()]/g, "");
+        if (!/^\+[0-9]{7,20}$/.test(strippedPhone)) {
+          return errorResponse(res, "Please enter a valid phone number", 200);
+        }
+        dataToUpdate.phone = cleanPhone;
+      }
+    }
+
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 12);
       dataToUpdate.password = hashedPassword;
@@ -589,6 +614,7 @@ exports.updateProfile = catchAsync(async (req, res) => {
         role: true,
         otpVerifiedAt: true,
         marketingEmails: true,
+        phone: true,
       }
     });
 
@@ -952,7 +978,7 @@ exports.toggleBlockUser = catchAsync(async (req, res) => {
 
 exports.adminCreateUser = catchAsync(async (req, res) => {
   try {
-    const { name, password } = req.body;
+    const { name, password, phone } = req.body;
     const email = req.body.email?.trim();
     if (!name || !email || !password) {
       return errorResponse(res, "Name, email and password are required", 200);
@@ -962,6 +988,16 @@ exports.adminCreateUser = catchAsync(async (req, res) => {
     }
     if (password.length < 8) {
       return errorResponse(res, "Password must be at least 8 characters", 200);
+    }
+    let cleanPhone = null;
+    if (phone) {
+      cleanPhone = phone.trim();
+      if (cleanPhone) {
+        const strippedPhone = cleanPhone.replace(/[\-\s()]/g, "");
+        if (!/^\+[0-9]{7,20}$/.test(strippedPhone)) {
+          return errorResponse(res, "Please enter a valid phone number", 200);
+        }
+      }
     }
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -975,6 +1011,7 @@ exports.adminCreateUser = catchAsync(async (req, res) => {
         name,
         email,
         password: hashedPassword,
+        phone: cleanPhone || null,
         otpVerifiedAt: new Date(),
       },
     });
@@ -984,6 +1021,7 @@ exports.adminCreateUser = catchAsync(async (req, res) => {
         name: user.name,
         email: user.email,
         password,
+        phone: user.phone,
       },
     });
   } catch (error) {

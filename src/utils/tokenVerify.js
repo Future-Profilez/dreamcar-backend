@@ -8,7 +8,7 @@ exports.verifyToken = async (req, res, next) => {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         status: false,
-        message: 'Token missing or invalid'
+        message: 'Your session has expired. Please sign in again.'
       });
     }
 
