@@ -7,6 +7,339 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                   Int                 @id @default(autoincrement())
+  name                 String
+  email                String              @unique
+  password             String
+  role                 String              @default("user")
+  createdAt            DateTime?           @default(now()) @db.Timestamp(0)
+  deletedAt            DateTime?           @db.Timestamp(0)
+  updatedAt            DateTime?           @db.Timestamp(0)
+  otp                  String?
+  otpAttempts          Int?                @default(0)
+  otpExpiresAt         DateTime?
+  otpVerifiedAt        DateTime?
+  blockedAt            DateTime?           @db.Timestamp(0)
+  isBlocked            Int                 @default(0)
+  marketingEmails      Int                 @default(1)
+  memberNumber         Int                 @unique @default(autoincrement())
+  phone                String?
+  cart                 Cart?
+  purchasedGiftCredits GiftCredit[]        @relation("PurchasedGift")
+  redeemedGiftCredits  GiftCredit[]        @relation("RedeemedGift")
+  instantWins          InstantWin[]
+  results              Result[]
+  payments             StripePayment[]
+  tickets              Ticket[]
+  wallet               Wallet?
+  walletTransactions   WalletTransaction[]
+}
+
+model Competition {
+  id                       Int                  @id @default(autoincrement())
+  title                    String
+  images                   String[]
+  detail                   String
+  ticketPrice              Decimal              @db.Decimal(10, 2)
+  totalTickets             Int
+  soldTickets              Int                  @default(0)
+  startTime                DateTime
+  endTime                  DateTime
+  createdAt                DateTime?            @default(now()) @db.Timestamp(0)
+  deletedAt                DateTime?            @db.Timestamp(0)
+  status                   Int                  @default(1)
+  updatedAt                DateTime?            @db.Timestamp(0)
+  productType              productTypeEnum      @default(car_bike)
+  instantWinEnabled        Boolean              @default(false)
+  instantWinTriggerPercent Int?
+  instantWinGenerated      Boolean              @default(false)
+  slug                     String?              @unique
+  isFeatured               Int                  @default(0)
+  endingEmailSent          Int                  @default(0)
+  newEmailSent             Int                  @default(0)
+  isHero                   Int                  @default(0)
+  reservedTickets          Int                  @default(0)
+  shuffleKey               String?
+  questions                ComplianceQuestion[]
+  contentSections          ContentSection[]
+  instantWins              InstantWin[]
+  instantWinPrizes         InstantWinPrize[]
+  prizes                   Prize[]
+  results                  Result[]
+  payments                 StripePayment[]
+  tickets                  Ticket[]
+  reservations             TicketReservation[]
+  winnerDetail             WinnerDetail?
+}
+
+model TicketReservation {
+  id            String      @id @default(uuid())
+  sessionId     String
+  competitionId Int
+  userId        Int
+  quantity      Int
+  status        String      @default("reserved")
+  expiresAt     DateTime
+  createdAt     DateTime    @default(now()) @db.Timestamp(0)
+  updatedAt     DateTime?   @updatedAt @db.Timestamp(0)
+  competition   Competition @relation(fields: [competitionId], references: [id])
+
+  @@unique([sessionId, competitionId])
+  @@index([status, expiresAt])
+}
+
+model Prize {
+  id               String      @id @default(uuid())
+  competitionId    Int
+  title            String
+  prizeDetail      String
+  prizeDetailImage String
+  prizeFeatures    String[]
+  position         Int
+  createdAt        DateTime?   @default(now()) @db.Timestamp(0)
+  updatedAt        DateTime?   @db.Timestamp(0)
+  deletedAt        DateTime?   @db.Timestamp(0)
+  competition      Competition @relation(fields: [competitionId], references: [id])
+
+  @@unique([competitionId, position])
+}
+
+model ContentSection {
+  id            String      @id @default(uuid())
+  competitionId Int
+  title         String
+  image         String?
+  video         String?
+  description   String
+  specs         String[]
+  position      Int
+  createdAt     DateTime?   @default(now()) @db.Timestamp(0)
+  updatedAt     DateTime?   @db.Timestamp(0)
+  deletedAt     DateTime?   @db.Timestamp(0)
+  competition   Competition @relation(fields: [competitionId], references: [id])
+}
+
+model ComplianceQuestion {
+  id            String      @id @default(uuid())
+  competitionId Int
+  question      String
+  answers       String[]
+  options       String[]
+  competition   Competition @relation(fields: [competitionId], references: [id])
+}
+
+model InstantWinPrize {
+  id            String       @id @default(uuid())
+  competitionId Int
+  title         String
+  image         String?
+  quantity      Int
+  wins          InstantWin[]
+  competition   Competition  @relation(fields: [competitionId], references: [id])
+}
+
+model InstantWin {
+  id            String          @id @default(uuid())
+  competitionId Int
+  prizeId       String
+  ticketNumber  Int
+  isClaimed     Boolean         @default(false)
+  claimedById   Int?
+  claimedAt     DateTime?
+  ticketId      String?         @unique
+  position      Int?
+  claimedBy     User?           @relation(fields: [claimedById], references: [id])
+  competition   Competition     @relation(fields: [competitionId], references: [id])
+  prize         InstantWinPrize @relation(fields: [prizeId], references: [id])
+  ticket        Ticket?         @relation(fields: [ticketId], references: [id])
+
+  @@unique([competitionId, ticketNumber])
+}
+
+model StripePayment {
+  id                 String              @id @default(uuid())
+  userId             Int
+  amount             Float
+  currency           String              @default("USD")
+  status             String              @default("pending")
+  stripePaymentId    String?
+  sessionId          String?             @unique
+  competitionId      Int?
+  quantity           Int?
+  createdAt          DateTime?           @default(now()) @db.Timestamp(0)
+  updatedAt          DateTime?           @updatedAt @db.Timestamp(0)
+  type               String?
+  competition        Competition?        @relation(fields: [competitionId], references: [id])
+  user               User                @relation(fields: [userId], references: [id])
+  tickets            Ticket[]
+  walletTransactions WalletTransaction[]
+}
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique
+  createdAt DateTime?  @default(now()) @db.Timestamp(0)
+  updatedAt DateTime?  @db.Timestamp(0)
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+}
+
+model CartItem {
+  id       Int          @id @default(autoincrement())
+  cartId   Int
+  itemId   Int
+  quantity Int
+  itemType itemTypeEnum @default(competition)
+  answer   String?
+  cart     Cart         @relation(fields: [cartId], references: [id])
+
+  @@unique([cartId, itemId, itemType])
+}
+
+model Ticket {
+  id            String        @id @default(uuid())
+  competitionId Int
+  userId        Int
+  paymentId     String
+  ticketNumber  Int
+  isEligible    Boolean
+  isInstantWin  Boolean       @default(false)
+  createdAt     DateTime?     @default(now()) @db.Timestamp(0)
+  ticketCode    String?
+  updatedAt     DateTime?     @db.Timestamp(0)
+  deletedAt     DateTime?     @db.Timestamp(0)
+  instantWin    InstantWin?
+  results       Result[]
+  competition   Competition   @relation(fields: [competitionId], references: [id])
+  payment       StripePayment @relation(fields: [paymentId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+
+  @@unique([competitionId, ticketNumber])
+}
+
+model Result {
+  id            String        @id @default(uuid())
+  competitionId Int
+  userId        Int
+  ticketId      String
+  position      Int
+  isManual      Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  winnerImage   String?
+  competition   Competition   @relation(fields: [competitionId], references: [id])
+  ticket        Ticket        @relation(fields: [ticketId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+  winnerDetail  WinnerDetail?
+
+  @@unique([competitionId, position])
+}
+
+model Contact {
+  id        Int       @id @default(autoincrement())
+  fullName  String
+  phone     String?
+  email     String
+  subject   String
+  message   String
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  deletedAt DateTime? @db.Timestamp(0)
+}
+
+model Wallet {
+  id           Int                 @id @default(autoincrement())
+  userId       Int                 @unique
+  balance      Decimal             @default(0) @db.Decimal(10, 2)
+  createdAt    DateTime?           @default(now()) @db.Timestamp(0)
+  updatedAt    DateTime?           @updatedAt @db.Timestamp(0)
+  user         User                @relation(fields: [userId], references: [id])
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id              Int                   @id @default(autoincrement())
+  userId          Int
+  amount          Decimal               @db.Decimal(10, 2)
+  reason          String
+  balance         Decimal               @db.Decimal(10, 2)
+  createdAt       DateTime?             @default(now()) @db.Timestamp(0)
+  stripePaymentId String?
+  walletId        Int
+  type            WalletTransactionType
+  stripePayment   StripePayment?        @relation(fields: [stripePaymentId], references: [id])
+  user            User                  @relation(fields: [userId], references: [id])
+  wallet          Wallet                @relation(fields: [walletId], references: [id])
+}
+
+model GiftCredit {
+  id              Int       @id @default(autoincrement())
+  amount          Decimal   @db.Decimal(10, 2)
+  expiresAt       DateTime?
+  redeemedAt      DateTime?
+  createdAt       DateTime? @default(now()) @db.Timestamp(0)
+  isRedeemed      Int       @default(0)
+  code            String    @unique
+  purchasedById   Int?
+  redeemedById    Int?
+  purchasedByUser User?     @relation("PurchasedGift", fields: [purchasedById], references: [id])
+  redeemedByUser  User?     @relation("RedeemedGift", fields: [redeemedById], references: [id])
+}
+
+model GiftCardProduct {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  price       Decimal   @db.Decimal(10, 2)
+  image       String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt   DateTime? @updatedAt @db.Timestamp(0)
+}
+
+model CurrencyRate {
+  id        Int       @id @default(autoincrement())
+  currency  String    @unique
+  rate      Float
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt DateTime? @updatedAt @db.Timestamp(0)
+}
+
+model WinnerDetail {
+  id               Int         @id @default(autoincrement())
+  competitionId    Int         @unique
+  resultId         String      @unique
+  winnerName       String
+  winnerLocation   String?
+  storyDescription String?
+  winnerImage      String?
+  galleryImages    String[]
+  createdAt        DateTime?   @default(now()) @db.Timestamp(0)
+  updatedAt        DateTime?   @db.Timestamp(0)
+  deletedAt        DateTime?   @db.Timestamp(0)
+  competition      Competition @relation(fields: [competitionId], references: [id])
+  result           Result      @relation(fields: [resultId], references: [id])
+}
+
+model Newsletter {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  deletedAt DateTime? @db.Timestamp(0)
+  fullName  String
+  phone     String?
+}
+
+model AdminNotification {
+  id        String    @id @default(uuid())
+  key       String?   @unique
+  type      String
+  title     String
+  message   String
+  meta      Json?
+  isRead    Boolean   @default(false)
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+}
+
 enum productTypeEnum {
   car_bike
   tech_luxury
@@ -19,391 +352,7 @@ enum itemTypeEnum {
   gift_credit
 }
 
-model User {
-  id            Int       @id @default(autoincrement())
-  memberNumber  Int       @unique @default(autoincrement()) // permanent sequential member no. (1,2,3…); backfilled by join date
-  name          String
-  email         String    @unique
-  password      String
-  role          String    @default("user")
-
-  otpVerifiedAt DateTime?
-  otp           String?
-  otpExpiresAt  DateTime?
-  otpAttempts   Int?      @default(0)
-
-  isBlocked     Int   @default(0)     //0->unblocked   1->blocked
-  blockedAt     DateTime? @db.Timestamp(0)
-
-  marketingEmails Int   @default(1)     // 1->subscribed 0->unsubscribed
-
-  createdAt DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt DateTime? @db.Timestamp(0)
-  deletedAt DateTime? @db.Timestamp(0)
-
-  instantWins       InstantWin[]
-  cart              Cart[]
-  payments          StripePayment[]
-  tickets           Ticket[]
-  results           Result[]
-  wallet              Wallet?
-  walletTransactions  WalletTransaction[]
-  purchasedGiftCredits GiftCredit[] @relation("PurchasedGift")
-  redeemedGiftCredits  GiftCredit[] @relation("RedeemedGift")
-}
-
-model Competition {
-  id               Int             @id @default(autoincrement())
-  title            String
-  images           String[]
-  slug             String?         @unique
-  detail           String
-  productType      productTypeEnum @default(car_bike)
-  ticketPrice      Decimal         @db.Decimal(10, 2)
-  totalTickets     Int
-  soldTickets      Int             @default(0)
-  reservedTickets  Int             @default(0)  // in-flight (paid pending) card checkouts; availability = totalTickets - soldTickets - reservedTickets
-  shuffleKey       String?         // secret key for random ticket-number allocation (Option A permutation); null = legacy sequential numbering
-  isFeatured       Int             @default(0)  //0->not featured 1->featured
-  isHero           Int             @default(0)  //0->not on hero section 1->on hero section
-  startTime        DateTime
-  endTime          DateTime
-
-  instantWinEnabled        Boolean              @default(false)
-  instantWinTriggerPercent Int?
-  instantWinGenerated      Boolean              @default(false)
-  instantWins              InstantWin[]
-  instantWinPrizes         InstantWinPrize[]
-  questions                ComplianceQuestion[]
-  tickets                  Ticket[]
-  payments                 StripePayment[]
-  results                  Result[]
-  prizes                   Prize[]
-  contentSections          ContentSection[]
-  winnerDetail             WinnerDetail?
-  reservations             TicketReservation[]
-  
-  newEmailSent      Int       @default(0)
-  endingEmailSent   Int       @default(0)
-
-  status    Int       @default(1)
-  createdAt DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt DateTime? @db.Timestamp(0)
-  deletedAt DateTime? @db.Timestamp(0)
-}
-
-// Holds inventory for an in-flight card checkout so concurrent buyers can't oversell.
-// Lifecycle: reserved -> confirmed (webhook success) | released (expired/cancelled/cron).
-model TicketReservation {
-  id            String   @id @default(uuid())
-  sessionId     String                       // Stripe checkout session id
-  competitionId Int
-  userId        Int
-  quantity      Int
-  status        String   @default("reserved") // reserved | confirmed | released
-  expiresAt     DateTime
-  createdAt     DateTime @default(now()) @db.Timestamp(0)
-  updatedAt     DateTime? @updatedAt @db.Timestamp(0)
-
-  competition Competition @relation(fields: [competitionId], references: [id])
-
-  @@unique([sessionId, competitionId])        // one reservation row per competition per session; makes confirm/release idempotent
-  @@index([status, expiresAt])                // release-cron lookup
-}
-
-model Prize {
-  id                String   @id @default(uuid())
-  competitionId     Int
-  title             String
-  prizeDetail       String
-  prizeDetailImage  String
-  prizeFeatures     String[]
-  position          Int   // 1 = main winner, 2 = runner-up 1, 2 = runner-up 1
-  createdAt         DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt         DateTime? @db.Timestamp(0)
-  deletedAt         DateTime? @db.Timestamp(0)
-
-  competition   Competition @relation(fields: [competitionId], references: [id])
-  @@unique([competitionId, position]) // one prize per position
-}
-
-// Dynamic admin-managed content blocks on the competition detail page
-// (e.g. "Want to know more", "How does it drive", "Hugely comfortable")
-model ContentSection {
-  id            String   @id @default(uuid())
-  competitionId Int
-  title         String
-  image         String?  // optional; falls back to competition image on frontend
-  video         String?  // optional; uploaded file URL or external (YouTube/Vimeo) URL
-  description   String   // line breaks preserved (\n)
-  specs         String[] // unlimited items, per-item length capped on input
-  position      Int      // creation order; rendered newest-first on detail page
-  createdAt     DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt     DateTime? @db.Timestamp(0)
-  deletedAt     DateTime? @db.Timestamp(0)
-
-  competition Competition @relation(fields: [competitionId], references: [id])
-}
-
-model ComplianceQuestion {
-  id               String             @id @default(uuid())
-  competitionId    Int
-  question         String
-  competition      Competition        @relation(fields: [competitionId], references: [id])
-  options          String[]
-  answers          String[]
-}
-
-//Prize is stored here
-model InstantWinPrize {
-  id            String  @id @default(uuid())
-  competitionId Int
-  title         String // "iPhone 15"
-  image         String?
-  quantity      Int // 5
-
-  competition Competition  @relation(fields: [competitionId], references: [id])
-  wins        InstantWin[]
-}
-
-//Prize winner is stored here
-model InstantWin {
-  id            String @id @default(uuid())
-  competitionId Int
-  prizeId       String
-  ticketNumber  Int
-  position      Int?      // sold-order slot that maps to ticketNumber (Option A); shown to admin for testing
-
-  isClaimed   Boolean   @default(false)
-  claimedById Int?
-  claimedAt   DateTime?
-
-  ticketId     String?  @unique
-
-  competition Competition     @relation(fields: [competitionId], references: [id])
-  prize       InstantWinPrize @relation(fields: [prizeId], references: [id])
-  claimedBy   User?           @relation(fields: [claimedById], references: [id])
-  ticket      Ticket?         @relation(fields: [ticketId], references: [id])
-
-  @@unique([competitionId, ticketNumber])
-}
-
-model StripePayment {
-  id             String   @id @default(uuid())
-  userId         Int
-  user           User     @relation(fields: [userId], references: [id])
-  amount         Float
-  currency       String   @default("USD")
-  status         String   @default("pending") // pending / success / failed
-  type           String?
-  
-
-  stripePaymentId String?
-  sessionId       String? @unique
-
-  competitionId Int?
-  competition   Competition? @relation(fields: [competitionId], references: [id])
-  quantity      Int?
-  tickets       Ticket[]
-  walletTransactions WalletTransaction[]
-
-  createdAt DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt     DateTime?  @updatedAt @db.Timestamp(0)
-}
-
-model Cart {
-  id               Int             @id @default(autoincrement())
-  userId           Int             @unique 
-  user             User            @relation(fields: [userId], references: [id])
-  items            CartItem[]
-  createdAt DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt DateTime? @db.Timestamp(0)
-}
-
-model CartItem {
-  id               Int             @id @default(autoincrement())
-  cartId           Int             
-  itemId           Int             
-  quantity         Int
-  itemType         itemTypeEnum   @default(competition)
-  answer           String?
-  cart Cart @relation(fields: [cartId], references: [id])    
-
-  @@unique([cartId, itemId, itemType])                                               
-}
-
-model Ticket {
-  id            String   @id @default(uuid())
-
-  competitionId Int
-  userId        Int
-  paymentId     String   // instead of orderId
-
-  ticketNumber  Int
-  ticketCode    String?
-  isEligible    Boolean
-  isInstantWin  Boolean @default(false)
-
-  createdAt     DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt     DateTime? @db.Timestamp(0)
-  deletedAt DateTime? @db.Timestamp(0)
-
-  competition Competition @relation(fields: [competitionId], references: [id])
-  user        User        @relation(fields: [userId], references: [id])
-  payment     StripePayment @relation(fields: [paymentId], references: [id])
-
-  results       Result[]
-  instantWin    InstantWin?
-
-  @@unique([competitionId, ticketNumber])
-}
-
-model Result {
-  id            String   @id @default(uuid())
-
-  competitionId Int
-  userId        Int
-  ticketId      String
-
-  position      Int   // 1 = winner, 2 = runner-up, 3 = runner-up
-  isManual      Boolean @default(false)
-  winnerImage   String? 
-
-  createdAt     DateTime @default(now())
-  winnerDetail  WinnerDetail?
-
-  competition   Competition @relation(fields: [competitionId], references: [id])
-  user          User        @relation(fields: [userId], references: [id])
-  ticket        Ticket      @relation(fields: [ticketId], references: [id])
-
-  @@unique([competitionId, position]) // only one winner per position
-}
-
-model Contact {
-  id          Int             @id @default(autoincrement())
-  fullName    String
-  phone       String?
-  email       String
-  subject     String
-  message     String
-
-  createdAt         DateTime? @default(now()) @db.Timestamp(0)
-  deletedAt         DateTime? @db.Timestamp(0)
-}
-
 enum WalletTransactionType {
   credit
   debit
-}
-
-model Wallet {
-  id            Int        @id @default(autoincrement())
-  userId        Int        @unique
-  balance       Decimal    @default(0) @db.Decimal(10,2)
-
-  user          User       @relation(fields: [userId], references: [id])
-  transactions  WalletTransaction[]
-
-  createdAt     DateTime?  @default(now()) @db.Timestamp(0)
-  updatedAt     DateTime?  @updatedAt @db.Timestamp(0)
-}
-
-model WalletTransaction {
-  id          Int        @id @default(autoincrement())
-  
-   
-  
-  walletId    Int
-  userId      Int
-
-  type        WalletTransactionType
-  amount      Decimal    @db.Decimal(10,2)
-
-  reason      String
-  balance     Decimal    @db.Decimal(10,2)  // balance after this transaction
-
-  stripePaymentId  String?
-  stripePayment    StripePayment? @relation(fields: [stripePaymentId], references: [id])
-
-  wallet      Wallet     @relation(fields: [walletId], references: [id])
-  user        User       @relation(fields: [userId], references: [id])
-
-  createdAt   DateTime?  @default(now()) @db.Timestamp(0)
-}
-
-model GiftCredit {
-  id                Int      @id @default(autoincrement())
-  code        String   @unique
-  amount            Decimal  @db.Decimal(10, 2)
-  
-  purchasedById       Int?
-  purchasedByUser   User?    @relation("PurchasedGift", fields: [purchasedById], references: [id])
-
-  redeemedById        Int?
-  redeemedByUser    User?    @relation("RedeemedGift", fields: [redeemedById], references: [id])
-  isRedeemed        Int  @default(0)  //0->active 1->redeemed 2-> expired
-  expiresAt         DateTime?
-  redeemedAt        DateTime?
-  
-  createdAt         DateTime? @default(now()) @db.Timestamp(0)
-
-  
-}
-
-model GiftCardProduct {
-  id          Int       @id @default(autoincrement())
-  title       String
-  description String?
-  price       Decimal   @db.Decimal(10, 2)
-  image       String?
-  isActive    Boolean   @default(true)
-
-  createdAt   DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt   DateTime? @updatedAt @db.Timestamp(0)
-}
-
-model CurrencyRate {
-  id        Int       @id @default(autoincrement())
-  currency  String    @unique // e.g., 'GBP', 'EUR', 'USD'
-  rate      Float     // rate relative to GBP (GBP will be 1)
-  createdAt DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt DateTime? @updatedAt @db.Timestamp(0)
-}
-
-model WinnerDetail {
-  id               Int      @id @default(autoincrement())
-  competitionId    Int      @unique
-  resultId         String   @unique
-  winnerName       String
-  winnerLocation   String?
-  storyDescription String?
-  winnerImage      String?
-  galleryImages    String[]
-
-  createdAt        DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt        DateTime? @db.Timestamp(0)
-  deletedAt        DateTime? @db.Timestamp(0)
-
-  competition      Competition @relation(fields: [competitionId], references: [id])
-  result           Result      @relation(fields: [resultId], references: [id])
-}
-
-model Newsletter {
-  id               Int       @id @default(autoincrement())
-  email            String    @unique
-  fullName         String
-  phone            String?
-  createdAt        DateTime? @default(now()) @db.Timestamp(0)
-  deletedAt        DateTime? @db.Timestamp(0)
-}
-
-model AdminNotification {
-  id        String   @id @default(uuid())
-  key       String?  @unique
-  type      String
-  title     String
-  message   String
-  meta      Json?
-  isRead    Boolean  @default(false)
-  createdAt DateTime? @default(now()) @db.Timestamp(0)
 }
