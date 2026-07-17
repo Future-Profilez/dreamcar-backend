@@ -12,6 +12,32 @@ const WelcomeEmailTemplate = require("../emailsTemplates/WelcomeEmailTemplate");
 const generateOtp = require("../utils/GeneratedOtp");
 const ForgotPasswordTemplate = require("../emailsTemplates/ForgotPasswordTemplate");
 
+const validatePhone = (phone) => {
+  if (!phone) return false;
+  let clean = phone.trim().replace(/[\-\s()]/g, "");
+  if (clean.startsWith("+")) {
+    const codes = ["+971", "+44", "+33", "+49", "+34", "+39", "+61", "+91", "+1"];
+    let matchedCode = "";
+    for (const code of codes) {
+      if (clean.startsWith(code)) {
+        matchedCode = code;
+        break;
+      }
+    }
+    if (matchedCode) {
+      const rest = clean.slice(matchedCode.length);
+      return rest.length === 10 && /^[0-9]+$/.test(rest);
+    } else {
+      const digits = clean.slice(1);
+      return digits.length >= 10 && digits.length <= 13 && /^[0-9]+$/.test(digits);
+    }
+  }
+  if (clean.startsWith("0")) {
+    clean = clean.slice(1);
+  }
+  return clean.length === 10 && /^[0-9]+$/.test(clean);
+};
+
 
 exports.signup = catchAsync(async (req, res) => {
   try {
@@ -23,9 +49,8 @@ exports.signup = catchAsync(async (req, res) => {
     if (!cleanPhone) {
       return errorResponse(res, "Phone number is required", 200);
     }
-    const strippedPhone = cleanPhone.replace(/[\-\s()]/g, "");
-    if (!/^\+[0-9]{7,20}$/.test(strippedPhone)) {
-      return errorResponse(res, "Please enter a valid phone number", 200);
+    if (!validatePhone(cleanPhone)) {
+      return errorResponse(res, "Please enter a valid 10-digit phone number", 200);
     }
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -587,9 +612,8 @@ exports.updateProfile = catchAsync(async (req, res) => {
         dataToUpdate.phone = null;
       } else {
         const cleanPhone = phone.trim();
-        const strippedPhone = cleanPhone.replace(/[\-\s()]/g, "");
-        if (!/^\+[0-9]{7,20}$/.test(strippedPhone)) {
-          return errorResponse(res, "Please enter a valid phone number", 200);
+        if (!validatePhone(cleanPhone)) {
+          return errorResponse(res, "Please enter a valid 10-digit phone number", 200);
         }
         dataToUpdate.phone = cleanPhone;
       }
@@ -994,9 +1018,8 @@ exports.adminCreateUser = catchAsync(async (req, res) => {
     if (phone) {
       cleanPhone = phone.trim();
       if (cleanPhone) {
-        const strippedPhone = cleanPhone.replace(/[\-\s()]/g, "");
-        if (!/^\+[0-9]{7,20}$/.test(strippedPhone)) {
-          return errorResponse(res, "Please enter a valid phone number", 200);
+        if (!validatePhone(cleanPhone)) {
+          return errorResponse(res, "Please enter a valid 10-digit phone number", 200);
         }
       }
     }
