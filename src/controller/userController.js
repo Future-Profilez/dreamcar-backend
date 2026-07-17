@@ -781,6 +781,7 @@ exports.getAllUsers = catchAsync(async (req, res) => {
       memberNumber: user.memberNumber,
       name: user.name,
       email: user.email,
+      phone: user.phone,
       tickets: user.tickets?.length || 0,
       status: user.deletedAt ? "deleted" : user.isBlocked === 1 ? "blocked" : "active",
       createdAt: user.createdAt,
