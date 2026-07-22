@@ -54,7 +54,7 @@ exports.verifyToken = async (req, res, next) => {
     Loggers.warn(`Token verify failed: ${error.name} - ${error.message}`);
     return res.status(401).json({
       status: false,
-      message: 'Invalid or expired token'
+      message: 'Your session has expired. Please sign in again.'
     });
   }
 };
@@ -71,7 +71,7 @@ exports.checkIsAdminHasCapablity = async (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       status: false,
-      message: 'Invalid or expired token'
+      message: 'Your session has expired. Please sign in again.'
     });
   }
 };
@@ -89,7 +89,7 @@ exports.requireAdmin = async (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       status: false,
-      message: "Invalid or expired token"
+      message: "Your session has expired. Please sign in again."
     });
   }
 };
