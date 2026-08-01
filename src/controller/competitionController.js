@@ -9,6 +9,8 @@ const parseLondonDateTime = require("../utils/parseLondonDateTime");
 const {
   getCompetitionTicketDiscountPercent,
 } = require("../utils/ticketDiscount");
+const { getActiveReservedTickets } = require("./cartController");
+
 
 exports.addCompetition = catchAsync(async (req, res) => {
   try {
@@ -540,10 +542,14 @@ exports.competitionDetail = catchAsync(async (req, res) => {
       thresholdReached = data.soldTickets >= thresholdTickets;
     }
 
+    const activeReserved = await getActiveReservedTickets(data.id);
+
     const responseData = {
       ...data,
+      activeReservedTickets: activeReserved,
       thresholdReached
     };
+
 
     return successResponse(
       res,
@@ -1017,11 +1023,18 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
         return errorResponse(res, "Competition not started yet", 200);
       }
 
-      // Best-effort pre-check (authoritative atomic reservation happens below).
-      if (competition.soldTickets + competition.reservedTickets + parsedQty > competition.totalTickets) {
-        const available = competition.totalTickets - competition.soldTickets - competition.reservedTickets;
-        return errorResponse(res, `Not enough tickets left for ${competition.title}. Only ${available} available.`, 200);
+      // Best-effort pre-check
+      const activeReservedOthers = await getActiveReservedTickets(competition.id, userId);
+      const available = competition.totalTickets - competition.soldTickets - activeReservedOthers;
+
+      if (parsedQty > available) {
+        const totalUnsold = competition.totalTickets - competition.soldTickets;
+        if (activeReservedOthers > 0 && totalUnsold >= parsedQty) {
+          return errorResponse(res, "High Demand! Someone is currently holding these tickets. Check back shortly!", 200);
+        }
+        return errorResponse(res, `Not enough tickets left for ${competition.title}. Only ${Math.max(0, available)} available.`, 200);
       }
+
 
       const subtotalCents = Math.round(Number(competition.ticketPrice) * 100) * parsedQty;
       ticketSubtotalCents += subtotalCents;
