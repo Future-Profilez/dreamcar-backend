@@ -128,10 +128,10 @@ exports.verifyPayment = catchAsync(async (req, res) => {
             return errorResponse(res, "Payment not found or not completed", 200);
         }
 
-        const enrichedPayments = payment.map(enrichPaymentWithDiscount);
-        const totalAmount = enrichedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-        const subtotalAmount = enrichedPayments.reduce((sum, p) => sum + Number(p.originalAmount || 0), 0);
-        const discountTotal = enrichedPayments.reduce((sum, p) => sum + Number(p.discountAmount || 0), 0);
+        const round2 = (num) => Math.round((Number(num) + Number.EPSILON) * 100) / 100;
+        const totalAmount = round2(enrichedPayments.reduce((sum, p) => sum + Number(p.amount), 0));
+        const subtotalAmount = round2(enrichedPayments.reduce((sum, p) => sum + Number(p.originalAmount || 0), 0));
+        const discountTotal = round2(enrichedPayments.reduce((sum, p) => sum + Number(p.discountAmount || 0), 0));
         console.log("TOTALLLL amount in verify pyament ", totalAmount);
 
         return successResponse(
@@ -403,16 +403,17 @@ exports.getAllPayments = catchAsync(async (req, res) => {
         });
         const enrichedPayments = payments.map(enrichPaymentWithDiscount);
         // DASHBOARD STATS
-        const totalRevenue = enrichedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-        const totalCompetitionRevenue = enrichedPayments
+        const round2 = (num) => Math.round((Number(num) + Number.EPSILON) * 100) / 100;
+        const totalRevenue = round2(enrichedPayments.reduce((sum, p) => sum + Number(p.amount), 0));
+        const totalCompetitionRevenue = round2(enrichedPayments
             .filter(p => p.type === "competition")
-            .reduce((sum, p) => sum + Number(p.amount), 0);
-        const totalGiftRevenue = enrichedPayments
+            .reduce((sum, p) => sum + Number(p.amount), 0));
+        const totalGiftRevenue = round2(enrichedPayments
             .filter(p => p.type === "gift_credit")
-            .reduce((sum, p) => sum + Number(p.amount), 0);
-        const totalWalletRevenue = enrichedPayments
+            .reduce((sum, p) => sum + Number(p.amount), 0));
+        const totalWalletRevenue = round2(enrichedPayments
             .filter(p => p.type === "wallet_recharge")
-            .reduce((sum, p) => sum + Number(p.amount), 0);
+            .reduce((sum, p) => sum + Number(p.amount), 0));
 
         const data = enrichedPayments.map((p) => ({
             originalAmount: p.originalAmount,

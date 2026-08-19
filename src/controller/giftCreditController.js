@@ -332,27 +332,29 @@ exports.getAllGiftCredits = catchAsync(async (req, res) => {
       ]);
 
     // STATS
+    const round2 = (num) => Math.round((Number(num) + Number.EPSILON) * 100) / 100;
+
     const totalRevenue =
-      allCredits.reduce(
+      round2(allCredits.reduce(
         (sum, item) => sum + Number(item.amount),
         0
-      );
+      ));
 
     const redeemedRevenue =
-      allCredits
+      round2(allCredits
         .filter(item => item.isRedeemed)
         .reduce(
           (sum, item) => sum + Number(item.amount),
           0
-        );
+        ));
 
     const activeRevenue =
-      allCredits
+      round2(allCredits
         .filter(item => !item.isRedeemed)
         .reduce(
           (sum, item) => sum + Number(item.amount),
           0
-        );
+        ));
 
     return successResponse(
       res,

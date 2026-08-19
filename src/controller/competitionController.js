@@ -1466,12 +1466,13 @@ exports.getDashboardData = catchAsync(async (req, res) => {
   ]);
 
   // TOTAL REVENUE
+  const round2 = (num) => Math.round((Number(num) + Number.EPSILON) * 100) / 100;
   const totalRevenue =
-    allPayments.reduce(
+    round2(allPayments.reduce(
       (sum, item) =>
         sum + Number(item.amount),
       0
-    );
+    ));
 
   // BUILD ACTIVITY ARRAY
   const activities = [
@@ -1858,116 +1859,222 @@ exports.getLiveDraws = catchAsync(async (req, res) => {
   try {
     const now = new Date();
 
-    const competitions = await prisma.competition.findMany({
-      where: {
-        deletedAt: null,
-        endTime: {
-          gte: now,
-        },
-      },
-      orderBy: {
-        endTime: "asc",
-      },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        productType: true,
-        ticketPrice: true,
-        soldTickets: true,
-        totalTickets: true,
-        endTime: true,
-        images: true,
-
-        prizes: {
-          orderBy: {
-            position: "asc",
-          },
+    // 1. Fetch current/upcoming/recent live draw record or active competition
+    let currentLiveDraw = await prisma.liveDraw.findFirst({
+      include: {
+        competition: {
           select: {
+            id: true,
             title: true,
-            position: true,
-          },
-        },
+            slug: true,
+            productType: true,
+            ticketPrice: true,
+            soldTickets: true,
+            totalTickets: true,
+            endTime: true,
+            images: true,
+            winnerDetail: true,
+            results: {
+              where: { position: 1 },
+              take: 1,
+              include: { user: true, ticket: true }
+            }
+          }
+        }
       },
+      orderBy: [
+        { status: "asc" }, // LIVE comes before UPCOMING
+        { drawDateTime: "desc" }
+      ]
     });
 
-    const grouped = {};
+    // Fallback: If no explicit LiveDraw record, select the next ending active competition
+    if (!currentLiveDraw) {
+      const activeComp = await prisma.competition.findFirst({
+        where: {
+          deletedAt: null
+        },
+        orderBy: { endTime: "desc" },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          productType: true,
+          ticketPrice: true,
+          soldTickets: true,
+          totalTickets: true,
+          endTime: true,
+          images: true,
+          winnerDetail: true,
+          results: {
+            where: { position: 1 },
+            take: 1,
+            include: { user: true, ticket: true }
+          }
+        }
+      });
 
-    competitions.forEach((item) => {
-      const drawDate = new Date(item.endTime);
-
-      const dateKey = drawDate.toISOString().split("T")[0];
-
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = {
-          drawDate: dateKey,
-
-          displayDay: drawDate.toLocaleDateString("en-GB", {
-            weekday: "long",
-          }),
-
-          displayDate: drawDate.toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "long",
-          }),
-
-          drawImages: [],
-
-          competitions: [],
+      if (activeComp) {
+        currentLiveDraw = {
+          id: null,
+          competitionId: activeComp.id,
+          drawDateTime: activeComp.endTime,
+          streamUrl: null,
+          status: "UPCOMING",
+          winningTicketNumber: null,
+          winnerName: null,
+          winnerLocation: null,
+          isWinnerConfirmed: false,
+          verifiedBy: "Dream Car Competitions",
+          competition: activeComp
         };
       }
+    }
 
-      const mainPrize =
-        item.prizes.find((p) => p.position === 1);
+    // Auto-populate winner details & dynamic LIVE transition for currentLiveDraw
+    if (currentLiveDraw && currentLiveDraw.competition) {
+      const comp = currentLiveDraw.competition;
+      const firstResult = comp.results?.[0];
+      const winDetail = comp.winnerDetail;
 
-      const competitionImage =
-        item.images?.length
-          ? item.images[0]
-          : null;
+      const resolvedName = currentLiveDraw.winnerName || winDetail?.winnerName || firstResult?.user?.name || null;
+      const resolvedTicket = currentLiveDraw.winningTicketNumber || (firstResult?.ticket?.ticketNumber ? `#${firstResult.ticket.ticketNumber}` : null);
+      const resolvedLocation = currentLiveDraw.winnerLocation || winDetail?.winnerLocation || firstResult?.user?.city || firstResult?.user?.country || "";
 
-      // one image per competition
-      if (competitionImage) {
-        grouped[dateKey].drawImages.push(competitionImage);
+      if (resolvedName || resolvedTicket) {
+        currentLiveDraw.winnerName = resolvedName || "Winner Confirmed";
+        currentLiveDraw.winningTicketNumber = resolvedTicket;
+        currentLiveDraw.winnerLocation = resolvedLocation;
+        currentLiveDraw.isWinnerConfirmed = true;
+        currentLiveDraw.status = "COMPLETED";
+      } else {
+        currentLiveDraw.isWinnerConfirmed = false;
+        // Auto LIVE check: If current time >= drawDateTime and not completed, set status to LIVE dynamically
+        const drawTime = currentLiveDraw.drawDateTime ? new Date(currentLiveDraw.drawDateTime) : (comp.endTime ? new Date(comp.endTime) : null);
+        if (drawTime && now >= drawTime && currentLiveDraw.status !== "COMPLETED") {
+          currentLiveDraw.status = "LIVE";
+        }
       }
+    }
 
-      grouped[dateKey].competitions.push({
-        id: item.id,
-        slug: item.slug,
-
-        title: item.title,
-
-        prizeTitle:
-          mainPrize?.title || item.title,
-
-        productType: item.productType,
-
-        image: competitionImage,
-
-        ticketPrice: item.ticketPrice,
-
-        drawTime: drawDate.toLocaleTimeString("en-GB", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-
-        soldTickets: item.soldTickets,
-
-        totalTickets: item.totalTickets,
-
-        soldPercentage:
-          item.totalTickets > 0
-            ? Math.round(
-                (item.soldTickets / item.totalTickets) * 100
-              )
-            : 0,
-      });
+    // 2. Fetch Recent Draws (Completed live draws & competitions with winner details)
+    const completedLiveDraws = await prisma.liveDraw.findMany({
+      where: {
+        status: "COMPLETED"
+      },
+      include: {
+        competition: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            images: true,
+            endTime: true,
+            winnerDetail: true,
+            results: {
+              take: 1,
+              orderBy: { position: "asc" },
+              include: {
+                user: true,
+                ticket: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 12
     });
+
+    // Helper to safely extract main image string
+    const extractMainImage = (imgs) => {
+      if (Array.isArray(imgs) && imgs.length > 0) return imgs[0];
+      if (typeof imgs === "string" && imgs.trim()) {
+        try {
+          const parsed = JSON.parse(imgs);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+          return imgs;
+        } catch (e) {
+          return imgs;
+        }
+      }
+      return null;
+    };
+
+    // Format recent draws
+    let recentDraws = completedLiveDraws.map(ld => {
+      const comp = ld.competition;
+      const firstResult = comp?.results?.[0];
+
+      return {
+        id: ld.id,
+        competitionId: comp?.id,
+        title: comp?.title || "Competition Draw",
+        slug: comp?.slug,
+        image: extractMainImage(comp?.images) || "/img/car1.png",
+        drawDate: ld.drawDateTime || comp?.endTime,
+        winnerName: ld.winnerName || comp?.winnerDetail?.winnerName || firstResult?.user?.name || "Winner Announced",
+        winnerLocation: ld.winnerLocation || comp?.winnerDetail?.winnerLocation || "UK",
+        winningTicket: ld.winningTicketNumber || (firstResult?.ticket?.ticketNumber ? `#${firstResult.ticket.ticketNumber}` : "N/A"),
+        videoUrl: ld.streamUrl || null
+      };
+    });
+
+    // Fallback for recent draws if DB has few explicit LiveDraw COMPLETED records:
+    // fetch completed/ended competitions with winners
+    if (recentDraws.length < 4) {
+      const endedComps = await prisma.competition.findMany({
+        where: {
+          deletedAt: null,
+          endTime: { lte: now }
+        },
+        include: {
+          winnerDetail: true,
+          results: {
+            take: 1,
+            orderBy: { position: "asc" },
+            include: {
+              user: true,
+              ticket: true
+            }
+          }
+        },
+        orderBy: { endTime: "desc" },
+        take: 8
+      });
+
+      endedComps.forEach(comp => {
+        if (!recentDraws.some(rd => rd.competitionId === comp.id)) {
+          const firstResult = comp.results?.[0];
+          const hasWinner = comp.winnerDetail?.winnerName || firstResult?.user?.name;
+
+          // ONLY include under Recent Draws if the live draw / winner announcement has taken place
+          if (hasWinner) {
+            recentDraws.push({
+              id: `comp-${comp.id}`,
+              competitionId: comp.id,
+              title: comp.title,
+              slug: comp.slug,
+              image: extractMainImage(comp.images) || "/img/car1.png",
+              drawDate: comp.endTime,
+              winnerName: hasWinner,
+              winnerLocation: comp.winnerDetail?.winnerLocation || "UK",
+              winningTicket: firstResult?.ticket?.ticketNumber ? `#${firstResult.ticket.ticketNumber}` : "#1",
+              videoUrl: null
+            });
+          }
+        }
+      });
+    }
 
     return successResponse(
       res,
       "Live draws fetched successfully",
       200,
-      Object.values(grouped)
+      {
+        currentDraw: currentLiveDraw,
+        recentDraws
+      }
     );
   } catch (error) {
     return errorResponse(
@@ -1976,7 +2083,6 @@ exports.getLiveDraws = catchAsync(async (req, res) => {
       500
     );
   }
-
 }); 
 
 exports.toggleHeroCompetition = catchAsync(async (req, res) => {
@@ -2013,5 +2119,167 @@ exports.toggleHeroCompetition = catchAsync(async (req, res) => {
       : "Competition removed from Hero Banner",
     200,
     updated
+  );
+});
+
+exports.getLiveDrawByCompetitionId = catchAsync(async (req, res) => {
+  const { competitionId } = req.params;
+  const compId = parseInt(competitionId);
+
+  const competition = await prisma.competition.findUnique({
+    where: { id: compId }
+  });
+
+  let liveDraw = await prisma.liveDraw.findUnique({
+    where: {
+      competitionId: compId
+    },
+    include: {
+      competition: true
+    }
+  });
+
+  // Fetch WinnerDetail and Position 1 Result for prefilling
+  const winnerDetail = await prisma.winnerDetail.findUnique({
+    where: { competitionId: compId }
+  });
+
+  const firstResult = await prisma.result.findFirst({
+    where: { competitionId: compId, position: 1 },
+    include: { user: true, ticket: true }
+  });
+
+  const resolvedName = winnerDetail?.winnerName || firstResult?.user?.name || null;
+  const resolvedTicket = firstResult?.ticket?.ticketNumber ? `#${firstResult.ticket.ticketNumber}` : null;
+  const resolvedLocation = winnerDetail?.winnerLocation || firstResult?.user?.city || firstResult?.user?.country || null;
+  const hasWinner = Boolean(firstResult || winnerDetail);
+
+  if (!liveDraw) {
+    liveDraw = {
+      id: null,
+      competitionId: compId,
+      drawDateTime: competition?.endTime || null,
+      streamUrl: null,
+      status: hasWinner ? "COMPLETED" : "UPCOMING",
+      winningTicketNumber: resolvedTicket,
+      winnerName: resolvedName,
+      winnerLocation: resolvedLocation,
+      isWinnerConfirmed: hasWinner,
+      verifiedBy: "Dream Car Competitions",
+      competition
+    };
+  } else {
+    liveDraw.winnerName = liveDraw.winnerName || resolvedName;
+    liveDraw.winningTicketNumber = liveDraw.winningTicketNumber || resolvedTicket;
+    liveDraw.winnerLocation = liveDraw.winnerLocation || resolvedLocation;
+    if (hasWinner) {
+      liveDraw.isWinnerConfirmed = true;
+      if (liveDraw.status === "UPCOMING") {
+        liveDraw.status = "COMPLETED";
+      }
+    }
+  }
+
+  return successResponse(
+    res,
+    "Live draw fetched successfully",
+    200,
+    liveDraw
+  );
+});
+
+exports.updateLiveDrawSettings = catchAsync(async (req, res) => {
+  const {
+    competitionId,
+    drawDateTime,
+    streamUrl,
+    status,
+    winningTicketNumber,
+    winnerName,
+    winnerLocation,
+    isWinnerConfirmed,
+    verifiedBy
+  } = req.body;
+
+  if (!competitionId) {
+    return errorResponse(res, "Competition ID is required", 400);
+  }
+
+  const compId = parseInt(competitionId);
+
+  const competitionExists = await prisma.competition.findUnique({
+    where: { id: compId }
+  });
+
+  if (!competitionExists) {
+    return errorResponse(res, "Competition not found", 404);
+  }
+
+  // ✅ Validation: Live draw date & time must be on or after competition end date (unless competition is sold out)
+  const isSoldOut = competitionExists.soldTickets >= competitionExists.totalTickets;
+  if (!isSoldOut && drawDateTime && competitionExists.endTime) {
+    const drawDate = new Date(drawDateTime);
+    const endDate = new Date(competitionExists.endTime);
+    if (drawDate < endDate) {
+      return errorResponse(
+        res,
+        "Live draw date & time must be on or after the competition end date (unless competition is sold out)",
+        400
+      );
+    }
+  }
+
+  const liveDraw = await prisma.liveDraw.upsert({
+    where: {
+      competitionId: compId
+    },
+    update: {
+      ...(drawDateTime !== undefined && { drawDateTime: drawDateTime ? new Date(drawDateTime) : null }),
+      ...(streamUrl !== undefined && { streamUrl }),
+      ...(status !== undefined && { status }),
+      ...(winningTicketNumber !== undefined && { winningTicketNumber }),
+      ...(winnerName !== undefined && { winnerName }),
+      ...(winnerLocation !== undefined && { winnerLocation }),
+      ...(isWinnerConfirmed !== undefined && { isWinnerConfirmed: Boolean(isWinnerConfirmed) }),
+      ...(verifiedBy !== undefined && { verifiedBy })
+    },
+    create: {
+      competitionId: compId,
+      drawDateTime: drawDateTime ? new Date(drawDateTime) : competitionExists.endTime,
+      streamUrl: streamUrl || null,
+      status: status || "UPCOMING",
+      winningTicketNumber: winningTicketNumber || null,
+      winnerName: winnerName || null,
+      winnerLocation: winnerLocation || null,
+      isWinnerConfirmed: isWinnerConfirmed ? Boolean(isWinnerConfirmed) : false,
+      verifiedBy: verifiedBy || "Dream Car Competitions"
+    }
+  });
+
+  // ✅ Bi-directional sync: if winnerName or winnerLocation is updated, sync to WinnerDetail (if existing)
+  if (winnerName !== undefined || winnerLocation !== undefined) {
+    try {
+      const existingWinnerDetail = await prisma.winnerDetail.findUnique({
+        where: { competitionId: compId }
+      });
+      if (existingWinnerDetail) {
+        await prisma.winnerDetail.update({
+          where: { competitionId: compId },
+          data: {
+            ...(winnerName !== undefined && { winnerName }),
+            ...(winnerLocation !== undefined && { winnerLocation })
+          }
+        });
+      }
+    } catch (syncErr) {
+      console.error("Error syncing LiveDraw to WinnerDetail:", syncErr);
+    }
+  }
+
+  return successResponse(
+    res,
+    "Live draw settings updated successfully",
+    200,
+    liveDraw
   );
 });

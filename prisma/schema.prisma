@@ -71,6 +71,7 @@ model Competition {
   tickets                  Ticket[]
   reservations             TicketReservation[]
   winnerDetail             WinnerDetail?
+  liveDraw                 LiveDraw?
 }
 
 model TicketReservation {
@@ -340,6 +341,22 @@ model AdminNotification {
   meta      Json?
   isRead    Boolean   @default(false)
   createdAt DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model LiveDraw {
+  id                  Int          @id @default(autoincrement())
+  competitionId       Int          @unique
+  drawDateTime        DateTime?
+  streamUrl           String?
+  status              String       @default("UPCOMING")
+  winningTicketNumber String?
+  winnerName          String?
+  winnerLocation      String?
+  isWinnerConfirmed   Boolean      @default(false)
+  verifiedBy          String?      @default("Dream Car Competitions")
+  createdAt           DateTime?    @default(now()) @db.Timestamp(0)
+  updatedAt           DateTime?    @updatedAt @db.Timestamp(0)
+  competition         Competition  @relation(fields: [competitionId], references: [id])
 }
 
 enum productTypeEnum {
