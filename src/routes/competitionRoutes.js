@@ -1,4 +1,4 @@
-const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition, getCurrencyRates, syncCurrencyRates, getDashboardData, toggleFeaturedCompetition, getSimilarCompetitions, getAllInstantWinsAdmin, triggerCompetitionUpdates, getLiveDraws, toggleHeroCompetition } = require("../controller/competitionController");
+const { addCompetition, getAllCompetitions, updateCompetition, competitionDetail, createCompetitionPayment, deleteCompetition, getCurrencyRates, syncCurrencyRates, getDashboardData, toggleFeaturedCompetition, getSimilarCompetitions, getAllInstantWinsAdmin, triggerCompetitionUpdates, getLiveDraws, toggleHeroCompetition, getLiveDrawByCompetitionId, updateLiveDrawSettings } = require("../controller/competitionController");
 const { verifyToken, checkIsAdminHasCapablity, requireAdmin } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
@@ -41,7 +41,7 @@ router.post("/competition/update/:id",
     // { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 },
     { name: "instantWinImages", maxCount: 50 },
-    { name: "prizeImages", maxCount: 10 },
+    { name: "prizeImages", maxCount: 50 },
     { name: "sectionImages", maxCount: 50 },
     { name: "sectionVideos", maxCount: 50 }
   ]), updateCompetition);
@@ -60,5 +60,9 @@ router.post( "/competition/hero/:id", verifyToken, requireAdmin, toggleHeroCompe
 
 router.get("/competition/similar/:id", getSimilarCompetitions);
 router.get("/live-draws/competition", getLiveDraws);
+
+// Live Draw Admin routes
+router.get("/admin/live-draw/:competitionId", verifyToken, requireAdmin, getLiveDrawByCompetitionId);
+router.post("/admin/live-draw/update", verifyToken, requireAdmin, updateLiveDrawSettings);
 
 module.exports = router;

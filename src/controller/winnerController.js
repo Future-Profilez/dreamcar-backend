@@ -97,6 +97,31 @@ exports.drawWinner = catchAsync(async (req, res) => {
             },
         });
 
+        // ✅ Sync to existing LiveDraw record ONLY if position === 1 (Main Winner) and LiveDraw already exists
+        if (Number(position) === 1) {
+            try {
+                const existingLiveDraw = await prisma.liveDraw.findFirst({
+                    where: { competitionId: Number(competitionId) }
+                });
+
+                if (existingLiveDraw) {
+                    const userLocation = ticket.user?.city || ticket.user?.country || ticket.user?.address || "";
+                    await prisma.liveDraw.update({
+                        where: { id: existingLiveDraw.id },
+                        data: {
+                            winningTicketNumber: `#${ticket.ticketNumber}`,
+                            winnerName: ticket.user?.name || "Winner",
+                            winnerLocation: userLocation,
+                            isWinnerConfirmed: true,
+                            status: "COMPLETED"
+                        }
+                    });
+                }
+            } catch (liveDrawErr) {
+                console.error("Error syncing to existing LiveDraw:", liveDrawErr);
+            }
+        }
+
         try {
             const wonPrize = competition.prizes?.find(p => p.position === Number(position));
             const prizeTitle = wonPrize ? wonPrize.title : competition.title;
@@ -227,6 +252,27 @@ exports.resetWinners = catchAsync(async (req, res) => {
         await prisma.result.deleteMany({
             where: { competitionId: Number(competitionId) }
         });
+
+        // Reset LiveDraw winner fields if a LiveDraw record exists for this competition
+        try {
+            const existingLiveDraw = await prisma.liveDraw.findFirst({
+                where: { competitionId: Number(competitionId) }
+            });
+            if (existingLiveDraw) {
+                await prisma.liveDraw.update({
+                    where: { id: existingLiveDraw.id },
+                    data: {
+                        winningTicketNumber: null,
+                        winnerName: null,
+                        winnerLocation: null,
+                        isWinnerConfirmed: false,
+                        status: "UPCOMING"
+                    }
+                });
+            }
+        } catch (resetLiveDrawErr) {
+            console.error("Error resetting LiveDraw fields:", resetLiveDrawErr);
+        }
 
         return successResponse(res, "Winners reset successfully", 200);
 
@@ -367,7 +413,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
         const limit = parseInt(req.query.limit) || 15;
         const skip = (page - 1) * limit;
 
-        const [winners, totalCount] = await Promise.all([
+        const [winners, totalCount, totalUsersCount] = await Promise.all([
             prisma.result.findMany({
                 where: {
                     position: 1
@@ -416,6 +462,13 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                 where: {
                     position: 1
                 }
+            }),
+            prisma.user.count({
+                where: {
+                    role: {
+                        notIn: ["admin", "ADMIN"]
+                    }
+                }
             })
         ]);
 
@@ -424,6 +477,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
                 winners: [],
                 pagination: {
                     totalItems: 0,
+                    totalUsers: totalUsersCount || 0,
                     totalPages: 0,
                     currentPage: page,
                     limit: limit
@@ -454,6 +508,7 @@ exports.getPublicWinners = catchAsync(async (req, res) => {
             winners: data,
             pagination: {
                 totalItems: totalCount,
+                totalUsers: totalUsersCount || 0,
                 totalPages: Math.ceil(totalCount / limit),
                 currentPage: page,
                 limit: limit
@@ -689,6 +744,26 @@ exports.addWinnerDetail = catchAsync(async (req, res) => {
             });
         }
 
+        // ✅ Bi-directional Sync: Update existing LiveDraw record IF it exists
+        try {
+            const existingLiveDraw = await prisma.liveDraw.findFirst({
+                where: { competitionId: parseInt(competitionId) }
+            });
+            if (existingLiveDraw) {
+                await prisma.liveDraw.update({
+                    where: { id: existingLiveDraw.id },
+                    data: {
+                        winnerName,
+                        winnerLocation: winnerLocation || "",
+                        isWinnerConfirmed: true,
+                        status: "COMPLETED"
+                    }
+                });
+            }
+        } catch (liveDrawSyncErr) {
+            console.error("Error syncing WinnerDetail to LiveDraw:", liveDrawSyncErr);
+        }
+
         return successResponse(
             res,
             "Winner detail added successfully",
@@ -753,14 +828,19 @@ exports.getWinnerDetailPrefill = catchAsync(async (req, res) => {
             p => p.position === result.position
         );
 
+        // Check if live draw record exists for location prefill
+        const existingLiveDraw = await prisma.liveDraw.findFirst({
+            where: { competitionId: parseInt(competitionId) }
+        });
+
         if (existingDetail) {
             return successResponse(
                 res,
                 "Winner detail fetched for editing",
                 200,
                 {
-                    winnerName: existingDetail.winnerName,
-                    winnerLocation: existingDetail.winnerLocation,
+                    winnerName: existingDetail.winnerName || existingLiveDraw?.winnerName || result.user.name,
+                    winnerLocation: existingDetail.winnerLocation || existingLiveDraw?.winnerLocation || "",
                     storyDescription: existingDetail.storyDescription,
                     winnerImage: existingDetail.winnerImage,
                     galleryImages: existingDetail.galleryImages || [],
@@ -779,8 +859,8 @@ exports.getWinnerDetailPrefill = catchAsync(async (req, res) => {
             "Winner prefill fetched",
             200,
             {
-                winnerName: result.user.name,
-                winnerLocation: "",
+                winnerName: existingLiveDraw?.winnerName || result.user.name,
+                winnerLocation: existingLiveDraw?.winnerLocation || "",
                 competitionTitle: result.competition.title,
                 winnerTicket: `#${result.ticket.ticketNumber}`,
                 prizeTitle: wonPrize?.title,

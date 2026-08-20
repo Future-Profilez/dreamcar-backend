@@ -16,7 +16,7 @@ const validatePhone = (phone) => {
   if (!phone) return false;
   let clean = phone.trim().replace(/[\-\s()]/g, "");
   if (clean.startsWith("+")) {
-    const codes = ["+971", "+44", "+33", "+49", "+34", "+39", "+61", "+91", "+1"];
+    const codes = ["+353", "+971", "+44", "+33", "+49", "+34", "+39", "+61", "+91", "+1", "+31", "+41", "+43", "+32", "+46", "+47", "+45", "+351", "+48", "+30", "+64"];
     let matchedCode = "";
     for (const code of codes) {
       if (clean.startsWith(code)) {
