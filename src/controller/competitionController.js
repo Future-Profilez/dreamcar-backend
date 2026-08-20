@@ -24,7 +24,8 @@ exports.addCompetition = catchAsync(async (req, res) => {
       endTime,
       questions,
       instantWin,
-      prizes // Added prizes array (JSON string)
+      prizes, // Added prizes array (JSON string)
+      status
     } = req.body;
 
     if (
@@ -63,6 +64,10 @@ exports.addCompetition = catchAsync(async (req, res) => {
 
     if (parsedEndTime <= parsedStartTime) {
       return errorResponse(res, "End time must be after start time", 200);
+    }
+
+    if (status !== undefined && status !== null && status !== "" && parseInt(status) === 2 && parsedStartTime <= new Date()) {
+      return errorResponse(res, "Cannot set status to Launching Soon because the start date has already passed.", 200);
     }
     const files = req.files || {};
 
@@ -126,6 +131,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
         // prizeDetailImage: mainPrizeImage,
         // prizeFeatures: mainPrize.prizeFeatures || [],
         images,
+        status: status !== undefined && status !== null && status !== "" ? parseInt(status) : 1,
         instantWinEnabled: instantWinData?.enabled || false,
         instantWinTriggerPercent: instantWinData?.enabled
           ? parseInt(instantWinData.threshold)
@@ -418,21 +424,42 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
         include: {
 
           results: {
-
             where: {
               position: 1
             },
-
             select: {
               id: true,
-              position: true
+              position: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
+              },
+              ticket: {
+                select: {
+                  id: true,
+                  ticketNumber: true,
+                  ticketCode: true
+                }
+              }
             }
           },
 
           winnerDetail: {
-
             select: {
-              id: true
+              id: true,
+              winnerName: true
+            }
+          },
+
+          liveDraw: {
+            select: {
+              id: true,
+              winnerName: true,
+              winningTicketNumber: true,
+              isWinnerConfirmed: true
             }
           },
 
@@ -444,32 +471,30 @@ exports.getAllCompetitions = catchAsync(async (req, res) => {
     if (status === "live") {
       competitions = competitions.filter(
         (item) =>
+          item.status !== 0 &&
+          item.status !== 2 &&
           new Date(item.startTime) <= now &&
           new Date(item.endTime) >= now &&
           item.soldTickets < item.totalTickets
       );
-    }
-
-    if (status === "ended") {
+    } else if (status === "ended") {
       competitions = competitions.filter(
         (item) =>
-          new Date(item.endTime) < now ||
-          item.soldTickets >= item.totalTickets
+          item.status !== 0 &&
+          (new Date(item.endTime) < now || item.soldTickets >= item.totalTickets)
       );
-    }
-
-    if (status === "upcoming") {
+    } else if (status === "upcoming" || status === "coming_soon" || status === "launching_soon") {
       competitions = competitions.filter(
         (item) =>
-          new Date(item.startTime) > now
+          item.status !== 0 &&
+          (item.status === 2 || new Date(item.startTime) > now)
       );
+    } else if (status === "draft") {
+      competitions = competitions.filter((item) => item.status === 0);
+    } else if (status !== "all_admin") {
+      // By default for public listings, exclude drafts (status === 0)
+      competitions = competitions.filter((item) => item.status !== 0);
     }
-
-    // if (status === "live") {
-    //   competitions = competitions.filter(
-    //     (item) => item.soldTickets < item.totalTickets
-    //   );
-    // }
 
     return successResponse(
       res,
@@ -525,7 +550,8 @@ exports.competitionDetail = catchAsync(async (req, res) => {
         },
         results: {
           include: {
-            user: true
+            user: true,
+            ticket: true
           }
         }
       }
@@ -596,6 +622,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       // rules,
       questions,
       instantWin,
+      status,
     } = req.body;
 
     console.log("ticketPrice received:", ticketPrice);
@@ -642,6 +669,18 @@ exports.updateCompetition = catchAsync(async (req, res) => {
 
     const parsedStartTime = startTime ? parseLondonDateTime(startTime) : null;
     const parsedEndTime = endTime ? parseLondonDateTime(endTime, { endOfDay: true }) : null;
+    const effectiveStartTime = parsedStartTime || existingCompetition.startTime;
+    const isAlreadyLive = existingCompetition.status === 1 || (existingCompetition.startTime && new Date(existingCompetition.startTime) <= new Date()) || existingCompetition.soldTickets > 0;
+
+    if (status !== undefined && status !== null && status !== "") {
+      const targetStatus = parseInt(status);
+      if (isAlreadyLive && targetStatus !== 1) {
+        return errorResponse(res, "This competition has already been live. Status cannot be reverted to Draft or Launching Soon.", 200);
+      }
+      if (targetStatus === 2 && new Date(effectiveStartTime) <= new Date()) {
+        return errorResponse(res, "Cannot set status to Launching Soon because the start date has already passed.", 200);
+      }
+    }
 
     // if (startTime && !parsedStartTime) {
     //   return errorResponse(res, "Invalid start time", 400);
@@ -728,6 +767,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       // prizeFeatures: mainPrizeFeatures,
       // prizeDetailImage: mainPrizeImage,
       images: finalImages,
+      ...(status !== undefined && status !== null && status !== "" && { status: parseInt(status) }),
       ...(instantWinData && {
         instantWinEnabled: instantWinData.enabled,
         instantWinTriggerPercent: instantWinData.enabled ? parseInt(instantWinData.threshold) : null,
@@ -1090,12 +1130,31 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
     // reserved so the caller can roll them back on any later failure.
     const reserveInventory = async () => {
       const reserved = [];
+      const now = new Date();
+
       for (const t of ticketPricing) {
+        // Calculate how many tickets this user ALREADY holds in active cart reservation for this competition
+        const userActiveResv = await prisma.ticketReservation.aggregate({
+          where: {
+            userId,
+            competitionId: t.competition.id,
+            status: "reserved",
+            expiresAt: { gt: now }
+          },
+          _sum: { quantity: true }
+        });
+        const userCartQty = userActiveResv._sum.quantity || 0;
+        const qtyDiff = t.parsedQty - userCartQty;
+
+        // Atomically update Competition reservedTickets.
+        // We deduct userCartQty from reservedTickets in the availability check so the user's
+        // own cart reservation is not counted against them when purchasing remaining tickets.
         const affected = await prisma.$executeRaw`
           UPDATE "Competition"
-          SET "reservedTickets" = "reservedTickets" + ${t.parsedQty}
+          SET "reservedTickets" = "reservedTickets" + ${qtyDiff}
           WHERE id = ${t.competition.id}
-            AND "totalTickets" - "soldTickets" - "reservedTickets" >= ${t.parsedQty}`;
+            AND ("totalTickets" - "soldTickets" - ("reservedTickets" - ${userCartQty})) >= ${t.parsedQty}`;
+
         if (affected === 0) {
           // Roll back whatever we already reserved in this loop, then signal sold-out.
           await releaseInventory(reserved);
@@ -1103,15 +1162,30 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
           err.soldOut = true;
           throw err;
         }
-        reserved.push({ competitionId: t.competition.id, qty: t.parsedQty });
+
+        reserved.push({ competitionId: t.competition.id, qty: t.parsedQty, qtyDiff });
       }
+
+      // Mark old cart reservations for these competitions as superseded
+      for (const t of ticketPricing) {
+        await prisma.ticketReservation.updateMany({
+          where: {
+            userId,
+            competitionId: t.competition.id,
+            status: "reserved"
+          },
+          data: { status: "superseded" }
+        });
+      }
+
       return reserved;
     };
 
     const releaseInventory = async (reserved) => {
       for (const r of reserved) {
+        const delta = r.qtyDiff !== undefined ? r.qtyDiff : r.qty;
         await prisma.$executeRaw`
-          UPDATE "Competition" SET "reservedTickets" = "reservedTickets" - ${r.qty} WHERE id = ${r.competitionId}`;
+          UPDATE "Competition" SET "reservedTickets" = "reservedTickets" - ${delta} WHERE id = ${r.competitionId}`;
       }
     };
 
@@ -2086,7 +2160,7 @@ exports.getLiveDraws = catchAsync(async (req, res) => {
       500
     );
   }
-}); 
+});
 
 exports.toggleHeroCompetition = catchAsync(async (req, res) => {
   const { id } = req.params;

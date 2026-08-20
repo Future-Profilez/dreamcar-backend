@@ -231,9 +231,16 @@ exports.addToCart = catchAsync(async (req, res) => {
     if (itemType === "competition" || !itemType) {
       const competition = await prisma.competition.findUnique({
         where: { id: parseInt(itemId) },
-        select: { totalTickets: true, soldTickets: true, reservedTickets: true }
+        select: { totalTickets: true, soldTickets: true, reservedTickets: true, status: true, startTime: true }
       });
       if (competition) {
+        const now = new Date();
+        if (competition.status === 0) {
+          return errorResponse(res, "This competition is currently unavailable.", 200);
+        }
+        if (competition.status === 2 || new Date(competition.startTime) > now) {
+          return errorResponse(res, "Ticket sales for this competition have not launched yet!", 200);
+        }
         // Calculate available tickets (excluding user's own existing reservation for this item)
         const activeReservedOthers = await getActiveReservedTickets(parseInt(itemId), userId);
         const available = competition.totalTickets - competition.soldTickets - activeReservedOthers;
