@@ -128,6 +128,8 @@ exports.verifyPayment = catchAsync(async (req, res) => {
             return errorResponse(res, "Payment not found or not completed", 200);
         }
 
+        const enrichedPayments = payment.map(enrichPaymentWithDiscount);
+
         const round2 = (num) => Math.round((Number(num) + Number.EPSILON) * 100) / 100;
         const totalAmount = round2(enrichedPayments.reduce((sum, p) => sum + Number(p.amount), 0));
         const subtotalAmount = round2(enrichedPayments.reduce((sum, p) => sum + Number(p.originalAmount || 0), 0));

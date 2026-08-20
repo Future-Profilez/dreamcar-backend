@@ -941,6 +941,9 @@ exports.updateCompetition = catchAsync(async (req, res) => {
 
 exports.createCompetitionPayment = catchAsync(async (req, res) => {
   try {
+    if (!req.user || !req.user.phone || !req.user.phone.trim()) {
+      return errorResponse(res, "Phone number is required to proceed with payment. Please update your profile.", 200);
+    }
     const isWalletPayment = req.body.isWalletPayment;
     const userId = req.user.id;
     const { items } = req.body;
