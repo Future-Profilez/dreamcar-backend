@@ -16,26 +16,42 @@ const validatePhone = (phone) => {
   if (!phone) return false;
   let clean = phone.trim().replace(/[\-\s()]/g, "");
   if (clean.startsWith("+")) {
-    const codes = ["+353", "+971", "+44", "+33", "+49", "+34", "+39", "+61", "+91", "+1", "+31", "+41", "+43", "+32", "+46", "+47", "+45", "+351", "+48", "+30", "+64"];
-    let matchedCode = "";
-    for (const code of codes) {
-      if (clean.startsWith(code)) {
-        matchedCode = code;
-        break;
-      }
-    }
-    if (matchedCode) {
-      const rest = clean.slice(matchedCode.length);
-      return rest.length === 10 && /^[0-9]+$/.test(rest);
+    const countryRules = [
+      { code: "+44", min: 10, max: 10 },
+      { code: "+353", min: 7, max: 9 },
+      { code: "+61", min: 9, max: 9 },
+      { code: "+1", min: 10, max: 10 },
+      { code: "+971", min: 9, max: 9 },
+      { code: "+33", min: 9, max: 9 },
+      { code: "+49", min: 10, max: 11 },
+      { code: "+34", min: 9, max: 9 },
+      { code: "+39", min: 9, max: 10 },
+      { code: "+31", min: 9, max: 9 },
+      { code: "+41", min: 9, max: 9 },
+      { code: "+43", min: 10, max: 11 },
+      { code: "+32", min: 9, max: 9 },
+      { code: "+46", min: 9, max: 9 },
+      { code: "+47", min: 8, max: 8 },
+      { code: "+45", min: 8, max: 8 },
+      { code: "+351", min: 9, max: 9 },
+      { code: "+48", min: 9, max: 9 },
+      { code: "+30", min: 10, max: 10 },
+      { code: "+64", min: 8, max: 9 },
+      { code: "+91", min: 10, max: 10 },
+    ];
+    let matched = countryRules.find((c) => clean.startsWith(c.code));
+    if (matched) {
+      const rest = clean.slice(matched.code.length);
+      return rest.length >= matched.min && rest.length <= matched.max && /^[0-9]+$/.test(rest);
     } else {
       const digits = clean.slice(1);
-      return digits.length >= 10 && digits.length <= 13 && /^[0-9]+$/.test(digits);
+      return digits.length >= 7 && digits.length <= 13 && /^[0-9]+$/.test(digits);
     }
   }
   if (clean.startsWith("0")) {
     clean = clean.slice(1);
   }
-  return clean.length === 10 && /^[0-9]+$/.test(clean);
+  return clean.length >= 7 && clean.length <= 13 && /^[0-9]+$/.test(clean);
 };
 
 
@@ -50,7 +66,7 @@ exports.signup = catchAsync(async (req, res) => {
       return errorResponse(res, "Phone number is required", 200);
     }
     if (!validatePhone(cleanPhone)) {
-      return errorResponse(res, "Please enter a valid 10-digit phone number", 200);
+      return errorResponse(res, "Please enter a valid phone number for your country", 200);
     }
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -613,7 +629,7 @@ exports.updateProfile = catchAsync(async (req, res) => {
       } else {
         const cleanPhone = phone.trim();
         if (!validatePhone(cleanPhone)) {
-          return errorResponse(res, "Please enter a valid 10-digit phone number", 200);
+          return errorResponse(res, "Please enter a valid phone number for your country", 200);
         }
         dataToUpdate.phone = cleanPhone;
       }
@@ -1019,7 +1035,7 @@ exports.adminCreateUser = catchAsync(async (req, res) => {
       cleanPhone = phone.trim();
       if (cleanPhone) {
         if (!validatePhone(cleanPhone)) {
-          return errorResponse(res, "Please enter a valid 10-digit phone number", 200);
+          return errorResponse(res, "Please enter a valid phone number for your country", 200);
         }
       }
     }

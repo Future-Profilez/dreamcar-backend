@@ -22,6 +22,7 @@ exports.verifyToken = async (req, res, next) => {
         id: true,
         name: true,
         email: true,
+        phone: true,
         role: true,
         deletedAt: true,
         isBlocked: true
@@ -45,6 +46,7 @@ exports.verifyToken = async (req, res, next) => {
       id: user.id,
       name: user.name,
       email: user.email,
+      phone: user.phone,
       role: user.role
     };
     next();
