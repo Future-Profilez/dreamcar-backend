@@ -205,11 +205,11 @@ exports.addToCart = catchAsync(async (req, res) => {
     const userId = req.user.id;
     const { itemId, quantity, itemType, answer } = req.body;
 
-    if (!itemId || !quantity) {
-      return errorResponse(res, "Missing required fields", 200);
-    }
-    if (quantity <= 0) {
-      return errorResponse(res, "Invalid quantity", 200);
+    const parsedItemId = parseInt(itemId, 10);
+    const parsedQty = parseInt(quantity, 10);
+
+    if (isNaN(parsedItemId) || isNaN(parsedQty) || parsedQty <= 0) {
+      return errorResponse(res, "Missing or invalid required fields", 200);
     }
 
     await cleanupExpiredReservations();
@@ -223,14 +223,14 @@ exports.addToCart = catchAsync(async (req, res) => {
     const existingItem = await prisma.cartItem.findFirst({
       where: {
         cartId: cart.id,
-        itemId: parseInt(itemId),
+        itemId: parsedItemId,
         itemType: itemType || "competition",
       },
     });
 
     if (itemType === "competition" || !itemType) {
       const competition = await prisma.competition.findUnique({
-        where: { id: parseInt(itemId) },
+        where: { id: parsedItemId },
         select: { totalTickets: true, soldTickets: true, reservedTickets: true, status: true, startTime: true }
       });
       if (competition) {
@@ -242,13 +242,12 @@ exports.addToCart = catchAsync(async (req, res) => {
           return errorResponse(res, "Ticket sales for this competition have not launched yet!", 200);
         }
         // Calculate available tickets (excluding user's own existing reservation for this item)
-        const activeReservedOthers = await getActiveReservedTickets(parseInt(itemId), userId);
+        const activeReservedOthers = await getActiveReservedTickets(parsedItemId, userId);
         const available = competition.totalTickets - competition.soldTickets - activeReservedOthers;
 
-        const requestedQty = parseInt(quantity);
-        if (requestedQty > available) {
+        if (parsedQty > available) {
           const totalUnsold = competition.totalTickets - competition.soldTickets;
-          if (activeReservedOthers > 0 && totalUnsold >= requestedQty) {
+          if (activeReservedOthers > 0 && totalUnsold >= parsedQty) {
             return errorResponse(res, "High Demand! Someone is currently holding these tickets. Check back shortly!", 200);
           }
           return errorResponse(res, `Only ${Math.max(0, available)} tickets remaining`, 200);
@@ -262,7 +261,7 @@ exports.addToCart = catchAsync(async (req, res) => {
       cartItem = await prisma.cartItem.update({
         where: { id: existingItem.id },
         data: {
-          quantity: parseInt(quantity),
+          quantity: parsedQty,
           answer: answer || existingItem.answer
         },
       });
@@ -270,8 +269,8 @@ exports.addToCart = catchAsync(async (req, res) => {
       cartItem = await prisma.cartItem.create({
         data: {
           cartId: cart.id,
-          itemId: parseInt(itemId),
-          quantity: parseInt(quantity),
+          itemId: parsedItemId,
+          quantity: parsedQty,
           itemType: itemType || "competition",
           answer: answer || null
         },
@@ -285,7 +284,7 @@ exports.addToCart = catchAsync(async (req, res) => {
       expiresAt
     });
   } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
+    return errorResponse(res, error.message || "Failed to add item to cart", 200);
   }
 });
 
