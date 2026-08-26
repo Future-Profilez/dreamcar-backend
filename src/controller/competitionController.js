@@ -670,15 +670,19 @@ exports.updateCompetition = catchAsync(async (req, res) => {
     const parsedStartTime = startTime ? parseLondonDateTime(startTime) : null;
     const parsedEndTime = endTime ? parseLondonDateTime(endTime, { endOfDay: true }) : null;
     const effectiveStartTime = parsedStartTime || existingCompetition.startTime;
-    const isAlreadyLive = existingCompetition.status === 1 || (existingCompetition.startTime && new Date(existingCompetition.startTime) <= new Date()) || existingCompetition.soldTickets > 0;
+    const effectiveEndTime = parsedEndTime || existingCompetition.endTime;
+    const wasActuallyLive = existingCompetition.status === 1 || (existingCompetition.soldTickets || 0) > 0;
 
     if (status !== undefined && status !== null && status !== "") {
       const targetStatus = parseInt(status);
-      if (isAlreadyLive && targetStatus !== 1) {
-        return errorResponse(res, "This competition has already been live. Status cannot be reverted to Draft or Launching Soon.", 200);
+      if (wasActuallyLive && targetStatus !== 1) {
+        return errorResponse(res, "This competition is live or has active ticket sales. Status cannot be reverted to Draft or Launching Soon.", 200);
       }
       if (targetStatus === 2 && new Date(effectiveStartTime) <= new Date()) {
-        return errorResponse(res, "Cannot set status to Launching Soon because the start date has already passed.", 200);
+        return errorResponse(res, "Cannot set status to Launching Soon because the start date has already passed. Please update the Start Date.", 200);
+      }
+      if (targetStatus === 1 && effectiveEndTime && new Date(effectiveEndTime) <= new Date()) {
+        return errorResponse(res, "Cannot set status to Live Now because the end date has already passed. Please update the End Date to a future date.", 200);
       }
     }
 
