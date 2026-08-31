@@ -613,7 +613,7 @@ exports.addWinnerDetail = catchAsync(async (req, res) => {
         }
 
         const {
-            competitionId, resultId, winnerName, winnerLocation, storyDescription } = req.body;
+            competitionId, resultId, winnerName, winnerLocation, storyDescription, videoUrl } = req.body;
 
         // VALIDATION
         if (!competitionId || !resultId || !winnerName) {
@@ -726,7 +726,8 @@ exports.addWinnerDetail = catchAsync(async (req, res) => {
                     winnerLocation,
                     storyDescription,
                     winnerImage,
-                    galleryImages
+                    galleryImages,
+                    videoUrl: videoUrl || null
                 }
             });
         } else {
@@ -739,7 +740,8 @@ exports.addWinnerDetail = catchAsync(async (req, res) => {
                     winnerLocation,
                     storyDescription,
                     winnerImage,
-                    galleryImages
+                    galleryImages,
+                    videoUrl: videoUrl || null
                 }
             });
         }
@@ -844,6 +846,7 @@ exports.getWinnerDetailPrefill = catchAsync(async (req, res) => {
                     storyDescription: existingDetail.storyDescription,
                     winnerImage: existingDetail.winnerImage,
                     galleryImages: existingDetail.galleryImages || [],
+                    videoUrl: existingDetail.videoUrl || "",
                     
                     competitionTitle: result.competition.title,
                     winnerTicket: `#${result.ticket.ticketNumber}`,
@@ -866,6 +869,7 @@ exports.getWinnerDetailPrefill = catchAsync(async (req, res) => {
                 prizeTitle: wonPrize?.title,
                 winnerImage: result.winnerImage,
                 galleryImages: [],
+                videoUrl: "",
                 storyDescription: `${result.user.name} became the lucky winner of ${wonPrize?.title || result.competition.title} on DreamCar Competitions.`,
                 questions: result.competition.questions,
                 isEditing: false
@@ -955,6 +959,7 @@ exports.getWinnerDetail = catchAsync(async (req, res) => {
                 storyDescription: "",
                 winnerImage: result.winnerImage,
                 galleryImages: [],
+                videoUrl: null,
                 createdAt: result.createdAt,
                 ticketCode: result.ticket ? `#${result.ticket.ticketNumber}` : null,
                 winnerJoinedAt: result.user?.createdAt,
@@ -989,6 +994,7 @@ exports.getWinnerDetail = catchAsync(async (req, res) => {
             storyDescription: winnerDetail.storyDescription,
             winnerImage: winnerDetail.winnerImage,
             galleryImages: winnerDetail.galleryImages,
+            videoUrl: winnerDetail.videoUrl,
             createdAt: winnerDetail.createdAt,
             ticketCode: winnerDetail.result.ticket
                 ? `#${winnerDetail.result.ticket.ticketNumber}`
