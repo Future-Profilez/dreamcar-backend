@@ -1,4 +1,4 @@
-const { drawWinner, getUserWins, getPublicWinners, getUserInstantWins, resetWinners, addWinnerDetail, getWinnerDetailPrefill, getWinnerDetail, getWinnerHighlights, getAllAdminWinners } = require("../controller/winnerController");
+const { drawWinner, getUserWins, getPublicWinners, getUserInstantWins, resetWinners, addWinnerDetail, getWinnerDetailPrefill, getWinnerDetail, getWinnerHighlights, getAllAdminWinners, getWinnerFeedbackSetting, updateWinnerFeedbackSetting } = require("../controller/winnerController");
 const { verifyToken, checkIsAdminHasCapablity } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
@@ -19,5 +19,7 @@ router.post("/winner-detail", verifyToken, upload.fields([
 router.get("/winner-detail/prefill", getWinnerDetailPrefill);
 router.get("/winner-detail/:slug", getWinnerDetail);
 router.get("/winner-highlights", getWinnerHighlights);
+router.get("/winner-highlights/setting", getWinnerFeedbackSetting);
+router.post("/admin/winner-highlights/setting", verifyToken, updateWinnerFeedbackSetting);
 
 module.exports = router;
