@@ -376,3 +376,11 @@ enum WalletTransactionType {
   credit
   debit
 }
+
+model SiteSetting {
+  key       String    @id
+  value     String
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt DateTime? @updatedAt @db.Timestamp(0)
+}
+

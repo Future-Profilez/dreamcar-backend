@@ -1025,6 +1025,19 @@ exports.getWinnerDetail = catchAsync(async (req, res) => {
 
 exports.getWinnerHighlights = catchAsync(async (req, res) => {
     try {
+        const setting = await prisma.siteSetting.findUnique({
+            where: { key: "show_player_feedback" }
+        });
+
+        if (setting && setting.value === "false") {
+            return successResponse(
+                res,
+                "Winner highlights disabled",
+                200,
+                []
+            );
+        }
+
         const winners = await prisma.winnerDetail.findMany({
                 where: {
                     deletedAt: null
@@ -1073,5 +1086,34 @@ exports.getWinnerHighlights = catchAsync(async (req, res) => {
             "Internal Server Error",
             500
         );
+    }
+});
+
+exports.getWinnerFeedbackSetting = catchAsync(async (req, res) => {
+    try {
+        const setting = await prisma.siteSetting.findUnique({
+            where: { key: "show_player_feedback" }
+        });
+        const enabled = setting ? setting.value === "true" : false; // Default false (hidden)
+        return successResponse(res, "Setting fetched", 200, { enabled });
+    } catch (error) {
+        return errorResponse(res, error.message || "Server Error", 500);
+    }
+});
+
+exports.updateWinnerFeedbackSetting = catchAsync(async (req, res) => {
+    try {
+        const { enabled } = req.body;
+        const value = enabled ? "true" : "false";
+
+        const setting = await prisma.siteSetting.upsert({
+            where: { key: "show_player_feedback" },
+            update: { value },
+            create: { key: "show_player_feedback", value }
+        });
+
+        return successResponse(res, "Feedback section setting updated", 200, { enabled: setting.value === "true" });
+    } catch (error) {
+        return errorResponse(res, error.message || "Server Error", 500);
     }
 });
