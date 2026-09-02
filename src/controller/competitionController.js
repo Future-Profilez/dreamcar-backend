@@ -113,6 +113,10 @@ exports.addCompetition = catchAsync(async (req, res) => {
       ? `${baseUrl}/uploads/${files.prizeImages[0].filename}`
       : "";
 
+    const rulesImage = files.rulesImage && files.rulesImage[0]
+      ? `${baseUrl}/uploads/${files.rulesImage[0].filename}`
+      : (req.body.rulesImage || null);
+
     const slug = generateSlug(title, mainPrize.title || mainPrize.prizeDescription);
 
     const competition = await prisma.competition.create({
@@ -131,6 +135,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
         // prizeDetailImage: mainPrizeImage,
         // prizeFeatures: mainPrize.prizeFeatures || [],
         images,
+        rulesImage,
         status: status !== undefined && status !== null && status !== "" ? parseInt(status) : 1,
         instantWinEnabled: instantWinData?.enabled || false,
         instantWinTriggerPercent: instantWinData?.enabled
@@ -752,6 +757,13 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       finalSlug = generateSlug(title || existingCompetition.title, mainPrizeTitle || existingCompetition.prizeDetail);
     }
 
+    let finalRulesImage = existingCompetition.rulesImage;
+    if (files.rulesImage && files.rulesImage[0]) {
+      finalRulesImage = `${baseUrl}/uploads/${files.rulesImage[0].filename}`;
+    } else if (req.body.rulesImage !== undefined) {
+      finalRulesImage = req.body.rulesImage || null;
+    }
+
     // ✅ Build update object dynamically
     const updateData = {
       ...(title && { title }),
@@ -771,6 +783,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       // prizeFeatures: mainPrizeFeatures,
       // prizeDetailImage: mainPrizeImage,
       images: finalImages,
+      ...(finalRulesImage !== undefined && { rulesImage: finalRulesImage }),
       ...(status !== undefined && status !== null && status !== "" && { status: parseInt(status) }),
       ...(instantWinData && {
         instantWinEnabled: instantWinData.enabled,
