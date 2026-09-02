@@ -14,7 +14,7 @@ router.post("/competition/create",
   upload.fields([
     // { name: "detailImage", maxCount: 1 },
     { name: "prizeDetailImage", maxCount: 1 },
-    // { name: "rulesImage", maxCount: 1 },
+    { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 }, // ✅ include here
     { name: "instantWinImages", maxCount: 50 },
     { name: "prizeImages", maxCount: 10 },
@@ -38,7 +38,7 @@ router.post("/competition/update/:id",
   upload.fields([
     // { name: "detailImage", maxCount: 1 },
     { name: "prizeDetailImage", maxCount: 1 },
-    // { name: "rulesImage", maxCount: 1 },
+    { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 },
     { name: "instantWinImages", maxCount: 50 },
     { name: "prizeImages", maxCount: 50 },

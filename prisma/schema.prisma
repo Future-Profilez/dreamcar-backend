@@ -61,6 +61,7 @@ model Competition {
   isHero                   Int                  @default(0)
   reservedTickets          Int                  @default(0)
   shuffleKey               String?
+  rulesImage               String?
   questions                ComplianceQuestion[]
   contentSections          ContentSection[]
   instantWins              InstantWin[]
