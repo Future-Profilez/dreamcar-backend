@@ -1691,11 +1691,20 @@ exports.getSimilarCompetitions =
       );
     }
 
+    const now = new Date();
+
+    const baseWhere = {
+      deletedAt: null,
+      status: 1,
+      startTime: { lte: now },
+      endTime: { gte: now }
+    };
+
     // SAME CATEGORY
     let competitions =
       await prisma.competition.findMany({
         where: {
-          deletedAt: null,
+          ...baseWhere,
           id: {
             not: currentCompetition.id
           },
@@ -1721,7 +1730,7 @@ exports.getSimilarCompetitions =
       const extra =
         await prisma.competition.findMany({
           where: {
-            deletedAt: null,
+            ...baseWhere,
             id: {
               notIn: [
                 currentCompetition.id,
