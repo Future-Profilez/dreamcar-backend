@@ -117,6 +117,10 @@ exports.addCompetition = catchAsync(async (req, res) => {
       ? `${baseUrl}/uploads/${files.rulesImage[0].filename}`
       : (req.body.rulesImage || null);
 
+    const detailImage = files.detailImage && files.detailImage[0]
+      ? `${baseUrl}/uploads/${files.detailImage[0].filename}`
+      : (req.body.detailImage || null);
+
     const slug = generateSlug(title, mainPrize.title || mainPrize.prizeDescription);
 
     const competition = await prisma.competition.create({
@@ -136,6 +140,7 @@ exports.addCompetition = catchAsync(async (req, res) => {
         // prizeFeatures: mainPrize.prizeFeatures || [],
         images,
         rulesImage,
+        detailImage,
         status: status !== undefined && status !== null && status !== "" ? parseInt(status) : 1,
         instantWinEnabled: instantWinData?.enabled || false,
         instantWinTriggerPercent: instantWinData?.enabled
@@ -756,12 +761,18 @@ exports.updateCompetition = catchAsync(async (req, res) => {
     if (!finalSlug) {
       finalSlug = generateSlug(title || existingCompetition.title, mainPrizeTitle || existingCompetition.prizeDetail);
     }
-
     let finalRulesImage = existingCompetition.rulesImage;
     if (files.rulesImage && files.rulesImage[0]) {
-      finalRulesImage = `${baseUrl}/uploads/${files.rulesImage[0].filename}`;
+      finalRulesImage = `${baseUrl}/uploads/${files.rulesImage[0].filename}` ;
     } else if (req.body.rulesImage !== undefined) {
       finalRulesImage = req.body.rulesImage || null;
+    }
+
+    let finalDetailImage = existingCompetition.detailImage;
+    if (files.detailImage && files.detailImage[0]) {
+      finalDetailImage = `${baseUrl}/uploads/${files.detailImage[0].filename}`;
+    } else if (req.body.detailImage !== undefined) {
+      finalDetailImage = req.body.detailImage || null;
     }
 
     // ✅ Build update object dynamically
@@ -784,6 +795,7 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       // prizeDetailImage: mainPrizeImage,
       images: finalImages,
       ...(finalRulesImage !== undefined && { rulesImage: finalRulesImage }),
+      ...(finalDetailImage !== undefined && { detailImage: finalDetailImage }),
       ...(status !== undefined && status !== null && status !== "" && { status: parseInt(status) }),
       ...(instantWinData && {
         instantWinEnabled: instantWinData.enabled,

@@ -12,7 +12,7 @@ router.post("/competition/create",
   verifyToken,
   requireAdmin,
   upload.fields([
-    // { name: "detailImage", maxCount: 1 },
+    { name: "detailImage", maxCount: 1 },
     { name: "prizeDetailImage", maxCount: 1 },
     { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 }, // ✅ include here
@@ -36,7 +36,7 @@ router.post("/competition/update/:id",
   verifyToken,
   requireAdmin,
   upload.fields([
-    // { name: "detailImage", maxCount: 1 },
+    { name: "detailImage", maxCount: 1 },
     { name: "prizeDetailImage", maxCount: 1 },
     { name: "rulesImage", maxCount: 1 },
     { name: "images", maxCount: 10 },
