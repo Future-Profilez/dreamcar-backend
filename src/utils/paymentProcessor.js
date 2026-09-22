@@ -462,11 +462,21 @@ const processSuccessfulPayment = async (session) => {
                 where: { id: parsedCompetitionId },
                 data: {
                     soldTickets: { increment: parsedQty },
-                    // Release exactly what this reservation held (its own quantity), so
-                    // reservedTickets can never drift negative if qty ever diverges.
                     ...(reservedConsumed ? { reservedTickets: { decrement: reservation.quantity } } : {})
                 }
             });
+
+            // Reconcile and ensure reservedTickets never drifts negative
+            await tx.$executeRaw`
+                UPDATE "Competition"
+                SET "reservedTickets" = GREATEST(0, (
+                    SELECT COALESCE(SUM(quantity), 0)
+                    FROM "TicketReservation"
+                    WHERE "competitionId" = ${parsedCompetitionId}
+                      AND status = 'reserved'
+                      AND "expiresAt" > NOW()
+                ))
+                WHERE id = ${parsedCompetitionId}`;
 
             // 5. Generate ticket numbers safely + check wins.
             // Each buyer claims a contiguous block of POSITIONS (0-indexed) in the sold
@@ -772,10 +782,16 @@ const releaseReservationsForSession = async (sessionId) => {
                 data: { status: "released" }
             });
             if (claim.count === 0) return; // already confirmed or released elsewhere
-            await tx.competition.update({
-                where: { id: r.competitionId },
-                data: { reservedTickets: { decrement: r.quantity } }
-            });
+            await tx.$executeRaw`
+                UPDATE "Competition"
+                SET "reservedTickets" = GREATEST(0, (
+                    SELECT COALESCE(SUM(quantity), 0)
+                    FROM "TicketReservation"
+                    WHERE "competitionId" = ${r.competitionId}
+                      AND status = 'reserved'
+                      AND "expiresAt" > NOW()
+                ))
+                WHERE id = ${r.competitionId}`;
         });
     }
 };

@@ -4,6 +4,20 @@ const prisma = require("../prismaconfig");
 
 const RESERVATION_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
+// Helper to synchronize Competition.reservedTickets to the actual active reservations count
+const reconcileCompetitionReserved = async (competitionId, tx = prisma) => {
+  await tx.$executeRaw`
+    UPDATE "Competition"
+    SET "reservedTickets" = (
+      SELECT COALESCE(SUM(quantity), 0)
+      FROM "TicketReservation"
+      WHERE "competitionId" = ${competitionId}
+        AND status = 'reserved'
+        AND "expiresAt" > NOW()
+    )
+    WHERE id = ${competitionId}`;
+};
+
 // Helper to clean up any expired reservations globally in DB
 const cleanupExpiredReservations = async () => {
   try {
@@ -12,24 +26,23 @@ const cleanupExpiredReservations = async () => {
       where: {
         status: "reserved",
         expiresAt: { lt: now }
-      }
+      },
+      select: { id: true, competitionId: true }
     });
 
-    for (const resv of expiredList) {
-      await prisma.$transaction([
-        prisma.ticketReservation.update({
-          where: { id: resv.id },
-          data: { status: "expired" }
-        }),
-        prisma.competition.update({
-          where: { id: resv.competitionId },
-          data: {
-            reservedTickets: {
-              decrement: resv.quantity
-            }
-          }
-        })
-      ]).catch(e => console.error("Error expiring reservation:", e));
+    if (expiredList.length === 0) return;
+
+    const compIds = [...new Set(expiredList.map(r => r.competitionId))];
+
+    await prisma.ticketReservation.updateMany({
+      where: {
+        id: { in: expiredList.map(r => r.id) }
+      },
+      data: { status: "expired" }
+    });
+
+    for (const compId of compIds) {
+      await reconcileCompetitionReserved(compId);
     }
   } catch (err) {
     console.error("Cleanup expired reservations error:", err);
@@ -67,20 +80,19 @@ const syncCartReservations = async (userId) => {
   if (!cart || cart.items.length === 0) {
     // Release any existing reserved items for this user
     const existing = await prisma.ticketReservation.findMany({
-      where: { userId, status: "reserved" }
+      where: { userId, status: "reserved" },
+      select: { id: true, competitionId: true }
     });
 
-    for (const resv of existing) {
-      await prisma.$transaction([
-        prisma.ticketReservation.update({
-          where: { id: resv.id },
-          data: { status: "cancelled" }
-        }),
-        prisma.competition.update({
-          where: { id: resv.competitionId },
-          data: { reservedTickets: { decrement: resv.quantity } }
-        })
-      ]).catch(e => console.error("Error cancelling reservation:", e));
+    if (existing.length > 0) {
+      const compIds = [...new Set(existing.map(r => r.competitionId))];
+      await prisma.ticketReservation.updateMany({
+        where: { id: { in: existing.map(r => r.id) } },
+        data: { status: "cancelled" }
+      });
+      for (const compId of compIds) {
+        await reconcileCompetitionReserved(compId);
+      }
     }
     return null;
   }
@@ -138,24 +150,16 @@ const syncCartReservations = async (userId) => {
   // Update or create reservation per competition item
   for (const item of compItems) {
     const existingResv = activeReservations.find(r => r.competitionId === item.itemId);
-    const existingQty = existingResv ? existingResv.quantity : 0;
-    const qtyDiff = item.quantity - existingQty;
 
     if (existingResv) {
-      if (qtyDiff !== 0) {
-        await prisma.$transaction([
-          prisma.ticketReservation.update({
-            where: { id: existingResv.id },
-            data: {
-              quantity: item.quantity,
-              expiresAt
-            }
-          }),
-          prisma.competition.update({
-            where: { id: item.itemId },
-            data: { reservedTickets: { increment: qtyDiff } }
-          })
-        ]);
+      if (item.quantity !== existingResv.quantity) {
+        await prisma.ticketReservation.update({
+          where: { id: existingResv.id },
+          data: {
+            quantity: item.quantity,
+            expiresAt
+          }
+        });
       } else {
         await prisma.ticketReservation.update({
           where: { id: existingResv.id },
@@ -164,39 +168,35 @@ const syncCartReservations = async (userId) => {
       }
     } else if (expiresAt) {
       const sessionId = `cart_${userId}_${Date.now()}`;
-      await prisma.$transaction([
-        prisma.ticketReservation.upsert({
-          where: {
-            sessionId_competitionId: {
-              sessionId,
-              competitionId: item.itemId
-            }
-          },
-          update: {
-            quantity: item.quantity,
-            status: "reserved",
-            expiresAt
-          },
-          create: {
+      await prisma.ticketReservation.upsert({
+        where: {
+          sessionId_competitionId: {
             sessionId,
-            competitionId: item.itemId,
-            userId,
-            quantity: item.quantity,
-            status: "reserved",
-            expiresAt
+            competitionId: item.itemId
           }
-        }),
-        prisma.competition.update({
-          where: { id: item.itemId },
-          data: { reservedTickets: { increment: item.quantity } }
-        })
-      ]);
+        },
+        update: {
+          quantity: item.quantity,
+          status: "reserved",
+          expiresAt
+        },
+        create: {
+          sessionId,
+          competitionId: item.itemId,
+          userId,
+          quantity: item.quantity,
+          status: "reserved",
+          expiresAt
+        }
+      });
     }
+    await reconcileCompetitionReserved(item.itemId);
   }
 
   return expiresAt;
 };
 
+exports.reconcileCompetitionReserved = reconcileCompetitionReserved;
 exports.getActiveReservedTickets = getActiveReservedTickets;
 
 
@@ -465,35 +465,29 @@ exports.reReserveCart = catchAsync(async (req, res) => {
     // Lock tickets and create fresh 10-minute reservation
     const expiresAt = new Date(Date.now() + RESERVATION_DURATION_MS);
 
+    // Cancel any previous active reservations for this user on these items
+    await prisma.ticketReservation.updateMany({
+      where: {
+        userId,
+        competitionId: { in: compItems.map(i => i.itemId) },
+        status: "reserved"
+      },
+      data: { status: "cancelled" }
+    });
+
     for (const item of compItems) {
       const sessionId = `cart_${userId}_${Date.now()}`;
-      await prisma.$transaction([
-        prisma.ticketReservation.upsert({
-          where: {
-            sessionId_competitionId: {
-              sessionId,
-              competitionId: item.itemId
-            }
-          },
-          update: {
-            quantity: item.quantity,
-            status: "reserved",
-            expiresAt
-          },
-          create: {
-            sessionId,
-            competitionId: item.itemId,
-            userId,
-            quantity: item.quantity,
-            status: "reserved",
-            expiresAt
-          }
-        }),
-        prisma.competition.update({
-          where: { id: item.itemId },
-          data: { reservedTickets: { increment: item.quantity } }
-        })
-      ]);
+      await prisma.ticketReservation.create({
+        data: {
+          sessionId,
+          competitionId: item.itemId,
+          userId,
+          quantity: item.quantity,
+          status: "reserved",
+          expiresAt
+        }
+      });
+      await reconcileCompetitionReserved(item.itemId);
     }
 
     return successResponse(res, "Tickets re-reserved successfully!", 200, {
