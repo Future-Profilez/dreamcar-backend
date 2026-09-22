@@ -9,7 +9,7 @@ const parseLondonDateTime = require("../utils/parseLondonDateTime");
 const {
   getCompetitionTicketDiscountPercent,
 } = require("../utils/ticketDiscount");
-const { getActiveReservedTickets } = require("./cartController");
+const { getActiveReservedTickets, reconcileCompetitionReserved } = require("./cartController");
 
 
 exports.addCompetition = catchAsync(async (req, res) => {
@@ -1154,67 +1154,71 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
     const RESERVATION_TTL_MS = 35 * 60 * 1000; // 35 min (>= Stripe's 30-min minimum expires_at, with buffer)
 
     // Atomically reserve inventory for every competition in this purchase.
-    // The guarded UPDATE only succeeds while real availability remains, so concurrent
-    // buyers (card OR wallet) can never oversell. Returns the per-competition amounts
-    // reserved so the caller can roll them back on any later failure.
+    // Concurrency is protected using PostgreSQL row-level locks (FOR UPDATE).
+    // Available tickets for the purchasing user are calculated excluding their own active holds,
+    // so they are never blocked by their own cart or prior checkout attempts.
     const reserveInventory = async () => {
       const reserved = [];
       const now = new Date();
 
-      for (const t of ticketPricing) {
-        // Calculate how many tickets this user ALREADY holds in active cart reservation for this competition
-        const userActiveResv = await prisma.ticketReservation.aggregate({
-          where: {
-            userId,
-            competitionId: t.competition.id,
-            status: "reserved",
-            expiresAt: { gt: now }
-          },
-          _sum: { quantity: true }
-        });
-        const userCartQty = userActiveResv._sum.quantity || 0;
-        const qtyDiff = t.parsedQty - userCartQty;
+      await prisma.$transaction(async (tx) => {
+        for (const t of ticketPricing) {
+          // 1. Acquire row lock on Competition so no concurrent purchase can race
+          await tx.$executeRaw`
+            SELECT id FROM "Competition" WHERE id = ${t.competition.id} FOR UPDATE`;
 
-        // Atomically update Competition reservedTickets.
-        // We deduct userCartQty from reservedTickets in the availability check so the user's
-        // own cart reservation is not counted against them when purchasing remaining tickets.
-        const affected = await prisma.$executeRaw`
-          UPDATE "Competition"
-          SET "reservedTickets" = "reservedTickets" + ${qtyDiff}
-          WHERE id = ${t.competition.id}
-            AND ("totalTickets" - "soldTickets" - ("reservedTickets" - ${userCartQty})) >= ${t.parsedQty}`;
+          // 2. Count active reservations held by OTHER users (exclude this user's current holds)
+          const otherActiveResvs = await tx.ticketReservation.aggregate({
+            where: {
+              competitionId: t.competition.id,
+              userId: { not: userId },
+              status: "reserved",
+              expiresAt: { gt: now }
+            },
+            _sum: { quantity: true }
+          });
+          const activeReservedOthers = otherActiveResvs._sum.quantity || 0;
 
-        if (affected === 0) {
-          // Roll back whatever we already reserved in this loop, then signal sold-out.
-          await releaseInventory(reserved);
-          const err = new Error(`Not enough tickets left for ${t.competition.title}.`);
-          err.soldOut = true;
-          throw err;
+          // 3. Fetch latest competition total and sold counts
+          const comp = await tx.competition.findUnique({
+            where: { id: t.competition.id },
+            select: { totalTickets: true, soldTickets: true, title: true }
+          });
+
+          const availableForUser = comp.totalTickets - comp.soldTickets - activeReservedOthers;
+
+          if (t.parsedQty > availableForUser) {
+            const totalUnsold = comp.totalTickets - comp.soldTickets;
+            if (activeReservedOthers > 0 && totalUnsold >= t.parsedQty) {
+              const err = new Error("High Demand! Someone is currently holding these tickets. Check back shortly!");
+              err.soldOut = true;
+              throw err;
+            }
+            const err = new Error(`Not enough tickets left for ${comp.title}. Only ${Math.max(0, availableForUser)} available.`);
+            err.soldOut = true;
+            throw err;
+          }
+
+          // 4. Supersede prior active reservations for THIS user on this competition
+          await tx.ticketReservation.updateMany({
+            where: {
+              userId,
+              competitionId: t.competition.id,
+              status: "reserved"
+            },
+            data: { status: "superseded" }
+          });
+
+          reserved.push({ competitionId: t.competition.id, qty: t.parsedQty });
         }
-
-        reserved.push({ competitionId: t.competition.id, qty: t.parsedQty, qtyDiff });
-      }
-
-      // Mark old cart reservations for these competitions as superseded
-      for (const t of ticketPricing) {
-        await prisma.ticketReservation.updateMany({
-          where: {
-            userId,
-            competitionId: t.competition.id,
-            status: "reserved"
-          },
-          data: { status: "superseded" }
-        });
-      }
+      });
 
       return reserved;
     };
 
     const releaseInventory = async (reserved) => {
       for (const r of reserved) {
-        const delta = r.qtyDiff !== undefined ? r.qtyDiff : r.qty;
-        await prisma.$executeRaw`
-          UPDATE "Competition" SET "reservedTickets" = "reservedTickets" - ${delta} WHERE id = ${r.competitionId}`;
+        await reconcileCompetitionReserved(r.competitionId);
       }
     };
 
@@ -1257,6 +1261,10 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
           expiresAt: new Date(Date.now() + RESERVATION_TTL_MS)
         }))
       });
+
+      for (const r of reserved) {
+        await reconcileCompetitionReserved(r.competitionId);
+      }
 
       const sessionObj = {
         id: mockSessionId,
@@ -1371,6 +1379,10 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
             expiresAt: new Date(expiresAtUnix * 1000)
           }))
         });
+
+        for (const r of reserved) {
+          await reconcileCompetitionReserved(r.competitionId);
+        }
       } catch (persistErr) {
         // Couldn't record the reservation — release inventory and cancel the session
         // so the customer isn't charged against tickets we can't track.
