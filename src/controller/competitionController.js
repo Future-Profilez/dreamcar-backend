@@ -123,11 +123,26 @@ exports.addCompetition = catchAsync(async (req, res) => {
 
     const slug = generateSlug(title, mainPrize.title || mainPrize.prizeDescription);
 
+    let parsedDetailFeatures = [];
+    if (req.body.detailFeatures) {
+      if (Array.isArray(req.body.detailFeatures)) {
+        parsedDetailFeatures = req.body.detailFeatures;
+      } else {
+        try {
+          parsedDetailFeatures = JSON.parse(req.body.detailFeatures);
+        } catch (e) {
+          parsedDetailFeatures = [];
+        }
+      }
+    }
+
     const competition = await prisma.competition.create({
       data: {
         title,
         slug,
         detail,
+        detailTitle: req.body.detailTitle && req.body.detailTitle.trim() ? req.body.detailTitle.trim() : null,
+        detailFeatures: parsedDetailFeatures,
         productType,
         ticketPrice: Number(ticketPrice),
         totalTickets: parseInt(totalTickets),
@@ -775,11 +790,26 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       finalDetailImage = req.body.detailImage || null;
     }
 
+    let parsedDetailFeatures = undefined;
+    if (req.body.detailFeatures !== undefined) {
+      if (Array.isArray(req.body.detailFeatures)) {
+        parsedDetailFeatures = req.body.detailFeatures;
+      } else {
+        try {
+          parsedDetailFeatures = JSON.parse(req.body.detailFeatures);
+        } catch (e) {
+          parsedDetailFeatures = [];
+        }
+      }
+    }
+
     // ✅ Build update object dynamically
     const updateData = {
       ...(title && { title }),
       slug: finalSlug,
       ...(detail && { detail }),
+      ...(req.body.detailTitle !== undefined && { detailTitle: req.body.detailTitle && req.body.detailTitle.trim() ? req.body.detailTitle.trim() : null }),
+      ...(parsedDetailFeatures !== undefined && { detailFeatures: parsedDetailFeatures }),
       ...(productType && { productType }),
       // ...(ticketPrice && { ticketPrice: parseInt(ticketPrice) }),
       ...(ticketPrice !== undefined &&

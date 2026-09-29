@@ -41,6 +41,7 @@ model Competition {
   title                    String
   images                   String[]
   detail                   String
+  detailTitle              String?
   ticketPrice              Decimal              @db.Decimal(10, 2)
   totalTickets             Int
   soldTickets              Int                  @default(0)
@@ -63,6 +64,7 @@ model Competition {
   shuffleKey               String?
   rulesImage               String?
   detailImage              String?
+  detailFeatures           String[]             @default([])
   questions                ComplianceQuestion[]
   contentSections          ContentSection[]
   instantWins              InstantWin[]
