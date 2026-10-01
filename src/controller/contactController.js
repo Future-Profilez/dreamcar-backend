@@ -113,14 +113,33 @@ exports.addEnquiry = catchAsync(async (req, res) => {
             return errorResponse(res, "All required fields must be provided", 200);
         }
 
-        // Sync to Klaviyo
-        await subscribeToKlaviyo({
-            email: email.trim().toLowerCase(),
-            name: fullName.trim(),
-            phone: phone ? phone.trim() : "",
-            listId: process.env.WEBSITE_CONTACT_FORM_KLAVIYO_LIST_ID,
-            customSource: "Contact Form"
-        });
+        // Sync to Klaviyo: Contact Form Submitted event
+        try {
+            const { trackEvent, parseName, normalizePhoneE164 } = require("../utils/klaviyoService");
+            const cleanEmail = email.trim().toLowerCase();
+            const { firstName, lastName } = parseName(fullName);
+            const normalizedPhone = normalizePhoneE164(phone);
+
+            await trackEvent({
+                metricName: "Contact Form Submitted",
+                profile: {
+                    email: cleanEmail,
+                    first_name: firstName,
+                    last_name: lastName,
+                    phone: normalizedPhone
+                },
+                properties: {
+                    full_name: fullName.trim(),
+                    email: cleanEmail,
+                    phone: normalizedPhone || phone || "",
+                    subject: subject.trim(),
+                    message: message.trim()
+                },
+                uniqueId: `contact_form_${Date.now()}`
+            });
+        } catch (klaviyoErr) {
+            console.error("Klaviyo Contact Form hook error:", klaviyoErr.message);
+        }
 
         const contact = await prisma.contact.create({
             data: {

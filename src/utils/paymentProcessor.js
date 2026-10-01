@@ -738,6 +738,117 @@ const processSuccessfulPayment = async (session) => {
     } catch (err) {
         console.error("Failed to clear cart:", err);
     }
+
+    // 9. Sync to Klaviyo: Placed Order + Ordered Product + Profile Properties
+    try {
+        const { trackEvent, formatCompetitionFields, updateProfileProperties } = require("./klaviyoService");
+
+        const user = await prisma.user.findUnique({
+            where: { id: parsedUserId }
+        });
+
+        if (user) {
+            const sessionPayments = await prisma.stripePayment.findMany({
+                where: { sessionId: session.id },
+                include: {
+                    competition: true,
+                    tickets: {
+                        select: { ticketNumber: true }
+                    }
+                }
+            });
+
+            if (sessionPayments && sessionPayments.length > 0) {
+                const previousPaymentsCount = await prisma.stripePayment.count({
+                    where: {
+                        userId: parsedUserId,
+                        status: "success",
+                        sessionId: { not: session.id }
+                    }
+                });
+                const isFirstOrder = previousPaymentsCount === 0;
+
+                let totalOrderValue = 0;
+                let totalOrderTickets = 0;
+                const orderItems = [];
+
+                for (const p of sessionPayments) {
+                    const comp = p.competition;
+                    if (comp) {
+                        const ticketNumbers = p.tickets.map(t => t.ticketNumber);
+                        const compFields = formatCompetitionFields(comp);
+                        const lineTotal = Number(p.amount);
+                        const qty = p.quantity || ticketNumbers.length;
+
+                        totalOrderValue += lineTotal;
+                        totalOrderTickets += qty;
+
+                        orderItems.push({
+                            ...compFields,
+                            quantity: qty,
+                            line_total: lineTotal,
+                            ticket_numbers: ticketNumbers
+                        });
+
+                        // Trigger 7: Ordered Product (1x per competition in the order)
+                        trackEvent({
+                            metricName: "Ordered Product",
+                            profile: {
+                                email: user.email,
+                                external_id: String(user.memberNumber || user.id),
+                                member_number: user.memberNumber || user.id,
+                                phone: user.phone,
+                                first_name: user.name?.split(" ")[0],
+                                last_name: user.name?.split(" ").slice(1).join(" ")
+                            },
+                            properties: {
+                                ...compFields,
+                                order_number: session.id,
+                                quantity: qty,
+                                ticket_numbers: ticketNumbers,
+                                unique_id: `${session.id}_${comp.id}`
+                            },
+                            value: lineTotal,
+                            uniqueId: `${session.id}_${comp.id}`
+                        });
+                    }
+                }
+
+                totalOrderValue = Number(totalOrderValue.toFixed(2));
+
+                // Trigger 6: Placed Order (1x per order)
+                trackEvent({
+                    metricName: "Placed Order",
+                    profile: {
+                        email: user.email,
+                        external_id: String(user.memberNumber || user.id),
+                        member_number: user.memberNumber || user.id,
+                        phone: user.phone,
+                        first_name: user.name?.split(" ")[0],
+                        last_name: user.name?.split(" ").slice(1).join(" ")
+                    },
+                    properties: {
+                        unique_id: session.id,
+                        order_number: session.id,
+                        value: totalOrderValue,
+                        currency: "GBP",
+                        discount_code: null,
+                        total_tickets: totalOrderTickets,
+                        is_first_order: isFirstOrder,
+                        member_number: user.memberNumber || user.id,
+                        items: orderItems
+                    },
+                    value: totalOrderValue,
+                    uniqueId: session.id
+                });
+
+                // Trigger 12: Update profile properties
+                updateProfileProperties(user);
+            }
+        }
+    } catch (klaviyoErr) {
+        console.error("Klaviyo Placed Order / Ordered Product error:", klaviyoErr.message);
+    }
 };
 
 async function generateUniqueGiftCode() {

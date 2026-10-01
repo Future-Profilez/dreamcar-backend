@@ -16,6 +16,7 @@ require('./cron/competitionEndCron');
 require("./cron/newsletterCron");
 require("./cron/competitionUpdatesCron");
 require("./cron/releaseExpiredReservationsCron");
+require("./cron/klaviyoCompetitionCron");
 
 const serializeError = (err) => {
   if (!err) return "Unknown error";

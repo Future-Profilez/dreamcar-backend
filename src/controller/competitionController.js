@@ -1321,6 +1321,54 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
         });
 
         try {
+          // Sync to Klaviyo: Started Checkout (Wallet)
+          try {
+            const { trackEvent, formatCompetitionFields } = require("../utils/klaviyoService");
+            const checkoutItems = [];
+            const itemNames = [];
+            let totalTicketsCount = 0;
+
+            for (const it of pricedItemsForMetadata) {
+              const comp = await prisma.competition.findUnique({ where: { id: parseInt(it.itemId) } });
+              if (comp) {
+                checkoutItems.push({
+                  ...formatCompetitionFields(comp),
+                  quantity: parseInt(it.quantity),
+                  line_total: it.finalAmountCents ? Number(it.finalAmountCents) / 100 : Number(comp.ticketPrice) * parseInt(it.quantity)
+                });
+                itemNames.push(comp.title);
+                totalTicketsCount += parseInt(it.quantity);
+              }
+            }
+
+            const totalValue = Number(totalAmount.toFixed(2));
+            const frontendUrl = (process.env.FRONTEND_URL || "https://dreamcarcompetitions.com").replace(/\/$/, "");
+
+            trackEvent({
+              metricName: "Started Checkout",
+              profile: {
+                email: req.user.email,
+                external_id: String(req.user.memberNumber || req.user.id),
+                member_number: req.user.memberNumber || req.user.id,
+                phone: req.user.phone,
+                first_name: req.user.name?.split(" ")[0],
+                last_name: req.user.name?.split(" ").slice(1).join(" ")
+              },
+              properties: {
+                unique_id: mockSessionId,
+                value: totalValue,
+                total_tickets: totalTicketsCount,
+                items: checkoutItems,
+                item_names: itemNames,
+                checkout_url: `${frontendUrl}/cart`
+              },
+              value: totalValue,
+              uniqueId: mockSessionId
+            });
+          } catch (klaviyoErr) {
+            console.error("Klaviyo Started Checkout (Wallet) error:", klaviyoErr.message);
+          }
+
           const { processSuccessfulPayment } = require("../utils/paymentProcessor");
           await processSuccessfulPayment(sessionObj);
         } catch (processErr) {
@@ -1390,6 +1438,54 @@ exports.createCompetitionPayment = catchAsync(async (req, res) => {
             items: JSON.stringify(pricedItemsForMetadata)
           }
         });
+
+        // Sync to Klaviyo: Started Checkout (Card)
+        try {
+          const { trackEvent, formatCompetitionFields } = require("../utils/klaviyoService");
+          const checkoutItems = [];
+          const itemNames = [];
+          let totalTicketsCount = 0;
+
+          for (const it of pricedItemsForMetadata) {
+            const comp = await prisma.competition.findUnique({ where: { id: parseInt(it.itemId) } });
+            if (comp) {
+              checkoutItems.push({
+                ...formatCompetitionFields(comp),
+                quantity: parseInt(it.quantity),
+                line_total: it.finalAmountCents ? Number(it.finalAmountCents) / 100 : Number(comp.ticketPrice) * parseInt(it.quantity)
+              });
+              itemNames.push(comp.title);
+              totalTicketsCount += parseInt(it.quantity);
+            }
+          }
+
+          const totalValue = Number(totalAmount.toFixed(2));
+          const frontendUrl = (process.env.FRONTEND_URL || "https://dreamcarcompetitions.com").replace(/\/$/, "");
+
+          trackEvent({
+            metricName: "Started Checkout",
+            profile: {
+              email: req.user.email,
+              external_id: String(req.user.memberNumber || req.user.id),
+              member_number: req.user.memberNumber || req.user.id,
+              phone: req.user.phone,
+              first_name: req.user.name?.split(" ")[0],
+              last_name: req.user.name?.split(" ").slice(1).join(" ")
+            },
+            properties: {
+              unique_id: session.id,
+              value: totalValue,
+              total_tickets: totalTicketsCount,
+              items: checkoutItems,
+              item_names: itemNames,
+              checkout_url: session.url || `${frontendUrl}/cart`
+            },
+            value: totalValue,
+            uniqueId: session.id
+          });
+        } catch (klaviyoErr) {
+          console.error("Klaviyo Started Checkout (Card) error:", klaviyoErr.message);
+        }
       } catch (stripeErr) {
         // Stripe failed — free the reserved inventory so it isn't leaked.
         await releaseInventory(reserved);

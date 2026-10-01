@@ -57,7 +57,7 @@ const validatePhone = (phone) => {
 
 exports.signup = catchAsync(async (req, res) => {
   try {
-    const { name, email, password, phone, marketingOptIn } = req.body;
+    const { name, email, password, phone, marketingOptIn, smsOptIn } = req.body;
     if (!name || !email || !password || !phone) {
       return errorResponse(res, "All fields are required", 200);
     }
@@ -100,6 +100,48 @@ exports.signup = catchAsync(async (req, res) => {
         user?.otp
       )
     });
+
+    // Sync to Klaviyo: Account Created + Profile Properties + Marketing/SMS Subscription
+    try {
+      const { trackEvent, updateProfileProperties, subscribeProfile } = require("../utils/klaviyoService");
+      const firstName = user.name ? user.name.split(" ")[0] : "";
+      const lastName = user.name ? user.name.split(" ").slice(1).join(" ") : "";
+
+      trackEvent({
+        metricName: "Account Created",
+        profile: {
+          email: user.email,
+          external_id: String(user.memberNumber),
+          member_number: user.memberNumber,
+          phone: user.phone,
+          first_name: firstName,
+          last_name: lastName
+        },
+        properties: {
+          member_number: user.memberNumber,
+          created_at: user.createdAt ? new Date(user.createdAt).toISOString() : new Date().toISOString(),
+          signup_source: "Website Registration"
+        },
+        uniqueId: `account_created_${user.id}`
+      });
+
+      updateProfileProperties(user);
+
+      if (marketingOptIn || smsOptIn) {
+        await subscribeProfile({
+          email: user.email,
+          name: user.name,
+          phone: user.phone,
+          emailConsent: Boolean(marketingOptIn),
+          smsConsent: Boolean(smsOptIn),
+          listId: process.env.WEBSITE_NEWSLETTER_KLAVIYO_LIST_ID,
+          source: "Website Registration"
+        });
+      }
+    } catch (klaviyoErr) {
+      Loggers.error(`Klaviyo signup hook error: ${klaviyoErr.message}`);
+    }
+
     return successResponse(res, "Account created.  OTP sent to email. Please verify it to continue", 201);
   } catch (error) {
     Loggers.error(`Signup error: ${error?.stack || error?.message || String(error)}`);

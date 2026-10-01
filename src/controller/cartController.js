@@ -279,6 +279,65 @@ exports.addToCart = catchAsync(async (req, res) => {
 
     const expiresAt = await syncCartReservations(userId);
 
+    // Sync to Klaviyo: Added to Cart
+    try {
+      const { trackEvent, formatCompetitionFields } = require("../utils/klaviyoService");
+      const currentComp = await prisma.competition.findUnique({
+        where: { id: parsedItemId }
+      });
+
+      if (currentComp && req.user?.email) {
+        const compFields = formatCompetitionFields(currentComp);
+        const frontendUrl = (process.env.FRONTEND_URL || "https://dreamcarcompetitions.com").replace(/\/$/, "");
+
+        const fullCart = await prisma.cart.findUnique({
+          where: { id: cart.id },
+          include: { items: true }
+        });
+
+        const fullBasket = [];
+        if (fullCart?.items) {
+          for (const ci of fullCart.items) {
+            if (ci.itemType === "competition") {
+              const c = await prisma.competition.findUnique({ where: { id: ci.itemId } });
+              if (c) {
+                fullBasket.push({
+                  ...formatCompetitionFields(c),
+                  quantity: ci.quantity,
+                  line_total: Number((ci.quantity * Number(c.ticketPrice)).toFixed(2))
+                });
+              }
+            }
+          }
+        }
+
+        const addedValue = Number((parsedQty * Number(currentComp.ticketPrice)).toFixed(2));
+
+        trackEvent({
+          metricName: "Added to Cart",
+          profile: {
+            email: req.user.email,
+            external_id: String(req.user.memberNumber || req.user.id),
+            member_number: req.user.memberNumber || req.user.id,
+            phone: req.user.phone,
+            first_name: req.user.name?.split(" ")[0],
+            last_name: req.user.name?.split(" ").slice(1).join(" ")
+          },
+          properties: {
+            ...compFields,
+            quantity: parsedQty,
+            value: addedValue,
+            items: fullBasket,
+            checkout_url: `${frontendUrl}/cart`
+          },
+          value: addedValue,
+          uniqueId: `cart_add_${userId}_${parsedItemId}_${Date.now()}`
+        });
+      }
+    } catch (klaviyoErr) {
+      console.error("Klaviyo Added to Cart hook error:", klaviyoErr.message);
+    }
+
     return successResponse(res, "Item added to cart", 200, {
       cartItem,
       expiresAt
