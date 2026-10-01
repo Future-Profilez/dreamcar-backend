@@ -294,6 +294,7 @@ const subscribeProfile = async ({
     email,
     name = "",
     phone = null,
+    memberNumber = null,
     emailConsent = true,
     smsConsent = false,
     listId = null,
@@ -320,6 +321,11 @@ const subscribeProfile = async ({
             }
         };
 
+        if (memberNumber) {
+            profileAttributes.external_id = String(memberNumber);
+            profileAttributes.properties.member_number = memberNumber;
+        }
+
         if (normalizedPhone) {
             profileAttributes.phone_number = normalizedPhone;
             profileAttributes.properties.phone = normalizedPhone;
@@ -341,6 +347,20 @@ const subscribeProfile = async ({
             // 2a. Subscribe Email if consent given
             if (emailConsent) {
                 try {
+                    const emailProfileAttrs = {
+                        email: cleanEmail,
+                        subscriptions: {
+                            email: {
+                                marketing: {
+                                    consent: "SUBSCRIBED"
+                                }
+                            }
+                        }
+                    };
+                    if (memberNumber) {
+                        emailProfileAttrs.external_id = String(memberNumber);
+                    }
+
                     await axios.post(
                         `${KLAVIYO_API_BASE}/profile-subscription-bulk-create-jobs`,
                         {
@@ -352,16 +372,7 @@ const subscribeProfile = async ({
                                         data: [
                                             {
                                                 type: "profile",
-                                                attributes: {
-                                                    email: cleanEmail,
-                                                    subscriptions: {
-                                                        email: {
-                                                            marketing: {
-                                                                consent: "SUBSCRIBED"
-                                                            }
-                                                        }
-                                                    }
-                                                }
+                                                attributes: emailProfileAttrs
                                             }
                                         ]
                                     }
@@ -388,6 +399,21 @@ const subscribeProfile = async ({
             // 2b. Subscribe SMS if consent given and phone number available
             if (smsConsent && normalizedPhone) {
                 try {
+                    const smsProfileAttrs = {
+                        email: cleanEmail,
+                        phone_number: normalizedPhone,
+                        subscriptions: {
+                            sms: {
+                                marketing: {
+                                    consent: "SUBSCRIBED"
+                                }
+                            }
+                        }
+                    };
+                    if (memberNumber) {
+                        smsProfileAttrs.external_id = String(memberNumber);
+                    }
+
                     await axios.post(
                         `${KLAVIYO_API_BASE}/profile-subscription-bulk-create-jobs`,
                         {
@@ -399,17 +425,7 @@ const subscribeProfile = async ({
                                         data: [
                                             {
                                                 type: "profile",
-                                                attributes: {
-                                                    email: cleanEmail,
-                                                    phone_number: normalizedPhone,
-                                                    subscriptions: {
-                                                        sms: {
-                                                            marketing: {
-                                                                consent: "SUBSCRIBED"
-                                                            }
-                                                        }
-                                                    }
-                                                }
+                                                attributes: smsProfileAttrs
                                             }
                                         ]
                                     }
