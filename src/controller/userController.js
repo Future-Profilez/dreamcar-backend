@@ -132,6 +132,7 @@ exports.signup = catchAsync(async (req, res) => {
           email: user.email,
           name: user.name,
           phone: user.phone,
+          memberNumber: user.memberNumber,
           emailConsent: Boolean(marketingOptIn),
           smsConsent: Boolean(smsOptIn),
           listId: process.env.WEBSITE_NEWSLETTER_KLAVIYO_LIST_ID,
