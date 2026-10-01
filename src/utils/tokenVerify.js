@@ -24,6 +24,7 @@ exports.verifyToken = async (req, res, next) => {
         email: true,
         phone: true,
         role: true,
+        memberNumber: true,
         deletedAt: true,
         isBlocked: true
       }

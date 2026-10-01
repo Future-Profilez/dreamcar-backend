@@ -136,10 +136,15 @@ exports.subscribeNewsletter = catchAsync(async (req, res) => {
             );
         }
 
-        await subscribeToKlaviyo({
+        const { subscribeProfile } = require("../utils/klaviyoService");
+        await subscribeProfile({
             email: cleanEmail,
             name: cleanName,
-            phone: cleanPhone
+            phone: cleanPhone,
+            emailConsent: true,
+            smsConsent: Boolean(req.body.smsConsent),
+            listId: process.env.WEBSITE_NEWSLETTER_KLAVIYO_LIST_ID,
+            source: "Newsletter Form"
         });
 
         let newsletter;
