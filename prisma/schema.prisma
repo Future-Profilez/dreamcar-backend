@@ -64,6 +64,7 @@ model Competition {
   shuffleKey               String?
   rulesImage               String?
   detailImage              String?
+  heroImage                String?
   detailFeatures           String[]             @default([])
   questions                ComplianceQuestion[]
   contentSections          ContentSection[]
