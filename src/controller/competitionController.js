@@ -121,6 +121,10 @@ exports.addCompetition = catchAsync(async (req, res) => {
       ? `${baseUrl}/uploads/${files.detailImage[0].filename}`
       : (req.body.detailImage || null);
 
+    const heroImage = files.heroImage && files.heroImage[0]
+      ? `${baseUrl}/uploads/${files.heroImage[0].filename}`
+      : (req.body.heroImage || null);
+
     const slug = generateSlug(title, mainPrize.title || mainPrize.prizeDescription);
 
     let parsedDetailFeatures = [];
@@ -156,6 +160,8 @@ exports.addCompetition = catchAsync(async (req, res) => {
         images,
         rulesImage,
         detailImage,
+        heroImage,
+        isHero: req.body.isHero !== undefined ? (String(req.body.isHero) === "1" || String(req.body.isHero) === "true" ? 1 : 0) : 0,
         status: status !== undefined && status !== null && status !== "" ? parseInt(status) : 1,
         instantWinEnabled: instantWinData?.enabled || false,
         instantWinTriggerPercent: instantWinData?.enabled
@@ -790,6 +796,13 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       finalDetailImage = req.body.detailImage || null;
     }
 
+    let finalHeroImage = existingCompetition.heroImage;
+    if (files.heroImage && files.heroImage[0]) {
+      finalHeroImage = `${baseUrl}/uploads/${files.heroImage[0].filename}`;
+    } else if (req.body.heroImage !== undefined) {
+      finalHeroImage = req.body.heroImage || null;
+    }
+
     let parsedDetailFeatures = undefined;
     if (req.body.detailFeatures !== undefined) {
       if (Array.isArray(req.body.detailFeatures)) {
@@ -826,6 +839,10 @@ exports.updateCompetition = catchAsync(async (req, res) => {
       images: finalImages,
       ...(finalRulesImage !== undefined && { rulesImage: finalRulesImage }),
       ...(finalDetailImage !== undefined && { detailImage: finalDetailImage }),
+      ...(finalHeroImage !== undefined && { heroImage: finalHeroImage }),
+      ...(req.body.isHero !== undefined && {
+        isHero: String(req.body.isHero) === "1" || String(req.body.isHero) === "true" ? 1 : 0
+      }),
       ...(status !== undefined && status !== null && status !== "" && { status: parseInt(status) }),
       ...(instantWinData && {
         instantWinEnabled: instantWinData.enabled,
@@ -2353,6 +2370,20 @@ exports.toggleHeroCompetition = catchAsync(async (req, res) => {
       "Competition not found",
       404
     );
+  }
+
+  const now = new Date();
+  const isEnded = competition.endTime && new Date(competition.endTime) <= now;
+  const isSoldOut = competition.totalTickets > 0 && competition.soldTickets >= competition.totalTickets;
+
+  if (competition.isHero !== 1 && (isEnded || isSoldOut)) {
+    let msg = "Since this competition has ended, it cannot be added to the Hero Banner.";
+    if (isEnded && isSoldOut) {
+      msg = "Since this competition has ended and is sold out, it cannot be added to the Hero Banner.";
+    } else if (isSoldOut) {
+      msg = "Since this competition is sold out, it cannot be added to the Hero Banner.";
+    }
+    return errorResponse(res, msg, 400);
   }
 
   const updated =
