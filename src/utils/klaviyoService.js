@@ -298,11 +298,13 @@ const subscribeProfile = async ({
     emailConsent = true,
     smsConsent = false,
     listId = null,
+    smsListId = null,
     source = "Website"
 }) => {
     try {
         const apiKey = process.env.KLAVIYO_PRIVATE_API_KEY;
         const targetListId = listId || process.env.WEBSITE_NEWSLETTER_KLAVIYO_LIST_ID;
+        const targetSmsListId = smsListId || process.env.KLAVIYO_SMS_LIST_ID || targetListId;
 
         if (!apiKey) return false;
         if (!email) return false;
@@ -357,9 +359,6 @@ const subscribeProfile = async ({
                             }
                         }
                     };
-                    if (memberNumber) {
-                        emailProfileAttrs.external_id = String(memberNumber);
-                    }
 
                     await axios.post(
                         `${KLAVIYO_API_BASE}/profile-subscription-bulk-create-jobs`,
@@ -410,9 +409,6 @@ const subscribeProfile = async ({
                             }
                         }
                     };
-                    if (memberNumber) {
-                        smsProfileAttrs.external_id = String(memberNumber);
-                    }
 
                     await axios.post(
                         `${KLAVIYO_API_BASE}/profile-subscription-bulk-create-jobs`,
@@ -434,7 +430,7 @@ const subscribeProfile = async ({
                                     list: {
                                         data: {
                                             type: "list",
-                                            id: targetListId
+                                            id: targetSmsListId
                                         }
                                     }
                                 }

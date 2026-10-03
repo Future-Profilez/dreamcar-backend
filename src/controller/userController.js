@@ -127,6 +127,20 @@ exports.signup = catchAsync(async (req, res) => {
 
       updateProfileProperties(user);
 
+      // 1. Always enroll completed account into New Account Holders list with permanent Member Number
+      const accountHoldersListId = process.env.KLAVIYO_ACCOUNT_HOLDERS_LIST_ID || process.env.WEBSITE_NEWSLETTER_KLAVIYO_LIST_ID;
+      await subscribeProfile({
+        email: user.email,
+        name: user.name,
+        phone: user.phone,
+        memberNumber: user.memberNumber,
+        emailConsent: true,
+        smsConsent: false,
+        listId: accountHoldersListId,
+        source: "Website Registration"
+      });
+
+      // 2. If user agreed to email updates or SMS alerts, also enroll into Newsletters & Text Messaging List
       if (marketingOptIn || smsOptIn) {
         await subscribeProfile({
           email: user.email,
@@ -136,6 +150,7 @@ exports.signup = catchAsync(async (req, res) => {
           emailConsent: Boolean(marketingOptIn),
           smsConsent: Boolean(smsOptIn),
           listId: process.env.WEBSITE_NEWSLETTER_KLAVIYO_LIST_ID,
+          smsListId: process.env.KLAVIYO_SMS_LIST_ID,
           source: "Website Registration"
         });
       }
