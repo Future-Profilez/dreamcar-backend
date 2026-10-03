@@ -136,14 +136,27 @@ exports.subscribeNewsletter = catchAsync(async (req, res) => {
             );
         }
 
+        // Check if this subscriber already has an account on the website
+        const existingAccount = await prisma.user.findFirst({
+            where: {
+                email: {
+                    equals: cleanEmail,
+                    mode: "insensitive"
+                }
+            },
+            select: { id: true, memberNumber: true }
+        });
+
         const { subscribeProfile } = require("../utils/klaviyoService");
         await subscribeProfile({
             email: cleanEmail,
             name: cleanName,
             phone: cleanPhone,
+            memberNumber: existingAccount?.memberNumber || null,
             emailConsent: true,
             smsConsent: Boolean(req.body.smsConsent),
             listId: process.env.WEBSITE_NEWSLETTER_KLAVIYO_LIST_ID,
+            smsListId: process.env.KLAVIYO_SMS_LIST_ID,
             source: "Newsletter Form"
         });
 
@@ -159,8 +172,14 @@ exports.subscribeNewsletter = catchAsync(async (req, res) => {
         } catch (err) {
             if (err?.code === "P2002") {
                 return successResponse(
-                    res, "You are already subscribed to our newsletter!",
-                    200
+                    res,
+                    "You are already subscribed to our newsletter!",
+                    200,
+                    {
+                        isExistingAccount: Boolean(existingAccount),
+                        memberNumber: existingAccount?.memberNumber || null,
+                        alreadySubscribed: true
+                    }
                 );
             }
             throw err;
@@ -178,16 +197,17 @@ exports.subscribeNewsletter = catchAsync(async (req, res) => {
         await sendEmail({
             email: cleanEmail,
             subject: "Welcome To DreamCar Competitions 🚗",
-            emailHtml: NewsletterWelcomeTemplate({
-                competitions:
-                    latestCompetitions
-            })
+            emailHtml: NewsletterWelcomeTemplate(cleanEmail)
         });
         return successResponse(
             res,
             "Subscribed successfully",
             200,
-            newsletter
+            {
+                ...newsletter,
+                isExistingAccount: Boolean(existingAccount),
+                memberNumber: existingAccount?.memberNumber || null
+            }
         );
     } catch (error) {
 
